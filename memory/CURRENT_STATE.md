@@ -2,7 +2,7 @@
 
 **Last verified:** 2026-10-15 (starter-kit creation; repository implementation not yet inspected by a coding agent)  
 **Overall status:** `KERNEL BUILT / API + PROPOSAL LAYER NEXT`  
-**Implementation status:** deterministic kernel (mandate, delegate, authorize, release, settle start/confirm/fail, revoke, lazy expiry sweep, invariants I1–I3) implemented on Supabase Postgres. No API, cost ledger, providers, router, settlement adapter or UI yet.
+**Implementation status:** kernel + HTTP API (FastAPI, hashed per-principal API keys, strict request models) done. Independent Opus review completed; all 9 findings fixed (see CHANGELOG). Not started: cost ledger, providers, router, settlement adapter, UI.
 
 ## One-paragraph project summary
 Budget Kernel is a financial-decision pipeline with (1) selective, cost-aware model routing for interpreting natural-language financial requests into typed proposals, and (2) a deterministic authorization kernel that independently enforces mandates, delegated authority, spending limits, reservations, revocation, idempotency and auditability. LLMs never authorize transactions. All MVP transactions are simulated.
@@ -47,8 +47,8 @@ See [[AGENT_HANDOFF]]. No implementation writer/reviewer has been assigned in th
 - Need to decide exact grant/revocation/reservation semantics in an ADR before implementing them.
 
 ## Last verified tests
-`cd backend && uv run pytest -q` → **65 passed in 277 s** (2026-10-15, bk_test schema on Supabase session pooler). Scope of that claim: the listed scenarios only, not a proof of general security. Not yet covered: property-based state machine, API layer, cost ledger, settlement.
-Measured: DB round trip ~60 ms from the dev machine, so a kernel op holds the mandate lock ~0.6 s (~1.5 ops/s per mandate). Deployed next to the DB it should be much faster. See ADR-0005 section 2.
+`cd backend && uv run pytest -q -m "not slow"` -> **90 passed in 439 s** (2026-10-15, bk_test schema). Covers kernel behaviour, review-driven hardening, 12 concurrency races, HTTP API, static boundaries. The property-based state machine (`-m slow`) is run separately. The claim covers these scenarios only.
+Measured: DB round trip ~60 ms from the dev machine; a kernel op holds the mandate lock ~0.6 s.
 
 ## Next action
 Run the Phase 0 repository reconnaissance in [[docs/MASTER_PLAN]] and update this file with actual repository evidence. Do not assume the status above still applies after the first implementation pass.

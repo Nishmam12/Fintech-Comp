@@ -35,7 +35,7 @@ def test_kernel_does_not_import_model_or_edge_code():
 
 def test_only_kernel_writes_money_tables():
     """No module outside kernel/ (or the migration runner) may INSERT/UPDATE/DELETE money tables."""
-    pat = re.compile(r"\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(grants|transactions|ledger_movements|mandates)\b", re.I)
+    pat = re.compile(r"\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+(\w+\.)?(grants|transactions|ledger_movements|mandates)\b", re.I)
     offenders = []
     for p in py_files():
         rel = p.relative_to(SRC)

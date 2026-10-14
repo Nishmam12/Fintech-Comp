@@ -46,3 +46,16 @@ class KernelBusy(KernelError):
 
     http_status = 503
     code = "KERNEL_BUSY"
+
+
+class KernelInvariantError(KernelError):
+    """A guard that must never fail did fail (e.g. a conditional UPDATE matched no row).
+    The transaction rolls back. Never replace this with `assert`: asserts vanish under python -O."""
+
+    http_status = 500
+    code = "KERNEL_INVARIANT"
+
+
+def ensure(cond: bool, what: str) -> None:
+    if not cond:
+        raise KernelInvariantError(what)

@@ -2,22 +2,23 @@
 
 Everything here is deterministic and trusts nothing a model produced: callers pass already
 validated primitives, and every decision is recomputed from authoritative database state.
+All time comparisons use ctx.now (read after the mandate lock), never SQL now().
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
-from typing import Any
+from datetime import datetime, timedelta, timezone
+from typing import Any, Callable
 
 from psycopg.types.json import Jsonb
 
 from .errors import (Conflict, DelegationRejected, Forbidden, IdempotencyConflict, NotFound,
-                     ValidationFailed)
+                     ValidationFailed, ensure)
 from .funds import reclaim_subtree, release_tx
 from .scope import MAX_BIGINT, is_subset, validate_scope
-from .tx import RESERVE_TTL_SECONDS, audit, kernel_tx, mandate_of_grant, mandate_of_tx, movement
+from .tx import RESERVE_TTL_SECONDS, Ctx, audit, kernel_tx, mandate_of_grant, mandate_of_tx, movement
 
 MAX_DEPTH = 4
 
@@ -29,9 +30,17 @@ def _amount(v: Any) -> int:
 
 
 def _text(v: Any, name: str) -> str:
+    """Case-insensitive business identifiers (recipient, category, currency)."""
     if not isinstance(v, str) or not v.strip() or len(v) > 200:
         raise ValidationFailed(f"{name} must be a non-empty string", code=f"BAD_{name.upper()}")
     return v.strip().lower()
+
+
+def _key(v: Any) -> str:
+    """Idempotency keys are opaque and case-sensitive: never lowercase them."""
+    if not isinstance(v, str) or not v.strip() or len(v) > 200:
+        raise ValidationFailed("idempotency_key must be a non-empty string", code="BAD_IDEMPOTENCY_KEY")
+    return v.strip()
 
 
 def _utc(dt: datetime) -> datetime:
@@ -66,7 +75,7 @@ def create_mandate(pool, *, owner_principal_id, currency: str, total: int, prote
     mid, gid = uuid.uuid4(), uuid.uuid4()
     with pool.connection() as conn:
         with conn.transaction():
-            if not conn.execute("SELECT %s > now() AS ok", (expires_at,)).fetchone()["ok"]:
+            if not conn.execute("SELECT %s > clock_timestamp() AS ok", (expires_at,)).fetchone()["ok"]:
                 raise ValidationFailed("expires_at must be in the future", code="BAD_EXPIRY")
             if conn.execute("SELECT 1 FROM principals WHERE id = %s", (owner_principal_id,)).fetchone() is None:
                 raise NotFound("owner principal not found", code="PRINCIPAL_NOT_FOUND")
@@ -93,7 +102,7 @@ def create_mandate(pool, *, owner_principal_id, currency: str, total: int, prote
 def delegate(pool, *, parent_grant_id, actor, holder_principal_id, amount: int, expires_at: datetime,
              scope: dict, idempotency_key: str) -> dict:
     amount, scope, expires_at = _amount(amount), validate_scope(scope), _utc(expires_at)
-    key = _text(idempotency_key, "idempotency_key")
+    key = _key(idempotency_key)
     phash = _hash({"parent": str(parent_grant_id), "holder": str(holder_principal_id), "amount": amount,
                    "expires_at": expires_at.isoformat(), "scope": scope})
     mid = mandate_of_grant(pool, parent_grant_id)
@@ -116,7 +125,7 @@ def delegate(pool, *, parent_grant_id, actor, holder_principal_id, amount: int, 
             n = c.execute(
                 "UPDATE grants SET available = available - %s WHERE id = %s AND status = 'active'"
                 " AND available >= %s", (amount, parent_grant_id, amount)).rowcount
-            assert n == 1, "delegate: conditional debit failed"
+            ensure(n == 1, "delegate: conditional debit failed")
             c.execute(
                 "INSERT INTO grants(id, mandate_id, parent_id, path, depth, holder_principal_id, available,"
                 " expires_at, scope, idempotency_key, payload_hash) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
@@ -131,8 +140,7 @@ def delegate(pool, *, parent_grant_id, actor, holder_principal_id, amount: int, 
         raise
 
 
-def _delegation_problem(ctx, parent, amount, expires_at, scope, holder) -> str | None:
-    c = ctx.conn
+def _delegation_problem(ctx: Ctx, parent, amount, expires_at, scope, holder) -> str | None:
     problem = _path_problem(ctx, parent)
     if problem:
         return problem
@@ -144,21 +152,23 @@ def _delegation_problem(ctx, parent, amount, expires_at, scope, holder) -> str |
         return "INSUFFICIENT_FUNDS"
     if expires_at > parent["expires_at"]:
         return "EXPIRY_EXCEEDS_PARENT"
-    if not c.execute("SELECT %s > now() AS ok", (expires_at,)).fetchone()["ok"]:
+    if expires_at <= ctx.now:
         return "EXPIRY_IN_PAST"
     if not is_subset(scope, parent["scope"]):
         return "SCOPE_WIDER_THAN_PARENT"
-    if c.execute("SELECT 1 FROM principals WHERE id = %s", (holder,)).fetchone() is None:
+    if ctx.conn.execute("SELECT 1 FROM principals WHERE id = %s", (holder,)).fetchone() is None:
         return "HOLDER_NOT_FOUND"
     return None
 
 
-def _path_problem(ctx, grant) -> str | None:
+def _path_problem(ctx: Ctx, grant) -> str | None:
     """Every grant on the path (and the mandate) must be active and unexpired, read under the lock."""
     if ctx.mandate["status"] != "active":
         return "MANDATE_FROZEN"
+    if ctx.mandate["expires_at"] <= ctx.now:
+        return "MANDATE_EXPIRED"
     rows = ctx.conn.execute(
-        "SELECT status, (expires_at <= now()) AS expired FROM grants WHERE id = ANY(%s)", (grant["path"],)
+        "SELECT status, (expires_at <= %s) AS expired FROM grants WHERE id = ANY(%s)", (ctx.now, grant["path"])
     ).fetchall()
     if len(rows) != len(grant["path"]):
         return "PATH_BROKEN"
@@ -167,8 +177,6 @@ def _path_problem(ctx, grant) -> str | None:
             return "GRANT_REVOKED"
         if r["status"] == "expired" or r["expired"]:
             return "GRANT_EXPIRED"
-    if ctx.conn.execute("SELECT %s <= now() AS e", (ctx.mandate["expires_at"],)).fetchone()["e"]:
-        return "MANDATE_EXPIRED"
     return None
 
 
@@ -177,13 +185,16 @@ def _path_problem(ctx, grant) -> str | None:
 def authorize(pool, *, grant_id, actor, amount: int, currency: str, recipient: str, category: str,
               idempotency_key: str, needs_review: bool = False, proposal: dict | None = None) -> dict:
     """Decide a spend request from authoritative state. A model proposal never reaches this far
-    with trusted fields: the caller passes plain values and `proposal` is stored for display only."""
+    with trusted fields: the caller passes plain values and `proposal` is stored for display only.
+
+    `needs_review` is caller policy (e.g. the router flagged ambiguity): it can only make the
+    outcome stricter (no funds held until an owner approves), never looser."""
     amount = _amount(amount)
     currency = _text(currency, "currency").upper()
     recipient, category = _text(recipient, "recipient"), _text(category, "category")
-    key = _text(idempotency_key, "idempotency_key")
+    key = _key(idempotency_key)
     phash = _hash({"grant": str(grant_id), "amount": amount, "currency": currency, "recipient": recipient,
-                   "category": category})
+                   "category": category, "needs_review": bool(needs_review)})
     mid = mandate_of_grant(pool, grant_id)
     try:
         with kernel_tx(pool, mid) as ctx:
@@ -199,21 +210,17 @@ def authorize(pool, *, grant_id, actor, amount: int, currency: str, recipient: s
                 return _decision(prior, replayed=True)  # stored decision replayed, never re-evaluated
             reason = _authorize_problem(ctx, g, amount, currency, recipient, category)
             if reason:
-                tx = _insert_tx(c, mid, g, amount, currency, recipient, category, "rejected", key, phash,
+                tx = _insert_tx(ctx, g, amount, currency, recipient, category, "rejected", key, phash,
                                 reason=reason, proposal=proposal)
                 audit(c, mid, "TX_REJECTED", actor, tx["id"], reason=reason, amount=amount)
                 return _decision(tx)
             if needs_review:
-                tx = _insert_tx(c, mid, g, amount, currency, recipient, category, "proposed", key, phash,
+                tx = _insert_tx(ctx, g, amount, currency, recipient, category, "proposed", key, phash,
                                 proposal=proposal)
                 audit(c, mid, "TX_PROPOSED", actor, tx["id"], amount=amount)
                 return _decision(tx)
-            n = c.execute(
-                "UPDATE grants SET available = available - %s, reserved = reserved + %s"
-                " WHERE id = %s AND status = 'active' AND available >= %s",
-                (amount, amount, grant_id, amount)).rowcount
-            assert n == 1, "authorize: conditional reserve failed"
-            tx = _insert_tx(c, mid, g, amount, currency, recipient, category, "reserved", key, phash,
+            _reserve(ctx, g["id"], amount)
+            tx = _insert_tx(ctx, g, amount, currency, recipient, category, "reserved", key, phash,
                             proposal=proposal, ttl=True)
             movement(c, mid, "reserve", amount, from_grant=grant_id, from_bucket="available", to_grant=grant_id,
                      to_bucket="reserved", transaction_id=tx["id"], actor=actor)
@@ -224,7 +231,15 @@ def authorize(pool, *, grant_id, actor, amount: int, currency: str, recipient: s
         raise
 
 
-def _authorize_problem(ctx, g, amount, currency, recipient, category) -> str | None:
+def _reserve(ctx: Ctx, grant_id, amount: int) -> None:
+    n = ctx.conn.execute(
+        "UPDATE grants SET available = available - %s, reserved = reserved + %s"
+        " WHERE id = %s AND status = 'active' AND available >= %s",
+        (amount, amount, grant_id, amount)).rowcount
+    ensure(n == 1, "conditional reserve failed")
+
+
+def _authorize_problem(ctx: Ctx, g, amount, currency, recipient, category) -> str | None:
     problem = _path_problem(ctx, g)
     if problem:
         return problem
@@ -242,20 +257,55 @@ def _authorize_problem(ctx, g, amount, currency, recipient, category) -> str | N
     return None
 
 
-def _insert_tx(c, mid, g, amount, currency, recipient, category, state, key, phash, *, reason=None,
+def _insert_tx(ctx: Ctx, g, amount, currency, recipient, category, state, key, phash, *, reason=None,
                proposal=None, ttl=False):
-    expiry_sql = "now() + make_interval(secs => %s)" if ttl else "%s"
-    return c.execute(
+    expires = ctx.now + timedelta(seconds=RESERVE_TTL_SECONDS) if ttl else None
+    return ctx.conn.execute(
         "INSERT INTO transactions(mandate_id, grant_id, amount, currency, recipient, category, state,"
-        " reject_reason, idempotency_key, payload_hash, reserve_expires_at, proposal)"
-        f" VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,{expiry_sql},%s) RETURNING *",
-        (mid, g["id"], amount, currency, recipient, category, state, reason, key, phash,
-         RESERVE_TTL_SECONDS if ttl else None, Jsonb(proposal) if proposal is not None else None),
+        " reject_reason, idempotency_key, payload_hash, reserve_expires_at, proposal, created_at, updated_at)"
+        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
+        (ctx.mandate_id, g["id"], amount, currency, recipient, category, state, reason, key, phash, expires,
+         Jsonb(proposal) if proposal is not None else None, ctx.now, ctx.now),
     ).fetchone()
 
 
 def _decision(tx: dict, replayed: bool = False) -> dict:
     return {"transaction_id": tx["id"], "state": tx["state"], "reason": tx["reject_reason"], "replayed": replayed}
+
+
+# --------------------------------------------------------------------------- human review
+
+def review(pool, *, transaction_id, actor, approve: bool) -> dict:
+    """Owner decision on a 'proposed' transaction (ADR-0005 section 3). Approval re-runs every
+    authorize guard against current state, so a stale proposal cannot reserve funds it no longer could."""
+    mid = mandate_of_tx(pool, transaction_id)
+    with kernel_tx(pool, mid) as ctx:
+        c = ctx.conn
+        tx = c.execute("SELECT * FROM transactions WHERE id = %s FOR UPDATE", (transaction_id,)).fetchone()
+        if ctx.mandate["owner_principal_id"] != actor:
+            raise Forbidden("only the mandate owner may review proposals", code="NOT_OWNER")
+        if tx["state"] != "proposed":
+            return {**_decision(tx), "replayed": True}
+        if not approve:
+            reason = "DENIED_BY_REVIEWER"
+        else:
+            g = c.execute("SELECT * FROM grants WHERE id = %s FOR UPDATE", (tx["grant_id"],)).fetchone()
+            reason = _authorize_problem(ctx, g, tx["amount"], tx["currency"].strip().upper(), tx["recipient"],
+                                        tx["category"])
+        if reason:
+            c.execute("UPDATE transactions SET state = 'rejected', reject_reason = %s, updated_at = %s"
+                      " WHERE id = %s AND state = 'proposed'", (reason, ctx.now, tx["id"]))
+            audit(c, mid, "TX_REVIEW_REJECTED", actor, tx["id"], reason=reason)
+            return {"transaction_id": tx["id"], "state": "rejected", "reason": reason, "replayed": False}
+        _reserve(ctx, tx["grant_id"], tx["amount"])
+        n = c.execute("UPDATE transactions SET state = 'reserved', reserve_expires_at = %s, updated_at = %s"
+                      " WHERE id = %s AND state = 'proposed'",
+                      (ctx.now + timedelta(seconds=RESERVE_TTL_SECONDS), ctx.now, tx["id"])).rowcount
+        ensure(n == 1, "review: state guard failed")
+        movement(c, mid, "reserve", tx["amount"], from_grant=tx["grant_id"], from_bucket="available",
+                 to_grant=tx["grant_id"], to_bucket="reserved", transaction_id=tx["id"], actor=actor)
+        audit(c, mid, "TX_APPROVED", actor, tx["id"], amount=tx["amount"])
+        return {"transaction_id": tx["id"], "state": "reserved", "reason": None, "replayed": False}
 
 
 # --------------------------------------------------------------------------- transitions
@@ -273,12 +323,29 @@ def release(pool, *, transaction_id, actor) -> dict:
         return {"transaction_id": tx["id"], "state": "released", "replayed": False}
 
 
-def settle_start(pool, *, transaction_id) -> dict:
-    """reserved -> submitted. Idempotent on submitted/settled. Fails closed if the grant path is dead."""
+def _require_settler(ctx: Ctx, actor, *, owner_allowed: bool) -> None:
+    """Settlement steps belong to the settlement service. The mandate owner may run the simulated
+    path (start/confirm) but can never declare a transfer failed (that would return spent funds)."""
+    row = ctx.conn.execute("SELECT kind FROM principals WHERE id = %s", (actor,)).fetchone()
+    if row is not None and row["kind"] == "service":
+        return
+    if owner_allowed and ctx.mandate["owner_principal_id"] == actor:
+        return
+    raise Forbidden("not permitted to perform settlement steps", code="NOT_SETTLER")
+
+
+def settle_start(pool, *, transaction_id, actor, on_submit: Callable[[Ctx, dict], None] | None = None) -> dict:
+    """reserved -> submitted. Idempotent on submitted/settled. Fails closed if the grant path is dead.
+
+    `on_submit(ctx, tx)` runs INSIDE the same DB transaction, under the mandate lock, after the state
+    change. The testnet adapter uses it to sign locally and persist the raw tx (ADR-0007), so a crash
+    can never leave a 'submitted' transaction without its signed transfer recorded. It must not do
+    network I/O."""
     mid = mandate_of_tx(pool, transaction_id)
     with kernel_tx(pool, mid) as ctx:
         c = ctx.conn
         tx = c.execute("SELECT * FROM transactions WHERE id = %s FOR UPDATE", (transaction_id,)).fetchone()
+        _require_settler(ctx, actor, owner_allowed=True)
         if tx["state"] in ("submitted", "settled"):
             return {"transaction_id": tx["id"], "state": tx["state"], "replayed": True}
         if tx["state"] != "reserved":
@@ -288,49 +355,55 @@ def settle_start(pool, *, transaction_id) -> dict:
         if problem:
             raise Conflict("grant path is not active", code=problem)
         n = c.execute(
-            "UPDATE transactions SET state = 'submitted', updated_at = now() WHERE id = %s AND state = 'reserved'"
-            " AND reserve_expires_at > now()", (tx["id"],)).rowcount
+            "UPDATE transactions SET state = 'submitted', updated_at = %s WHERE id = %s AND state = 'reserved'"
+            " AND reserve_expires_at > %s", (ctx.now, tx["id"], ctx.now)).rowcount
         if n != 1:
             raise Conflict("reservation expired", code="RESERVATION_EXPIRED")
-        audit(c, mid, "TX_SUBMITTED", None, tx["id"])
+        if on_submit is not None:
+            on_submit(ctx, {**tx, "state": "submitted"})
+        audit(c, mid, "TX_SUBMITTED", actor, tx["id"])
         return {"transaction_id": tx["id"], "state": "submitted", "replayed": False}
 
 
-def settle_confirm(pool, *, transaction_id) -> dict:
+def settle_confirm(pool, *, transaction_id, actor) -> dict:
     """submitted -> settled: reserved -> settled on the grant that reserved (even if revoked since)."""
     mid = mandate_of_tx(pool, transaction_id)
     with kernel_tx(pool, mid) as ctx:
         c = ctx.conn
         tx = c.execute("SELECT * FROM transactions WHERE id = %s FOR UPDATE", (transaction_id,)).fetchone()
+        _require_settler(ctx, actor, owner_allowed=True)
         if tx["state"] == "settled":
             return {"transaction_id": tx["id"], "state": "settled", "replayed": True}
         if tx["state"] != "submitted":
             raise Conflict(f"cannot confirm a {tx['state']} transaction", code=f"CONFIRM_FROM_{tx['state'].upper()}")
-        c.execute("UPDATE transactions SET state = 'settled', updated_at = now() WHERE id = %s AND state = 'submitted'",
-                  (tx["id"],))
+        n = c.execute("UPDATE transactions SET state = 'settled', updated_at = %s WHERE id = %s AND state = 'submitted'",
+                      (ctx.now, tx["id"])).rowcount
+        ensure(n == 1, "settle_confirm: state guard failed")
         n = c.execute(
             "UPDATE grants SET reserved = reserved - %s, settled = settled + %s WHERE id = %s AND reserved >= %s",
             (tx["amount"], tx["amount"], tx["grant_id"], tx["amount"])).rowcount
-        assert n == 1, "settle_confirm: reserved underflow"
+        ensure(n == 1, "settle_confirm: reserved underflow")
         movement(c, mid, "settle", tx["amount"], from_grant=tx["grant_id"], from_bucket="reserved",
-                 to_grant=tx["grant_id"], to_bucket="settled", transaction_id=tx["id"])
-        audit(c, mid, "TX_SETTLED", None, tx["id"], amount=tx["amount"])
+                 to_grant=tx["grant_id"], to_bucket="settled", transaction_id=tx["id"], actor=actor)
+        audit(c, mid, "TX_SETTLED", actor, tx["id"], amount=tx["amount"])
         return {"transaction_id": tx["id"], "state": "settled", "replayed": False}
 
 
-def settle_fail(pool, *, transaction_id, proof: str) -> dict:
-    """submitted -> released, only on proven failure (ADR-0007). `proof` is recorded in the audit trail."""
+def settle_fail(pool, *, transaction_id, actor, proof: str) -> dict:
+    """submitted -> released, only on proven failure (ADR-0007), only by the settlement service.
+    `proof` (e.g. a reverted receipt's tx hash) is recorded in the audit trail."""
     if not isinstance(proof, str) or not proof.strip():
         raise ValidationFailed("a failure proof is required", code="PROOF_REQUIRED")
     mid = mandate_of_tx(pool, transaction_id)
     with kernel_tx(pool, mid) as ctx:
         tx = ctx.conn.execute("SELECT * FROM transactions WHERE id = %s FOR UPDATE", (transaction_id,)).fetchone()
+        _require_settler(ctx, actor, owner_allowed=False)
         if tx["state"] == "released":
             return {"transaction_id": tx["id"], "state": "released", "replayed": True}
         if tx["state"] != "submitted":
             raise Conflict(f"cannot fail a {tx['state']} transaction", code=f"FAIL_FROM_{tx['state'].upper()}")
-        release_tx(ctx, tx, from_state="submitted", kind="settle_failed")
-        audit(ctx.conn, mid, "TX_SETTLE_FAILED", None, tx["id"], proof=proof[:500])
+        release_tx(ctx, tx, from_state="submitted", kind="settle_failed", actor=actor)
+        audit(ctx.conn, mid, "TX_SETTLE_FAILED", actor, tx["id"], proof=proof[:500])
         return {"transaction_id": tx["id"], "state": "released", "replayed": False}
 
 
@@ -346,7 +419,7 @@ def revoke(pool, *, grant_id, actor) -> dict:
         return {**reclaim_subtree(ctx, g, "revoked", actor=actor), "already": False}
 
 
-def _require_manager(ctx, grant_id, actor, allow_self: bool = True) -> None:
+def _require_manager(ctx: Ctx, grant_id, actor, allow_self: bool = True) -> None:
     """Mandate owner, or holder of a strict ancestor (and the holder itself when allow_self)."""
     if ctx.mandate["owner_principal_id"] == actor:
         return

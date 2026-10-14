@@ -6,7 +6,10 @@ _SETTLED_BACKED = "coalesce(sum(t.amount) FILTER (WHERE t.state = 'settled'), 0)
 
 
 def check_invariants(pool, mandate_id) -> list[str]:
-    """Return a list of violations (empty list = all hold). Uses one consistent snapshot."""
+    """Return a list of violations (empty list = all hold). Uses one consistent snapshot.
+
+    I1 conservation, I2 reservation backing, I3 settlement backing (ADR-0004) and I5: replaying the
+    append-only ledger_movements log reproduces every grant's available/reserved/settled exactly."""
     with pool.connection() as conn:
         with conn.transaction():
             conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
@@ -34,4 +37,17 @@ def check_invariants(pool, mandate_id) -> list[str]:
                 (mandate_id,),
             ):
                 out.append(f"I3 settlement backing: grant {r['id']} settled={r['settled']} backed={r['backed']}")
+            flows = {(r["gid"], r["b"]): r["s"] for r in conn.execute(
+                "WITH f AS ("
+                " SELECT to_grant_id AS gid, to_bucket AS b, amount AS a FROM ledger_movements"
+                "  WHERE mandate_id = %s AND to_grant_id IS NOT NULL"
+                " UNION ALL"
+                " SELECT from_grant_id, from_bucket, -amount FROM ledger_movements"
+                "  WHERE mandate_id = %s AND from_grant_id IS NOT NULL)"
+                " SELECT gid, b, sum(a)::bigint AS s FROM f GROUP BY gid, b", (mandate_id, mandate_id))}
+            for g in conn.execute("SELECT id, available, reserved, settled FROM grants WHERE mandate_id = %s",
+                                  (mandate_id,)):
+                for b in ("available", "reserved", "settled"):
+                    if flows.get((g["id"], b), 0) != g[b]:
+                        out.append(f"I5 ledger reconciliation: grant {g['id']} {b}={g[b]} movements={flows.get((g['id'], b), 0)}")
             return out

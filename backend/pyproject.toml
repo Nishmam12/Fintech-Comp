@@ -25,4 +25,4 @@ packages = ["src/budget_kernel"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 timeout = 120
-markers = ["concurrency: races against the real database"]
+markers = ["concurrency: races against the real database", "slow: long property-based runs"]

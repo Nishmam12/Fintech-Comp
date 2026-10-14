@@ -52,6 +52,7 @@ class World:
     bob: uuid.UUID
     mandate_id: uuid.UUID
     root: uuid.UUID
+    svc: uuid.UUID  # settlement-service principal
 
     def check(self):
         """Assert I1-I3 hold. Call after every step."""
@@ -95,6 +96,6 @@ def world(pool) -> World:
     owner, alice, bob = (new_principal(pool, n, "human" if n == "owner" else "agent") for n in ("owner", "alice", "bob"))
     m = kernel.create_mandate(pool, owner_principal_id=owner, currency="USD", total=100_000, protected_reserve=10_000,
                               expires_at=future(30), scope=scope(per_tx_limit=100_000))
-    w = World(pool, owner, alice, bob, m["mandate_id"], m["root_grant_id"])
+    w = World(pool, owner, alice, bob, m["mandate_id"], m["root_grant_id"], new_principal(pool, "settler", "service"))
     w.check()
     return w

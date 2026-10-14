@@ -195,9 +195,9 @@ def test_delegation_idempotency(world):
 
 def test_full_lifecycle_reserve_submit_settle(world):
     tid = world.authorize(world.root, world.owner, 10_000)["transaction_id"]
-    assert kernel.settle_start(world.pool, transaction_id=tid)["state"] == "submitted"
+    assert kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid)["state"] == "submitted"
     world.check()
-    assert kernel.settle_confirm(world.pool, transaction_id=tid)["state"] == "settled"
+    assert kernel.settle_confirm(world.pool, actor=world.owner, transaction_id=tid)["state"] == "settled"
     g = world.grant(world.root)
     assert (g["available"], g["reserved"], g["settled"]) == (80_000, 0, 10_000)
     world.check()
@@ -205,13 +205,13 @@ def test_full_lifecycle_reserve_submit_settle(world):
 
 def test_repeated_transitions_are_idempotent_or_conflict(world):
     tid = world.authorize(world.root, world.owner, 10_000)["transaction_id"]
-    kernel.settle_start(world.pool, transaction_id=tid)
-    assert kernel.settle_start(world.pool, transaction_id=tid)["replayed"] is True       # no second submit
+    kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid)
+    assert kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid)["replayed"] is True       # no second submit
     with pytest.raises(kernel.Conflict) as e:                                              # in flight cannot be released
         kernel.release(world.pool, transaction_id=tid, actor=world.owner)
     assert e.value.code == "RELEASE_FROM_SUBMITTED"
-    kernel.settle_confirm(world.pool, transaction_id=tid)
-    assert kernel.settle_confirm(world.pool, transaction_id=tid)["replayed"] is True
+    kernel.settle_confirm(world.pool, actor=world.owner, transaction_id=tid)
+    assert kernel.settle_confirm(world.pool, actor=world.owner, transaction_id=tid)["replayed"] is True
     with pytest.raises(kernel.Conflict):
         kernel.release(world.pool, transaction_id=tid, actor=world.owner)                 # settled funds are not restored
     world.check()
@@ -223,16 +223,16 @@ def test_release_returns_funds_and_is_idempotent(world):
     assert kernel.release(world.pool, transaction_id=tid, actor=world.owner)["replayed"] is True
     assert world.grant(world.root)["available"] == 90_000
     with pytest.raises(kernel.Conflict):
-        kernel.settle_start(world.pool, transaction_id=tid)
+        kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid)
     world.check()
 
 
 def test_failed_transfer_releases_only_with_proof(world):
     tid = world.authorize(world.root, world.owner, 4_000)["transaction_id"]
-    kernel.settle_start(world.pool, transaction_id=tid)
+    kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid)
     with pytest.raises(kernel.ValidationFailed):
-        kernel.settle_fail(world.pool, transaction_id=tid, proof="")
-    assert kernel.settle_fail(world.pool, transaction_id=tid, proof="receipt status 0")["state"] == "released"
+        kernel.settle_fail(world.pool, actor=world.svc, transaction_id=tid, proof="")
+    assert kernel.settle_fail(world.pool, actor=world.svc, transaction_id=tid, proof="receipt status 0")["state"] == "released"
     assert world.grant(world.root)["available"] == 90_000
     world.check()
 
@@ -263,8 +263,8 @@ def test_revoked_ancestor_blocks_active_descendants(world):
 def test_revoke_does_not_undo_settled_spend(world):
     child = world.delegate(world.root, world.alice, 30_000)["grant_id"]
     tid = world.authorize(child, world.alice, 10_000)["transaction_id"]
-    kernel.settle_start(world.pool, transaction_id=tid)
-    kernel.settle_confirm(world.pool, transaction_id=tid)
+    kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid)
+    kernel.settle_confirm(world.pool, actor=world.owner, transaction_id=tid)
     kernel.revoke(world.pool, grant_id=child, actor=world.owner)
     assert world.grant(child)["settled"] == 10_000
     assert world.grant(world.root)["available"] == 80_000   # 60_000 untouched + 20_000 reclaimed
@@ -274,20 +274,20 @@ def test_revoke_does_not_undo_settled_spend(world):
 def test_in_flight_transfer_survives_revocation_and_is_reported(world):
     child = world.delegate(world.root, world.alice, 30_000)["grant_id"]
     tid = world.authorize(child, world.alice, 10_000)["transaction_id"]
-    kernel.settle_start(world.pool, transaction_id=tid)
+    kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid)
     out = kernel.revoke(world.pool, grant_id=child, actor=world.owner)
     assert (out["in_flight_count"], out["in_flight_amount"]) == (1, 10_000)
     assert world.tx(tid)["state"] == "submitted"
-    assert kernel.settle_confirm(world.pool, transaction_id=tid)["state"] == "settled"
+    assert kernel.settle_confirm(world.pool, actor=world.owner, transaction_id=tid)["state"] == "settled"
     world.check()
 
 
 def test_failed_in_flight_transfer_after_revocation_goes_to_live_ancestor(world):
     child = world.delegate(world.root, world.alice, 30_000)["grant_id"]
     tid = world.authorize(child, world.alice, 10_000)["transaction_id"]
-    kernel.settle_start(world.pool, transaction_id=tid)
+    kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid)
     kernel.revoke(world.pool, grant_id=child, actor=world.owner)
-    kernel.settle_fail(world.pool, transaction_id=tid, proof="receipt status 0")
+    kernel.settle_fail(world.pool, actor=world.svc, transaction_id=tid, proof="receipt status 0")
     assert world.grant(child)["available"] == 0 and world.grant(child)["reserved"] == 0
     assert world.grant(world.root)["available"] == 90_000
     world.check()
@@ -298,7 +298,7 @@ def test_settle_start_after_revoke_is_refused(world):
     tid = world.authorize(child, world.alice, 10_000)["transaction_id"]
     kernel.revoke(world.pool, grant_id=child, actor=world.owner)
     with pytest.raises(kernel.Conflict):
-        kernel.settle_start(world.pool, transaction_id=tid)
+        kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid)
     world.check()
 
 
@@ -340,7 +340,7 @@ def test_expired_grant_blocks_authorization_and_is_reclaimed(world):
     child = world.delegate(world.root, world.alice, 30_000, expires_at=soon)["grant_id"]
     time.sleep(7)
     d = world.authorize(child, world.alice, 100)
-    assert d["state"] == "rejected" and d["reason"] in ("GRANT_EXPIRED", "GRANT_REVOKED")
+    assert (d["state"], d["reason"]) == ("rejected", "GRANT_EXPIRED")
     assert world.grant(child)["status"] == "expired"
     assert world.grant(world.root)["available"] == 90_000
     world.check()
@@ -360,8 +360,11 @@ def test_expired_reservation_cannot_be_submitted(world, monkeypatch):
     monkeypatch.setattr(ops, "RESERVE_TTL_SECONDS", 1)
     tid = world.authorize(world.root, world.owner, 5_000)["transaction_id"]
     time.sleep(2)
-    with pytest.raises(kernel.Conflict):
-        kernel.settle_start(world.pool, transaction_id=tid)
+    with pytest.raises(kernel.Conflict) as e:
+        kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid)
+    # The lock-scoped sweep releases the stale reservation before settle-start looks at it.
+    assert e.value.code == "SETTLE_FROM_RELEASED"
+    assert world.tx(tid)["state"] == "released"
     world.check()
 
 

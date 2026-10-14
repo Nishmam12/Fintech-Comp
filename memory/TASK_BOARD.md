@@ -12,7 +12,7 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 |---|---|---|---|
 | BK-010 | Specify trust boundaries, threat model and transaction state machine | DONE | ADR-0004..0007 ACCEPTED 2026-10-15 (commit 9fbb1df + acceptance commit). Accepted ADRs; every transition/invariant explicitly defined. |
 | BK-020 | Implement mandate/grant/ledger domain layer | DONE | `001_core.sql` + kernel ops; 65/65 backend tests pass (2026-10-15, `uv run pytest`). Unit tests pass for accounting, reservation, settlement, release and delegation. |
-| BK-030 | Enforce concurrency safety, idempotency and revocation | REVIEW | 12 race tests + idempotency/revocation tests pass. Pending: Opus planner review of kernel diff before merge-final. Repeated concurrent and race tests pass against authoritative database. |
+| BK-030 | Enforce concurrency safety, idempotency and revocation | DONE | Opus review done, findings fixed; races + hardening tests pass (90/90 non-slow, 2026-10-15). |
 | BK-040 | Implement proposal schema and server-side semantic validation | BACKLOG | Model outputs cannot include/override trusted authorization state; invalid schemas fail closed. |
 | BK-050 | Implement model provider adapters | BACKLOG | Explicit model IDs, timeout behavior, bounded retries and usage metrics; mocked tests pass. |
 | BK-060 | Implement internal spend ledger and global cap | BACKLOG | Atomic pre-call cost reservations, usage reconciliation, cap enforcement and safe budget exhaustion. |

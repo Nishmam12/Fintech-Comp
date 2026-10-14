@@ -102,7 +102,7 @@ def test_revoke_vs_settle_start_never_leaves_funds_unaccounted(world, round_):
     tid = world.authorize(child, world.alice, 10_000)["transaction_id"]
     results = race([
         lambda: kernel.revoke(world.pool, grant_id=child, actor=world.owner),
-        lambda: kernel.settle_start(world.pool, transaction_id=tid),
+        lambda: kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid),
     ])
     revoke_res = results[0][1]
     assert results[0][0]
@@ -118,7 +118,7 @@ def test_revoke_vs_settle_start_never_leaves_funds_unaccounted(world, round_):
 
 def test_duplicate_settle_start_never_submits_twice(world):
     tid = world.authorize(world.root, world.owner, 5_000)["transaction_id"]
-    results = race([lambda: kernel.settle_start(world.pool, transaction_id=tid) for _ in range(5)])
+    results = race([lambda: kernel.settle_start(world.pool, actor=world.owner, transaction_id=tid) for _ in range(5)])
     assert all(ok for ok, _ in results)
     assert sum(1 for _, v in results if not v["replayed"]) == 1
     with world.pool.connection() as c:
