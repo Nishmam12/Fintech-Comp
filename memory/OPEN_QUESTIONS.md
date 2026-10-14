@@ -39,7 +39,7 @@ Keep unresolved questions here. Each entry should identify why it matters, what 
 - **Owner:** Backend agent
 
 ## OQ-008 — Competition topic (A Personal Finance vs F Agent Wallet)
-- **Status:** OPEN
+- **Status:** RESOLVED 2026-10-15: **Topic F, Agent Wallet**, with a testnet settlement adapter downstream of the kernel (ADR-0007 to record it). Team is formed and eligible, and a GitHub repo exists. Registration is NOT yet sent.
 - **Why it matters:** Topic F carries a 0–5 bonus but needs real on-chain tx hashes (testnet settlement adapter). Topic A needs visible user tasks (budgeting, bill analysis, insights).
 - **Resolution evidence:** Project owner decision.
 - **Owner:** Project owner
