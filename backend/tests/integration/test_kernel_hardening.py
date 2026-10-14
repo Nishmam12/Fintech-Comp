@@ -7,7 +7,7 @@ import pytest
 
 from budget_kernel import kernel
 from budget_kernel.kernel import tx as txmod
-from tests.conftest import new_principal, scope
+from tests.conftest import future, new_principal, scope
 
 
 def test_settlement_steps_require_a_settler(world):
@@ -134,6 +134,16 @@ def test_nested_reclaim_and_late_failure_go_to_nearest_live_ancestor(world):
     kernel.settle_fail(world.pool, actor=world.svc, transaction_id=tid, proof="receipt status 0")
     assert world.grant(world.root)["available"] == 90_000            # both revoked: lands on root
     world.check()
+
+
+@pytest.mark.parametrize("kind", ["agent", "service"])
+def test_only_humans_can_create_mandates(pool, kind):
+    """Tier T0: an agent minting its own mandate would bypass every delegation limit."""
+    p = new_principal(pool, f"not-human-{kind}", kind)
+    with pytest.raises(kernel.Forbidden) as e:
+        kernel.create_mandate(pool, owner_principal_id=p, currency="USD", total=1_000_000, protected_reserve=0,
+                              expires_at=future(1), scope=scope())
+    assert e.value.code == "OWNER_MUST_BE_HUMAN"
 
 
 def test_mandate_expiry_freezes_and_strands_funds(pool):

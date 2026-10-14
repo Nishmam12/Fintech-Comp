@@ -77,8 +77,13 @@ def create_mandate(pool, *, owner_principal_id, currency: str, total: int, prote
         with conn.transaction():
             if not conn.execute("SELECT %s > clock_timestamp() AS ok", (expires_at,)).fetchone()["ok"]:
                 raise ValidationFailed("expires_at must be in the future", code="BAD_EXPIRY")
-            if conn.execute("SELECT 1 FROM principals WHERE id = %s", (owner_principal_id,)).fetchone() is None:
+            owner = conn.execute("SELECT kind FROM principals WHERE id = %s", (owner_principal_id,)).fetchone()
+            if owner is None:
                 raise NotFound("owner principal not found", code="PRINCIPAL_NOT_FOUND")
+            if owner["kind"] != "human":
+                # Tier T0 (ADR-0004): only a human may create authority. An agent or service minting
+                # its own mandate would bypass every delegation limit.
+                raise Forbidden("only human principals may create mandates", code="OWNER_MUST_BE_HUMAN")
             conn.execute(
                 "INSERT INTO mandates(id, owner_principal_id, currency, total, protected_reserve, expires_at)"
                 " VALUES (%s,%s,%s,%s,%s,%s)",

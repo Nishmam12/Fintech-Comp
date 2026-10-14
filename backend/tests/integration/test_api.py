@@ -36,6 +36,14 @@ def test_requires_api_key(client):
     assert client.post("/mandates", json={}, headers={"Authorization": "Bearer nope"}).status_code == 401
 
 
+def test_agent_cannot_create_a_mandate_via_api(client):
+    _, agent = principal(client, "rogue-agent", "agent")
+    r = client.post("/mandates", headers=agent, json={
+        "currency": "USD", "total": 1_000_000, "protected_reserve": 0,
+        "expires_at": future(30).isoformat(), "scope": scope()})
+    assert (r.status_code, r.json()["code"]) == (403, "OWNER_MUST_BE_HUMAN")
+
+
 def test_admin_token_required_for_principals(client):
     assert client.post("/admin/principals", json={"name": "x", "kind": "agent"}).status_code == 403
 
