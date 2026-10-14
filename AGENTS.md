@@ -4,6 +4,7 @@
 Build Budget Kernel as a cost-aware financial-decision pipeline with a deterministic authorization boundary. The model can interpret and propose; only deterministic application code using authoritative state can authorize, reserve, settle or reject a transaction.
 
 ## Before work
+- `git pull`, then read `memory/WHO_IS_WORKING.md`. The team has three members on separate machines. Do not edit paths another member has claimed. Claim your task there (commit + push) before editing, and release it when you stop.
 - Read `memory/INDEX.md`, `memory/CURRENT_STATE.md`, and `memory/TASK_BOARD.md`.
 - Read only the domain documents relevant to the task. Do not load the entire memory vault for a small change.
 - Inspect the working tree and existing code before editing. Preserve useful work.

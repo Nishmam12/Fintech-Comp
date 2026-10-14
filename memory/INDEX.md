@@ -3,6 +3,8 @@
 > This is the index for the project's persistent shared memory. Treat the repository—not any individual chat—as the source of truth.
 
 ## Current orientation
+- [[WHO_IS_WORKING]] — **check first**: which team member is working on what, right now.
+- [[research/COMPETITION]] — FinTechathon rules, deadline (2026-10-20 17:00 BST), deliverables.
 - [[CURRENT_STATE]] — verified current status and blockers.
 - [[TASK_BOARD]] — work in progress, backlog and acceptance criteria.
 - [[NEXT_ACTIONS]] — next 1–5 actions to execute.

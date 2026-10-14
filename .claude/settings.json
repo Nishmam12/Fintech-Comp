@@ -3,5 +3,18 @@
   "advisorModel": "opus",
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/show-presence.sh\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
   }
 }

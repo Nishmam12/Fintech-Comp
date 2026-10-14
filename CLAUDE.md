@@ -3,6 +3,7 @@
 Use the repository's `AGENTS.md` as the shared project contract. This file contains Claude-specific entry instructions only; do not duplicate the entire project specification here.
 
 At the start of project work:
+0. `git pull` and read `memory/WHO_IS_WORKING.md`. Ask the user which member they are if it is unclear (check `git config user.name`), stay within that member's claimed areas, and update their section on start/stop.
 1. Read `memory/INDEX.md`, `memory/CURRENT_STATE.md` and the relevant `memory/TASK_BOARD.md` item.
 2. Follow the shared memory update protocol in `memory/MEMORY_PROTOCOL.md`.
 3. Inspect repository state before edits and protect uncommitted changes.
