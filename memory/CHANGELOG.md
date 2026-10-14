@@ -8,3 +8,4 @@ This is a concise record of meaningful project changes. Detailed per-session not
 - Established that model training is deferred, the shared repository is canonical, and model output never authorizes a transaction.
 - No application code or tests are claimed as completed by this starter kit.
 - 2026-10-15: Repo created and pushed (Nishmam12/Fintech-Comp). Model-role agents, presence board, Supabase env + skills. Competition rules recorded (Topic F). Backend skeleton + DB tests. ADR-0004..0007 accepted; ADR-0003 amended (Supabase, testnet).
+- 2026-10-15: Added migration 001_core and the deterministic kernel (ops, funds, sweep, invariants, scope attenuation). 65 tests pass on Supabase. Test-helper bugs found and fixed (child expiry default, idempotency timestamps); no kernel defects found by the suite.

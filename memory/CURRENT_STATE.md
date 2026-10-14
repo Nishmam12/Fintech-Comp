@@ -1,8 +1,8 @@
 # Current State — Budget Kernel
 
 **Last verified:** 2026-10-15 (starter-kit creation; repository implementation not yet inspected by a coding agent)  
-**Overall status:** `DESIGN ACCEPTED / KERNEL BUILD STARTING`  
-**Implementation status:** backend skeleton + DB connectivity only (2 integration tests pass). Kernel not started.
+**Overall status:** `KERNEL BUILT / API + PROPOSAL LAYER NEXT`  
+**Implementation status:** deterministic kernel (mandate, delegate, authorize, release, settle start/confirm/fail, revoke, lazy expiry sweep, invariants I1–I3) implemented on Supabase Postgres. No API, cost ledger, providers, router, settlement adapter or UI yet.
 
 ## One-paragraph project summary
 Budget Kernel is a financial-decision pipeline with (1) selective, cost-aware model routing for interpreting natural-language financial requests into typed proposals, and (2) a deterministic authorization kernel that independently enforces mandates, delegated authority, spending limits, reservations, revocation, idempotency and auditability. LLMs never authorize transactions. All MVP transactions are simulated.
@@ -32,7 +32,7 @@ See [[AGENT_HANDOFF]]. No implementation writer/reviewer has been assigned in th
 |---|---|---|
 | M0 — Repository and event requirements inspection | DONE | Repo = Nishmam12/Fintech-Comp; rules in [[research/COMPETITION]]; Supabase DB reachable. |
 | M1 — Threat model, state machine and invariants | DONE (design) | ADR-0004..0007 ACCEPTED. Threat model still to be refreshed against them. |
-| M2 — Deterministic ledger and authorization tests | PLANNED | No implementation verified. |
+| M2 — Deterministic ledger and authorization tests | DONE (pending planner review) | 65 tests pass: 46 behaviour, 12 concurrency races, 5 static boundary, 2 DB connectivity. |
 | M3 — Typed proposal schema and provider adapters | PLANNED | No implementation verified. |
 | M4 — Budget-aware router and provider cost ledger | PLANNED | No implementation verified. |
 | M5 — Adversarial evaluation and baseline comparison | PLANNED | No results yet. |
@@ -47,7 +47,8 @@ See [[AGENT_HANDOFF]]. No implementation writer/reviewer has been assigned in th
 - Need to decide exact grant/revocation/reservation semantics in an ADR before implementing them.
 
 ## Last verified tests
-`cd backend && uv run pytest -q` → 2 passed (DB connect + FOR UPDATE through Supabase session pooler), 2026-10-15.
+`cd backend && uv run pytest -q` → **65 passed in 277 s** (2026-10-15, bk_test schema on Supabase session pooler). Scope of that claim: the listed scenarios only, not a proof of general security. Not yet covered: property-based state machine, API layer, cost ledger, settlement.
+Measured: DB round trip ~60 ms from the dev machine, so a kernel op holds the mandate lock ~0.6 s (~1.5 ops/s per mandate). Deployed next to the DB it should be much faster. See ADR-0005 section 2.
 
 ## Next action
 Run the Phase 0 repository reconnaissance in [[docs/MASTER_PLAN]] and update this file with actual repository evidence. Do not assume the status above still applies after the first implementation pass.

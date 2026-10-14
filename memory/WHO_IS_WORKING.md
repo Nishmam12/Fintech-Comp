@@ -16,9 +16,9 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 
 ### Nishmam (RTX 4070 Ti Super)
 - **Status:** ACTIVE
-- **Task ID:** BK-010 (ADR-0004/5/6/7 design decisions)
+- **Task ID:** BK-020/BK-030 (kernel + tests) — in REVIEW
 - **Branch:** main (docs only)
-- **Claimed areas (paths):** memory/decisions/, memory/architecture/, memory/OPEN_QUESTIONS.md
+- **Claimed areas (paths):** backend/src/budget_kernel/{kernel,db}, backend/migrations, backend/tests, memory/
 - **Started / last update (UTC):** 2026-10-14 19:55
 - **Notes / blockers:** Supabase DB reachable via DATABASE_URL (psycopg). Project-scoped Supabase MCP not loaded in this session.
 

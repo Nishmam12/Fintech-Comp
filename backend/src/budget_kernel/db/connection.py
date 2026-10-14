@@ -22,3 +22,24 @@ def transaction(settings: Settings, schema: str | None = None) -> Iterator[psyco
     with psycopg.connect(settings.database_url, row_factory=dict_row, connect_timeout=15) as conn:
         conn.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(schema)))
         yield conn  # psycopg commits on clean exit of the connection context, rolls back on exception
+
+
+def make_pool(settings: Settings, schema: str | None = None, max_size: int = 10):
+    """Small pool for the session pooler (ADR-0005: keep it modest, e.g. max_size<=10)."""
+    from psycopg_pool import ConnectionPool
+
+    schema = schema or settings.schema
+
+    def _configure(conn: psycopg.Connection) -> None:
+        conn.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(schema)))
+        conn.commit()
+
+    return ConnectionPool(
+        settings.database_url,
+        min_size=1,
+        max_size=max_size,
+        kwargs={"row_factory": dict_row, "connect_timeout": 15},
+        configure=_configure,
+        open=True,
+        timeout=30,
+    )
