@@ -33,6 +33,14 @@ A task is not done because code was generated. It is done when its acceptance cr
 ## Collaboration
 Only one agent should edit shared source files and canonical memory files at a time. Another agent may perform a read-only review and provide precise findings. Never overwrite another agent's uncommitted work. Check `git status` and inspect diffs before editing and before committing.
 
+## Model roles (Claude Code)
+- **Opus 5.5 — planner/advisor** (`.claude/agents/planner.md`): milestone plans, ADRs, threat model, kernel/security review, unblocking design problems. Writes only ADR/architecture/plan notes.
+- **Sonnet 5.5 — orchestrator** (main session, `/model sonnet`): owns the task board, implements core code (kernel, ledger, cost ledger, router), dispatches subagents, merges, and syncs memory. Sole writer of canonical memory and core source.
+- **Haiku — short work**: `scout` (read-only overviews, lookups, test runs) and `clerk` (small mechanical edits, memory log entries, boilerplate). Never touches kernel/ledger/cost-ledger/migrations.
+- **Sonnet `implementer`**: scoped parallel tasks in a separate git worktree (eval dataset, frontend, adapters); merged by the orchestrator after review.
+
+Escalate to the planner when: a milestone starts, an invariant or ADR is in question, a concurrency/security test fails for a non-obvious reason, or before merging kernel changes.
+
 ## Project map
 - `memory/INDEX.md`: navigation map.
 - `memory/CURRENT_STATE.md`: concise source-of-truth status snapshot.
