@@ -5,10 +5,12 @@ The API never decides anything about money; every decision comes from budget_ker
 """
 from __future__ import annotations
 
+import os
 import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from budget_kernel import kernel
@@ -57,6 +59,10 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             app.state.pool.close()
 
     app = FastAPI(title="Budget Kernel", version="0.1.0", lifespan=lifespan)
+    # The dashboard (Next.js dev server) calls this API from the browser. Origins are an explicit allowlist.
+    origins = [o.strip() for o in os.environ.get("BK_CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"],
+                       allow_headers=["Authorization", "Content-Type", "X-Admin-Token"])
 
     @app.exception_handler(kernel.KernelError)
     async def kernel_error(_: Request, exc: kernel.KernelError):

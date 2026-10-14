@@ -4,6 +4,8 @@ This repository is the **shared source of truth** for Budget Kernel. Claude and 
 
 ## Start here
 
+**New team member? Read [`ONBOARDING.md`](ONBOARDING.md) first** (setup in 15 minutes, how we claim work, your starting task).
+
 1. Read [`AGENTS.md`](AGENTS.md) for common coding-agent rules. Claude Code also reads [`CLAUDE.md`](CLAUDE.md).
 2. Read [`memory/INDEX.md`](memory/INDEX.md), then only the memory notes relevant to the current task.
 3. Read [`memory/CURRENT_STATE.md`](memory/CURRENT_STATE.md) and [`memory/TASK_BOARD.md`](memory/TASK_BOARD.md) before doing project work.
