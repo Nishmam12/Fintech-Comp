@@ -1,0 +1,29 @@
+# Task Board
+
+Keep this board concise. Each task needs an ID, owner/agent, status, acceptance criteria and evidence. Status values: `BACKLOG`, `READY`, `IN_PROGRESS`, `BLOCKED`, `REVIEW`, `DONE`, `DEFERRED`.
+
+## Active
+| ID | Task | Status | Owner | Acceptance criteria / evidence |
+|---|---|---|---|---|
+| BK-000 | Inspect target repository, current branch, runtime, dependencies and competition requirements | READY | Implementation agent | Summarize actual repo structure, useful existing code, working tree, available commands and verified event requirements. Do not overwrite work. |
+
+## Backlog / gated by prior work
+| ID | Task | Status | Gate / acceptance criteria |
+|---|---|---|---|
+| BK-010 | Specify trust boundaries, threat model and transaction state machine | BACKLOG | Accepted ADRs; every transition/invariant explicitly defined. |
+| BK-020 | Implement mandate/grant/ledger domain layer | BACKLOG | Unit tests pass for accounting, reservation, settlement, release and delegation. |
+| BK-030 | Enforce concurrency safety, idempotency and revocation | BACKLOG | Repeated concurrent and race tests pass against authoritative database. |
+| BK-040 | Implement proposal schema and server-side semantic validation | BACKLOG | Model outputs cannot include/override trusted authorization state; invalid schemas fail closed. |
+| BK-050 | Implement model provider adapters | BACKLOG | Explicit model IDs, timeout behavior, bounded retries and usage metrics; mocked tests pass. |
+| BK-060 | Implement internal spend ledger and global cap | BACKLOG | Atomic pre-call cost reservations, usage reconciliation, cap enforcement and safe budget exhaustion. |
+| BK-070 | Implement route policy and primary/escalation path | BACKLOG | Routes driven by documented deterministic criteria; no arbitrary quota enforcement. |
+| BK-080 | Build labeled evaluation set and naive isolated baseline | BACKLOG | Versioned scenarios, expected labels, reproducible runner and baseline report. |
+| BK-090 | Build dashboard wired to backend | BACKLOG | UI displays actual server results and runs repeatable simulations. |
+| BK-100 | Complete security review, README, demo and event submission | BACKLOG | Clean-start demo, passing tests, disclosed limitations and submission requirements met. |
+| BK-200 | Investigate consent-aware decision trace collection for future model improvement | DEFERRED | Separate design/privacy review; no real-user training collection until approved. |
+| BK-210 | Evaluate fine-tuning an existing model | DEFERRED | Only after enough reviewed data and a measurable baseline; not an MVP task. |
+
+## Rules
+- Do not mark `DONE` without evidence (test output, diff, URL/source, or explicit review result).
+- A task may be split into smaller tasks when implementation reveals meaningful subproblems. Update IDs and links rather than losing context.
+- When a task is completed, update `CURRENT_STATE.md`, `NEXT_ACTIONS.md` and `CHANGELOG.md`.
