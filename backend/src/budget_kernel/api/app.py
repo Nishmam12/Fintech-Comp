@@ -12,6 +12,9 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from budget_kernel import kernel
+from budget_kernel.costledger import ledger as cost_ledger
+from budget_kernel.costledger.rate_card import RateCard
+from budget_kernel.routing.interpret import interpret as run_interpret
 from budget_kernel.config import Settings
 from budget_kernel.db.connection import make_pool
 
@@ -38,7 +41,7 @@ def _jsonable(obj):
     return obj
 
 
-def create_app(pool=None, schema: str | None = None) -> FastAPI:
+def create_app(pool=None, schema: str | None = None, card: RateCard | None = None, llm_transport=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         owned = pool is None
@@ -47,6 +50,8 @@ def create_app(pool=None, schema: str | None = None) -> FastAPI:
             app.state.pool = make_pool(st, schema or st.schema)
         else:
             app.state.pool = pool
+        app.state.card = card or RateCard.load()
+        app.state.llm_transport = llm_transport      # tests inject a mock HTTP transport; None in production
         yield
         if owned:
             app.state.pool.close()
@@ -126,6 +131,54 @@ def create_app(pool=None, schema: str | None = None) -> FastAPI:
     @app.post("/grants/{grant_id}/revoke")
     def revoke(grant_id: str, request: Request, me: Principal = Caller):
         return _jsonable(kernel.revoke(P(request), grant_id=_uuid(grant_id, "grant"), actor=me.id))
+
+    # ------------------------------------------------------------- language interface (never authorizes by itself)
+
+    def _grant_context(request: Request, grant_id: uuid.UUID, me: Principal) -> dict:
+        with P(request).connection() as c:
+            g = c.execute("SELECT g.holder_principal_id, g.scope, m.owner_principal_id, m.currency FROM grants g"
+                          " JOIN mandates m ON m.id = g.mandate_id WHERE g.id = %s", (grant_id,)).fetchone()
+        if g is None:
+            raise kernel.NotFound("grant not found", code="GRANT_NOT_FOUND")
+        if me.id not in (g["holder_principal_id"], g["owner_principal_id"]):
+            raise kernel.Forbidden("not the holder or owner of this grant", code="NOT_PERMITTED")
+        return g
+
+    def _interpret(request: Request, g: dict, text: str) -> dict:
+        return run_interpret(P(request), request.app.state.card, text, recipients=g["scope"]["recipients"],
+                             categories=g["scope"]["categories"], currency=g["currency"].strip(),
+                             transport=request.app.state.llm_transport)
+
+    @app.post("/interpret")
+    def interpret_only(body: schemas.Interpret, request: Request, me: Principal = Caller):
+        """Natural language -> UNTRUSTED typed proposal. This endpoint never reserves or authorizes."""
+        g = _grant_context(request, _uuid(body.grant_id, "grant"), me)
+        return _jsonable(_interpret(request, g, body.text))
+
+    @app.post("/agent/request")
+    def agent_request(body: schemas.AgentRequest, request: Request, me: Principal = Caller):
+        """End to end: interpret the request, then let the deterministic kernel decide.
+
+        The kernel receives plain values only (amount, currency, recipient, category), never the model's
+        proposal object as authority. Anything not cleanly resolved is held for human review (no funds
+        reserved); unresolved interpretation never reaches the kernel at all."""
+        gid = _uuid(body.grant_id, "grant")
+        g = _grant_context(request, gid, me)
+        interp = _interpret(request, g, body.text)
+        p = interp["proposal"]
+        decision = None
+        if interp["status"] in ("ok", "needs_review") and p and p["request_type"] == "payment" and None not in (
+                p["amount_minor"], p["currency"], p["recipient"], p["category"]) and not p["missing_fields"]:
+            decision = kernel.authorize(
+                P(request), grant_id=gid, actor=me.id, amount=p["amount_minor"], currency=p["currency"],
+                recipient=p["recipient"], category=p["category"], idempotency_key=body.idempotency_key,
+                needs_review=interp["status"] == "needs_review", proposal=p)
+        return _jsonable({"interpretation": interp, "decision": decision})
+
+    @app.get("/budget")
+    def budget(request: Request, me: Principal = Caller):
+        """Inference budget meter (micro-USD per bucket)."""
+        return _jsonable(cost_ledger.snapshot(P(request)))
 
     # ------------------------------------------------------------- read models
 

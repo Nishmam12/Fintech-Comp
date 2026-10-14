@@ -57,3 +57,12 @@ class SettleFail(Strict):
 
 class Review(Strict):
     approve: StrictBool
+
+
+class Interpret(Strict):
+    grant_id: str
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class AgentRequest(Interpret):
+    idempotency_key: str = Field(min_length=1, max_length=200)
