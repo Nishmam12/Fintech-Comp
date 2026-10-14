@@ -1,6 +1,6 @@
 # ADR-0005: Transaction Lifecycle, Concurrency Control, Idempotency, Expiry and Revocation
 
-- **Status:** PROPOSED
+- **Status:** ACCEPTED (2026-10-15, team lead)
 - **Date:** 2026-10-15
 - **Owner:** Opus planner (draft) / project lead (approval)
 - **Related tasks:** BK-010, BK-020, BK-030, BK-075

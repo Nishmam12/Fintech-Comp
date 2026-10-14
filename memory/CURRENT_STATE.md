@@ -1,8 +1,8 @@
 # Current State — Budget Kernel
 
 **Last verified:** 2026-10-15 (starter-kit creation; repository implementation not yet inspected by a coding agent)  
-**Overall status:** `PLANNING / BOOTSTRAP`  
-**Implementation status:** `NOT STARTED — VERIFY IN REPOSITORY`
+**Overall status:** `DESIGN ACCEPTED / KERNEL BUILD STARTING`  
+**Implementation status:** backend skeleton + DB connectivity only (2 integration tests pass). Kernel not started.
 
 ## One-paragraph project summary
 Budget Kernel is a financial-decision pipeline with (1) selective, cost-aware model routing for interpreting natural-language financial requests into typed proposals, and (2) a deterministic authorization kernel that independently enforces mandates, delegated authority, spending limits, reservations, revocation, idempotency and auditability. LLMs never authorize transactions. All MVP transactions are simulated.
@@ -30,8 +30,8 @@ See [[AGENT_HANDOFF]]. No implementation writer/reviewer has been assigned in th
 ## Current milestone status
 | Milestone | Status | Evidence / note |
 |---|---|---|
-| M0 — Repository and event requirements inspection | NOT STARTED | Coding agent must inspect actual repository and official competition requirements. |
-| M1 — Threat model, state machine and invariants | PLANNED | No implementation verified. |
+| M0 — Repository and event requirements inspection | DONE | Repo = Nishmam12/Fintech-Comp; rules in [[research/COMPETITION]]; Supabase DB reachable. |
+| M1 — Threat model, state machine and invariants | DONE (design) | ADR-0004..0007 ACCEPTED. Threat model still to be refreshed against them. |
 | M2 — Deterministic ledger and authorization tests | PLANNED | No implementation verified. |
 | M3 — Typed proposal schema and provider adapters | PLANNED | No implementation verified. |
 | M4 — Budget-aware router and provider cost ledger | PLANNED | No implementation verified. |
@@ -47,7 +47,7 @@ See [[AGENT_HANDOFF]]. No implementation writer/reviewer has been assigned in th
 - Need to decide exact grant/revocation/reservation semantics in an ADR before implementing them.
 
 ## Last verified tests
-None. This starter kit is planning documentation only; no app tests have been run.
+`cd backend && uv run pytest -q` → 2 passed (DB connect + FOR UPDATE through Supabase session pooler), 2026-10-15.
 
 ## Next action
 Run the Phase 0 repository reconnaissance in [[docs/MASTER_PLAN]] and update this file with actual repository evidence. Do not assume the status above still applies after the first implementation pass.

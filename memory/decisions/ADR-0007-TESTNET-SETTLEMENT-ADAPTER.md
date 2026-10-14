@@ -1,6 +1,6 @@
 # ADR-0007: Testnet Settlement Adapter for Topic F (Agent Wallet)
 
-- **Status:** PROPOSED
+- **Status:** ACCEPTED (2026-10-15, team lead)
 - **Date:** 2026-10-15
 - **Owner:** Opus planner (draft) / project lead (approval)
 - **Related tasks:** BK-075, BK-090, BK-110

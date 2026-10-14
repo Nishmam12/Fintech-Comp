@@ -1,11 +1,7 @@
 # Next Actions
 
-This list contains the next few executable steps, not the entire roadmap.
-
-1. **Inspect the actual IDE workspace and Git state.** Record repository tree, current branch, uncommitted changes, existing stack, run/test commands and any code worth preserving.
-2. **Verify the competition constraints and official model-provider documentation.** Record URLs and access dates in `memory/research/PRIOR_ART.md` and the relevant routing/cost notes. Treat old model prices as stale until checked.
-3. **Draft and accept the first security ADRs.** In particular, decide the accounting invariant, hierarchical grant semantics, revocation effects, and reservation state machine.
-4. **Implement the smallest deterministic domain layer and tests.** Do not begin with model calls or elaborate frontend work.
-5. **Update persistent memory based on evidence.** Replace starter assumptions with observed repository facts and clear next steps.
-
-Only reorder these actions when new evidence is recorded in the current state or a decision note.
+1. **BK-020: migration `001_core.sql`** from ADR-0004/0005 (mandates, grants with path, transactions incl. `submitted`, audit_events, idempotency key + payload_hash), run with `python -m budget_kernel.db.migrate --test`.
+2. **Kernel operations** (`kernel/`): create_mandate, delegate, authorize, settle, release, revoke, each taking the mandate `FOR UPDATE` lock first; invariant checks I1–I3 after every transition.
+3. **Tests**: unit per transition, hypothesis state machine, concurrency races (shared allocation, siblings over parent, revoke vs authorize, duplicate idempotency key).
+4. **ADR-0007 pre-work (parallel, separate worktree):** verify Circle test-USDC address and faucet on Base Sepolia, create a funded testnet wallet (key in `.env` only), add `web3.py`.
+5. **Owner actions:** send registration email (BK-OWN-1); reset the DB password before final submission.

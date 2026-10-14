@@ -5,13 +5,13 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 ## Active
 | ID | Task | Status | Owner | Acceptance criteria / evidence |
 |---|---|---|---|---|
-| BK-000 | Inspect target repository, current branch, runtime, dependencies and competition requirements | READY | Implementation agent | Summarize actual repo structure, useful existing code, working tree, available commands and verified event requirements. Do not overwrite work. |
+| BK-000 | Inspect target repository, current branch, runtime, dependencies and competition requirements | DONE | Implementation agent | Summarize actual repo structure, useful existing code, working tree, available commands and verified event requirements. Do not overwrite work. |
 
 ## Backlog / gated by prior work
 | ID | Task | Status | Gate / acceptance criteria |
 |---|---|---|---|
-| BK-010 | Specify trust boundaries, threat model and transaction state machine | BACKLOG | Accepted ADRs; every transition/invariant explicitly defined. |
-| BK-020 | Implement mandate/grant/ledger domain layer | BACKLOG | Unit tests pass for accounting, reservation, settlement, release and delegation. |
+| BK-010 | Specify trust boundaries, threat model and transaction state machine | DONE | ADR-0004..0007 ACCEPTED 2026-10-15 (commit 9fbb1df + acceptance commit). Accepted ADRs; every transition/invariant explicitly defined. |
+| BK-020 | Implement mandate/grant/ledger domain layer | READY | Unit tests pass for accounting, reservation, settlement, release and delegation. |
 | BK-030 | Enforce concurrency safety, idempotency and revocation | BACKLOG | Repeated concurrent and race tests pass against authoritative database. |
 | BK-040 | Implement proposal schema and server-side semantic validation | BACKLOG | Model outputs cannot include/override trusted authorization state; invalid schemas fail closed. |
 | BK-050 | Implement model provider adapters | BACKLOG | Explicit model IDs, timeout behavior, bounded retries and usage metrics; mocked tests pass. |

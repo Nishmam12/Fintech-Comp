@@ -15,13 +15,13 @@ Keep unresolved questions here. Each entry should identify why it matters, what 
 - **Owner:** Research agent / project owner
 
 ## OQ-003 — Canonical accounting representation
-- **Status:** OPEN
+- **Status:** RESOLVED 2026-10-15 by [[decisions/ADR-0004-ACCOUNTING-REPRESENTATION]] (accounting representation)
 - **Why it matters:** A parent allocation and descendant allocations must not double-count financial authority.
 - **Resolution evidence:** Explicit state model, transition table, examples and tests, recorded in a security ADR.
 - **Owner:** Backend implementation agent
 
 ## OQ-004 — Revocation semantics for reservations
-- **Status:** OPEN
+- **Status:** RESOLVED 2026-10-15 by [[decisions/ADR-0005-LIFECYCLE-CONCURRENCY-REVOCATION]] (revocation/reservation semantics)
 - **Why it matters:** Revocation may race with authorization or affect previously reserved but unsettled amounts.
 - **Resolution evidence:** Defined transaction policy and concurrent tests; record in ADR.
 - **Owner:** Backend/security agent
@@ -33,7 +33,7 @@ Keep unresolved questions here. Each entry should identify why it matters, what 
 - **Owner:** Model-routing agent
 
 ## OQ-006 — Database deployment choice
-- **Status:** OPEN
+- **Status:** RESOLVED 2026-10-15 by [[decisions/ADR-0005-LIFECYCLE-CONCURRENCY-REVOCATION]] (database: Supabase Postgres, session pooler, per-mandate FOR UPDATE)
 - **Why it matters:** Concurrency correctness depends on the actual transactional database semantics.
 - **Resolution evidence:** Current environment/deployment constraints and tests against the chosen DB.
 - **Owner:** Backend agent

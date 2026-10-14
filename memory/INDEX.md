@@ -28,6 +28,10 @@
 - [[decisions/ADR-0001-DATA-AND-AUTHORITY-BOUNDARY]] — model output versus deterministic authorization.
 - [[decisions/ADR-0002-SHARED-MEMORY-AND-OBSIDIAN]] — repository memory and optional Obsidian vault.
 - [[decisions/ADR-0003-MVP-STACK-AND-SCOPE]] — initial stack and out-of-scope items.
+- [[decisions/ADR-0004-ACCOUNTING-REPRESENTATION]] — move-based accounting and scope attenuation
+- [[decisions/ADR-0005-LIFECYCLE-CONCURRENCY-REVOCATION]] — locking, states, revocation, idempotency
+- [[decisions/ADR-0006-INFERENCE-COST-LEDGER]] — $9.50 inference budget under concurrency
+- [[decisions/ADR-0007-TESTNET-SETTLEMENT-ADAPTER]] — Base Sepolia USDC settlement, Topic F
 
 ## Logs and templates
 - [[memory/logs/CHANGELOG]] — changes that materially affect the project.

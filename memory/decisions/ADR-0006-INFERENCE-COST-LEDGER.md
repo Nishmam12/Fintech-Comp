@@ -1,6 +1,6 @@
 # ADR-0006: Inference Cost Ledger (Monthly Buckets, Worst-Case Reservation, Reconciliation)
 
-- **Status:** PROPOSED
+- **Status:** ACCEPTED (2026-10-15, team lead)
 - **Date:** 2026-10-15
 - **Owner:** Opus planner (draft) / project lead (approval)
 - **Related tasks:** BK-050, BK-060, BK-070

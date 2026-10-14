@@ -1,6 +1,6 @@
 # ADR-0003: Proposed MVP Stack and Scope
 
-- **Status:** PROPOSED
+- **Status:** ACCEPTED (2026-10-15). Amended: database is Supabase Postgres; the "no blockchain" exclusion is lifted for the testnet settlement adapter only, see ADR-0007.
 - **Date:** 2026-10-15
 - **Owner:** Project owner / implementation agent
 
