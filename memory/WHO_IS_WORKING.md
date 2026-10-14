@@ -15,12 +15,12 @@ GPU only matters for local inference or video rendering. All model calls in the 
 One section per member. **Edit only your own section** to avoid merge conflicts. Times are UTC.
 
 ### Nishmam (RTX 4070 Ti Super)
-- **Status:** IDLE
-- **Task ID:** —
-- **Branch:** —
-- **Claimed areas (paths):** —
-- **Started / last update (UTC):** —
-- **Notes / blockers:** —
+- **Status:** ACTIVE
+- **Task ID:** BK-010 (ADR-0004/5/6/7 design decisions)
+- **Branch:** main (docs only)
+- **Claimed areas (paths):** memory/decisions/, memory/architecture/, memory/OPEN_QUESTIONS.md
+- **Started / last update (UTC):** 2026-10-14 19:55
+- **Notes / blockers:** Supabase DB reachable via DATABASE_URL (psycopg). Project-scoped Supabase MCP not loaded in this session.
 
 ### Member 2 (RTX 2070 Super)
 - **Status:** IDLE
