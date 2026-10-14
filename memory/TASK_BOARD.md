@@ -23,7 +23,7 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 | BK-075 | Testnet settlement adapter (Topic F): kernel-authorized spends settle as real testnet txs; tx hash stored on the transaction | BACKLOG | Adapter is called only after kernel `reserved`; testnet only, key from .env; hashes visible in audit + UI; ADR-0007 accepted. |
 | BK-110 | Submission pack: tech doc, deck (10 min or less), demo video (5 min or less), security self-assessment (permission tiers + known risks), execution evidence (tx hashes + logs) | BACKLOG | All 6 checklist items in [[research/COMPETITION]] present and emailed by 2026-10-20 17:00 BST. |
 | BK-OWN-1 | **Owner:** email registration form + passport pages to wangyr@pbcsf.tsinghua.edu.cn | READY | Must be sent by 2026-10-20 17:00 BST; send early to confirm the slot. |
-| BK-OWN-2 | **Owner:** provide GitHub repo URL so the orchestrator can add the remote and push | READY | Remote added, first push done. |
+| BK-OWN-2 | **Owner:** provide GitHub repo URL so the orchestrator can add the remote and push | DONE | origin = github.com/Nishmam12/Fintech-Comp, main pushed 2026-10-15 (84f8c6a). |
 | BK-200 | Investigate consent-aware decision trace collection for future model improvement | DEFERRED | Separate design/privacy review; no real-user training collection until approved. |
 | BK-210 | Evaluate fine-tuning an existing model | DEFERRED | Only after enough reviewed data and a measurable baseline; not an MVP task. |
 
