@@ -9,7 +9,7 @@ Keep unresolved questions here. Each entry should identify why it matters, what 
 - **Owner:** Implementation agent
 
 ## OQ-002 — Official competition requirements
-- **Status:** OPEN
+- **Status:** RESOLVED 2026-10-15. See [[research/COMPETITION]]. Deadline 2026-10-20 17:00 BST, scoring 40/30/30, six deliverables.
 - **Why it matters:** Deadline, eligibility, required format and judging criteria affect sprint prioritization.
 - **Resolution evidence:** Current official event page or organizer confirmation, saved in `memory/research/PRIOR_ART.md`.
 - **Owner:** Research agent / project owner
@@ -37,6 +37,12 @@ Keep unresolved questions here. Each entry should identify why it matters, what 
 - **Why it matters:** Concurrency correctness depends on the actual transactional database semantics.
 - **Resolution evidence:** Current environment/deployment constraints and tests against the chosen DB.
 - **Owner:** Backend agent
+
+## OQ-008 — Competition topic (A Personal Finance vs F Agent Wallet)
+- **Status:** OPEN
+- **Why it matters:** Topic F carries a 0–5 bonus but needs real on-chain tx hashes (testnet settlement adapter). Topic A needs visible user tasks (budgeting, bill analysis, insights).
+- **Resolution evidence:** Project owner decision.
+- **Owner:** Project owner
 
 ## OQ-007 — Cross-border user-data handling
 - **Status:** OPEN / NOT AN MVP BLOCKER FOR SYNTHETIC DATA

@@ -33,13 +33,18 @@ A task is not done because code was generated. It is done when its acceptance cr
 ## Collaboration
 Only one agent should edit shared source files and canonical memory files at a time. Another agent may perform a read-only review and provide precise findings. Never overwrite another agent's uncommitted work. Check `git status` and inspect diffs before editing and before committing.
 
-## Model roles (Claude Code)
-- **Opus 5.5 — planner/advisor** (`.claude/agents/planner.md`): milestone plans, ADRs, threat model, kernel/security review, unblocking design problems. Writes only ADR/architecture/plan notes.
-- **Sonnet 5.5 — orchestrator** (main session, `/model sonnet`): owns the task board, implements core code (kernel, ledger, cost ledger, router), dispatches subagents, merges, and syncs memory. Sole writer of canonical memory and core source.
-- **Haiku — short work**: `scout` (read-only overviews, lookups, test runs) and `clerk` (small mechanical edits, memory log entries, boilerplate). Never touches kernel/ledger/cost-ledger/migrations.
-- **Sonnet `implementer`**: scoped parallel tasks in a separate git worktree (eval dataset, frontend, adapters); merged by the orchestrator after review.
+## Model roles (Claude Code; configured in `.claude/settings.json` and `.claude/agents/`)
+- **Opus 5.5 plans.** The project model is `opusplan`, so plan mode runs on Opus and execution switches to Sonnet automatically. Start each milestone in plan mode (Shift+Tab).
+- **Opus 5.5 advises.** `advisorModel: opus` lets the Sonnet executor consult Opus mid-task with full context: before committing to an approach, on recurring errors, and before declaring done.
+- **Sonnet 5.5 orchestrates.** Main session in execution mode: owns the task board, writes core code (kernel, ledger, cost ledger, router, API), dispatches subagents, merges, syncs memory. It is the only writer of canonical memory and core source.
+- **Haiku 5.5 does short work.**
+  - `Explore` overrides the built-in, so all automatic exploration is cheap: overviews, lookups, test runs. Read-only.
+  - `clerk` does small mechanical edits and memory log entries. It never touches kernel/ledger/cost-ledger/migrations.
+- **Opus `planner` subagent:** an independent fresh-context reviewer. It drafts ADRs, reviews kernel diffs before merge, and writes the security self-assessment. It does not edit source.
+- **Sonnet `implementer` subagent:** scoped parallel tasks in an isolated worktree. The orchestrator merges them after review.
+- **Other subagents** default to Sonnet (`CLAUDE_CODE_SUBAGENT_MODEL`).
 
-Escalate to the planner when: a milestone starts, an invariant or ADR is in question, a concurrency/security test fails for a non-obvious reason, or before merging kernel changes.
+Session hygiene: `/clear` between unrelated tasks, and start a fresh session after two failed corrections. Every task ends with a runnable check (tests) and evidence, not "looks done".
 
 ## Project map
 - `memory/INDEX.md`: navigation map.
