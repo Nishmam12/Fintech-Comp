@@ -1,0 +1,35 @@
+{
+  "version": "2026-10-15.1",
+  "notes": "Integer micro-USD per 1M tokens. Verified against the official pages on accessed_on. Worst-case pricing is used on purpose: DeepSeek at PEAK rates (off-peak is 50%), Qwen cached input at the full input price (real cache price is lower). Thinking/reasoning is disabled on both routes (see providers config), so max_tokens bounds all billable output.",
+  "models": [
+    {
+      "provider": "dashscope",
+      "model_id": "qwen3.7-flash-2026-07-15",
+      "region": "singapore-intl",
+      "input_price_micro_per_Mtok": 30000,
+      "cached_input_price_micro_per_Mtok": 30000,
+      "output_price_micro_per_Mtok": 130000,
+      "reasoning_billing": "as_output",
+      "fixed_fee_micro": 0,
+      "tier_max_input_tokens": 32000,
+      "source_url": "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
+      "accessed_on": "2026-10-15",
+      "verified": true,
+      "comment": "Tier 0<input<=32K: $0.030 in / $0.130 out per 1M. Larger prompts are refused for this route (all tokens bill at the higher tier)."
+    },
+    {
+      "provider": "deepseek",
+      "model_id": "deepseek-flash",
+      "region": "global",
+      "input_price_micro_per_Mtok": 300000,
+      "cached_input_price_micro_per_Mtok": 6000,
+      "output_price_micro_per_Mtok": 1200000,
+      "reasoning_billing": "as_output",
+      "fixed_fee_micro": 0,
+      "source_url": "https://api-docs.deepseek.com/quick_start/pricing",
+      "accessed_on": "2026-10-15",
+      "verified": true,
+      "comment": "DeepSeek-V4.1-Flash, peak prices: cache miss $0.30, cache hit $0.006, output $1.20 per 1M. Whether max_tokens bounds thinking tokens is not stated on the page, so the route runs in non-thinking mode."
+    }
+  ]
+}

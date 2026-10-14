@@ -27,7 +27,7 @@ Keep unresolved questions here. Each entry should identify why it matters, what 
 - **Owner:** Backend/security agent
 
 ## OQ-005 — Provider account, exact model IDs and price tiers
-- **Status:** OPEN
+- **Status:** PARTLY RESOLVED 2026-10-15: prices and model IDs verified from official pages and committed in `backend/config/rate_card.json` (qwen3.7-flash-2026-07-15 primary, deepseek-flash escalation). Still open: live smoke test per account, and confirmation that thinking can be disabled on both routes.
 - **Why it matters:** Model availability/pricing, billing semantics, supported output formats and region can change.
 - **Resolution evidence:** Official provider docs plus live account smoke test; save dated evidence and pricing snapshot.
 - **Owner:** Model-routing agent

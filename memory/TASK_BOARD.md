@@ -15,7 +15,7 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 | BK-030 | Enforce concurrency safety, idempotency and revocation | DONE | Opus review done, findings fixed; races + hardening tests pass (90/90 non-slow, 2026-10-15). |
 | BK-040 | Implement proposal schema and server-side semantic validation | BACKLOG | Model outputs cannot include/override trusted authorization state; invalid schemas fail closed. |
 | BK-050 | Implement model provider adapters | BACKLOG | Explicit model IDs, timeout behavior, bounded retries and usage metrics; mocked tests pass. |
-| BK-060 | Implement internal spend ledger and global cap | BACKLOG | Atomic pre-call cost reservations, usage reconciliation, cap enforcement and safe budget exhaustion. |
+| BK-060 | Implement internal spend ledger and global cap | DONE | 13 tests pass incl. 50-way concurrent cap test and 60-call mixed-route no-deadlock test (2026-10-15). |
 | BK-070 | Implement route policy and primary/escalation path | BACKLOG | Routes driven by documented deterministic criteria; no arbitrary quota enforcement. |
 | BK-080 | Build labeled evaluation set and naive isolated baseline | BACKLOG | Versioned scenarios, expected labels, reproducible runner and baseline report. |
 | BK-090 | Build dashboard wired to backend | BACKLOG | UI displays actual server results and runs repeatable simulations. |

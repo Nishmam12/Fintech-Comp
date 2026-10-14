@@ -23,7 +23,8 @@ def pool(settings):
     migrate(settings, settings.test_schema)
     p = make_pool(settings, settings.test_schema, max_size=10)
     with p.connection() as c:  # clean slate; TRUNCATE is not blocked by the row-level append-only triggers
-        c.execute("TRUNCATE principals, mandates, grants, transactions, ledger_movements, audit_events CASCADE")
+        c.execute("TRUNCATE principals, mandates, grants, transactions, ledger_movements, audit_events,"
+                  " budget_buckets, inference_calls CASCADE")
     yield p
     p.close()
 
