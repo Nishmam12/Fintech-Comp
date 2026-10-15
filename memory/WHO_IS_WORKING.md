@@ -22,13 +22,13 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Started / last update (UTC):** 2026-10-15 07:25
 - **Notes / blockers:** Supabase DB reachable via DATABASE_URL (psycopg). Project-scoped Supabase MCP not loaded in this session.
 
-### Member 2 (RTX 2070 Super)
-- **Status:** IDLE
-- **Task ID:** —
-- **Branch:** —
-- **Claimed areas (paths):** —
-- **Started / last update (UTC):** —
-- **Notes / blockers:** —
+### Member 2 (RTX 2070 Super) — daniel
+- **Status:** ACTIVE
+- **Task ID:** BK-090 (dashboard) then BK-321..326
+- **Branch:** daniel/BK-090-dashboard
+- **Claimed areas (paths):** frontend/
+- **Started / last update (UTC):** 2026-10-15
+- **Notes / blockers:** BK-305 (api/, routing/) and docs/submission/ will be claimed when I start them.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
 - **Status:** ACTIVE
