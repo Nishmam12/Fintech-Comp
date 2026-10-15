@@ -66,3 +66,7 @@ class Interpret(Strict):
 
 class AgentRequest(Interpret):
     idempotency_key: str = Field(min_length=1, max_length=200)
+
+
+class SimulationRun(Strict):
+    scenario: str = Field(min_length=1, max_length=60)

@@ -74,3 +74,11 @@ def test_no_secrets_in_tracked_source():
     hits = [str(p) for p in list(root.rglob("*.py")) + list(root.rglob("*.md")) + list(root.rglob("*.sql"))
             if ".venv" not in p.parts and pat.search(p.read_text(encoding="utf-8", errors="ignore"))]
     assert hits == []
+
+
+def test_baseline_tables_are_only_touched_by_the_baseline_and_simulation():
+    """The unsafe baseline's tables must be unreachable from the secure path."""
+    pat = re.compile(r"naive_(wallets|spends)", re.I)
+    offenders = [str(p.relative_to(SRC)) for p in py_files()
+                 if p.relative_to(SRC).parts[0] not in ("naive_baseline", "simulation") and pat.search(p.read_text(encoding="utf-8"))]
+    assert offenders == []

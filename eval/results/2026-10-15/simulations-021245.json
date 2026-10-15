@@ -1,0 +1,163 @@
+{
+  "ran_at": "2026-10-15T02:12:45.951254+00:00",
+  "git_commit": "a1c691c",
+  "scenarios": [
+    {
+      "scenario": "concurrency_overspend",
+      "title": "Concurrent overspend",
+      "what_it_proves": "Parallel spend requests cannot exceed the funds that exist",
+      "informational": false,
+      "naive": {
+        "violated": true,
+        "metrics": {
+          "requests": 8,
+          "approved": 8,
+          "funds": 90000,
+          "spend_count": 8,
+          "spent_total": 240000,
+          "balance_total": -150000,
+          "lowest_balance": -150000
+        },
+        "summary": "approved 8 of 8 requests; spent 240000 from 90000"
+      },
+      "kernel": {
+        "violated": false,
+        "metrics": {
+          "requests": 8,
+          "approved": 3,
+          "reserved_total": 90000,
+          "funds": 90000,
+          "busy_retries": 1,
+          "invariant_violations": []
+        },
+        "summary": "approved 3 of 8; reserved 90000 of 90000; invariants hold: True"
+      },
+      "duration_ms": 9588
+    },
+    {
+      "scenario": "delegation_amplification",
+      "title": "Delegation amplification",
+      "what_it_proves": "Delegating transfers authority; it can never create more than the parent holds",
+      "informational": false,
+      "naive": {
+        "violated": true,
+        "metrics": {
+          "children_created": 6,
+          "delegated_total": 180000,
+          "parent_funds": 90000
+        },
+        "summary": "created 6 children holding 180000 from a parent with 90000"
+      },
+      "kernel": {
+        "violated": false,
+        "metrics": {
+          "children_created": 3,
+          "delegated_total": 90000,
+          "parent_funds": 90000,
+          "rejected": 3,
+          "invariant_violations": []
+        },
+        "summary": "created 3 children holding 90000 of 90000; invariants hold: True"
+      },
+      "duration_ms": 7036
+    },
+    {
+      "scenario": "replay_duplicate",
+      "title": "Replay / duplicate delivery",
+      "what_it_proves": "An idempotency key bound to the payload makes retries safe",
+      "informational": false,
+      "naive": {
+        "violated": true,
+        "metrics": {
+          "requests_with_same_key": 5,
+          "debits": 5,
+          "spent_total": 50000
+        },
+        "summary": "the same request sent 5 times was debited 5 times"
+      },
+      "kernel": {
+        "violated": false,
+        "metrics": {
+          "requests_with_same_key": 5,
+          "transactions_created": 1,
+          "reserved": 10000,
+          "invariant_violations": []
+        },
+        "summary": "the same request sent 5 times created 1 transaction; reserved 10000"
+      },
+      "duration_ms": 5842
+    },
+    {
+      "scenario": "revocation_race",
+      "title": "Revocation race",
+      "what_it_proves": "Whatever order revoke and spend interleave in, no live authority survives revocation",
+      "informational": false,
+      "naive": {
+        "violated": false,
+        "metrics": {
+          "spends_recorded_after_revoke_committed": 0
+        },
+        "summary": "0 spend(s) were recorded after the revocation committed (timing-dependent)"
+      },
+      "kernel": {
+        "violated": false,
+        "metrics": {
+          "live_reservations_on_revoked_grant": 0,
+          "grant_status": "revoked",
+          "grant_available": 0,
+          "invariant_violations": []
+        },
+        "summary": "0 live reservation(s) on the revoked grant; invariants hold: True"
+      },
+      "duration_ms": 10586
+    },
+    {
+      "scenario": "revoked_ancestor",
+      "title": "Revoked ancestor",
+      "what_it_proves": "Revoking a grant invalidates all of its descendants for new spending",
+      "informational": false,
+      "naive": {
+        "violated": true,
+        "metrics": {
+          "grandchild_spend_after_ancestor_revoked": true
+        },
+        "summary": "grandchild still spent after its parent was revoked"
+      },
+      "kernel": {
+        "violated": false,
+        "metrics": {
+          "decision": "rejected",
+          "reason": "GRANT_REVOKED",
+          "descendant_status": "revoked",
+          "invariant_violations": []
+        },
+        "summary": "grandchild rejected (GRANT_REVOKED); descendant status revoked"
+      },
+      "duration_ms": 8796
+    },
+    {
+      "scenario": "split_purchases",
+      "title": "Split purchases (known limitation)",
+      "what_it_proves": "Disclosed limit: per-transaction caps can be split; the grant balance still bounds total spend",
+      "informational": true,
+      "naive": {
+        "violated": null,
+        "metrics": {},
+        "summary": "not applicable: baseline has no per-transaction limit"
+      },
+      "kernel": {
+        "violated": false,
+        "informational_finding": true,
+        "metrics": {
+          "single_large_request": "PER_TX_LIMIT_EXCEEDED",
+          "split_requests_approved": 5,
+          "split_total": 50000,
+          "grant_funds": 50000,
+          "invariant_violations": []
+        },
+        "summary": "one 30000 request: PER_TX_LIMIT_EXCEEDED; 5 split requests of 10000 approved (total 50000 of 50000) -- The per-transaction limit is not a velocity limit: a 30,000 request is refused, but three 10,000 requests are approved. Total spend is still capped by the grant's balance. Velocity limits are out of scope for the MVP and are on the known-risk list."
+      },
+      "duration_ms": 11858
+    }
+  ]
+}

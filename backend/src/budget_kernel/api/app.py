@@ -13,7 +13,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from budget_kernel import kernel
+from budget_kernel import kernel, simulation
 from budget_kernel.costledger import ledger as cost_ledger
 from budget_kernel.costledger.rate_card import RateCard
 from budget_kernel.routing.agent import interpret_then_decide
@@ -176,6 +176,22 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             idempotency_key=body.idempotency_key, recipients=g["scope"]["recipients"],
             categories=g["scope"]["categories"], currency=g["currency"].strip(),
             transport=request.app.state.llm_transport))
+
+    # ------------------------------------------------------------- attack demo (baseline vs kernel)
+
+    @app.get("/simulation/scenarios")
+    def simulation_list(me: Principal = Caller):
+        return {"scenarios": sorted(simulation.SCENARIOS)}
+
+    @app.post("/simulation/run")
+    def simulation_run(body: schemas.SimulationRun, request: Request, me: Principal = Caller):
+        """Run a named attack against the unsafe baseline AND the real kernel; returns measured outcomes.
+        Uses its own fresh mandate and keyless simulation identities; human principals only."""
+        if me.kind != "human":
+            raise kernel.Forbidden("only human principals may run simulations", code="HUMAN_ONLY")
+        if body.scenario not in simulation.SCENARIOS:
+            raise kernel.NotFound("unknown scenario", code="UNKNOWN_SCENARIO")
+        return _jsonable(simulation.run(P(request), body.scenario))
 
     @app.get("/budget")
     def budget(request: Request, me: Principal = Caller):
