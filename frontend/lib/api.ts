@@ -146,3 +146,28 @@ export function money(minor: number, currency = "USD"): string {
   const whole = s.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `${neg ? "-" : ""}${whole}.${s.slice(-2)} ${currency.trim()}`;
 }
+
+export type Bucket = {
+  bucket: string;
+  cap_micro_usd: number;
+  reserved_micro: number;
+  spent_micro: number;
+  remaining_micro: number;
+};
+export type BudgetSnapshot = { month: string; buckets: Bucket[] };
+
+export type AuditEvent = {
+  id: number;
+  kind: string;
+  actor_principal_id: string | null;
+  subject_id: string | null;
+  detail: Record<string, unknown> | null;
+  created_at: string;
+};
+
+// Display-only: integer micro-USD (1 USD = 1,000,000) written as dollars with six decimals, by string slicing.
+export function microUsd(micro: number): string {
+  const neg = micro < 0;
+  const s = Math.abs(micro).toString().padStart(7, "0");
+  return `${neg ? "-" : ""}$${s.slice(0, -6)}.${s.slice(-6)}`;
+}

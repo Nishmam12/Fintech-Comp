@@ -18,7 +18,7 @@ function Row({ k, v }: { k: string; v: string | number | null | undefined }) {
   return (
     <div className="flex justify-between gap-3 text-sm">
       <dt className="text-muted">{k}</dt>
-      <dd className="break-words text-right">{String(v)}</dd>
+      <dd className="wrap-anywhere text-right">{String(v)}</dd>
     </div>
   );
 }
@@ -132,6 +132,11 @@ export default function AskView() {
 
   return (
     <section className="flex flex-col gap-4">
+      {state && grants.length === 0 && (
+        <p role="status" className="rounded-md border border-line bg-card px-3 py-2 text-sm text-muted">
+          No active grant in this mandate, so there is nothing to ask against.
+        </p>
+      )}
       <form onSubmit={submit} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm">
           Grant
