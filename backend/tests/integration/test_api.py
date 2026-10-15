@@ -130,3 +130,35 @@ def test_revoke_via_api_reports_in_flight_exposure(client):
     assert client.post(f"/mandates/{m['mandate_id']}/settlers", headers=owner, json={"principal_id": svc_id}).status_code == 201
     r = client.post(f"/transactions/{tx}/settle", headers=svc)
     assert r.status_code == 409          # reservation was released by the revoke
+
+
+def test_testnet_mode_settles_via_adapter(pool, monkeypatch):
+    from budget_kernel.settlement.adapter import SettlementConfig
+    from budget_kernel.settlement.fake import FakeChain
+    from budget_kernel.settlement.signer import Signer
+    monkeypatch.setenv("BK_ADMIN_TOKEN", "test-admin-token")
+    with pool.connection() as c:
+        c.execute("TRUNCATE chain_settlements, settlement_accounts")
+    chain = FakeChain()
+    cfg = SettlementConfig(recipients={"aws": "0x00000000000000000000000000000000000A5300"})
+    admin = {"X-Admin-Token": "test-admin-token"}
+    with TestClient(create_app(pool=pool, settlement=(chain, Signer("0x" + "22" * 32), cfg))) as client:
+        _, owner = principal(client, "owner", "human")
+        alice_id, alice = principal(client, "alice")
+        svc_id, svc = principal(client, "svc", "service")
+        m = mandate(client, owner)
+        g = client.post("/grants", headers=owner, json={
+            "parent_grant_id": m["root_grant_id"], "holder_principal_id": alice_id, "amount": 30_000,
+            "expires_at": future(10).isoformat(), "scope": scope(per_tx_limit=20_000, can_delegate=False),
+            "idempotency_key": "g1"}).json()["grant_id"]
+        tx = client.post("/transactions/authorize", headers=alice, json={
+            "grant_id": g, "amount": 5_000, "currency": "USD", "recipient": "aws", "category": "cloud",
+            "idempotency_key": "t1"}).json()["transaction_id"]
+        assert client.post(f"/transactions/{tx}/settle", headers=svc).status_code == 403    # not bound yet
+        assert client.post(f"/mandates/{m['mandate_id']}/settlers", headers=owner, json={"principal_id": svc_id}).status_code == 201
+        r = client.post(f"/transactions/{tx}/settle", headers=svc)
+        assert r.status_code == 200 and r.json()["status"] == "broadcast", r.text
+        assert r.json()["explorer_url"].endswith(r.json()["tx_hash"])
+        chain.mine(blocks=2)
+        res = client.post("/settlement/reconcile", headers={**svc, **admin}).json()["results"]
+        assert res[0]["status"] == "confirmed", res

@@ -44,7 +44,22 @@ def _jsonable(obj):
     return obj
 
 
-def create_app(pool=None, schema: str | None = None, card: RateCard | None = None, llm_transport=None) -> FastAPI:
+def _settlement_from_env():
+    """None in the default 'simulated' mode. In 'testnet' mode: RPC chain, signer from .env, operator recipient registry."""
+    if os.environ.get("BK_SETTLEMENT_MODE", "simulated") != "testnet":
+        return None
+    import json
+    from budget_kernel.settlement.adapter import SettlementConfig
+    from budget_kernel.settlement.chain import RpcChain
+    from budget_kernel.settlement.signer import Signer
+    cfg = SettlementConfig(recipients=json.load(open(os.environ["BK_SETTLEMENT_RECIPIENTS"])))
+    chain = RpcChain(os.environ.get("BASE_SEPOLIA_RPC_URL", "https://sepolia.base.org"), cfg.chain_id)
+    return chain, Signer(os.environ["SETTLEMENT_PRIVATE_KEY"]), cfg
+
+
+def create_app(pool=None, schema: str | None = None, card: RateCard | None = None, llm_transport=None,
+               settlement=None) -> FastAPI:
+    """settlement: (chain, signer, cfg) injected by tests; otherwise built from env when BK_SETTLEMENT_MODE=testnet."""
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         owned = pool is None
@@ -55,6 +70,7 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             app.state.pool = pool
         app.state.card = card or RateCard.load()
         app.state.llm_transport = llm_transport      # tests inject a mock HTTP transport; None in production
+        app.state.settlement = settlement or _settlement_from_env()
         yield
         if owned:
             app.state.pool.close()
@@ -122,12 +138,29 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         return _jsonable(kernel.release(P(request), transaction_id=_uuid(tx_id, "transaction"), actor=me.id))
 
     @app.post("/transactions/{tx_id}/settle")
-    def settle_simulated(tx_id: str, request: Request, me: Principal = Caller):
-        """Simulated settlement: submit + confirm. The testnet adapter (ADR-0007) replaces this path.
-        Permission (settlement service, or the mandate owner in simulation) is enforced by the kernel."""
+    def settle(tx_id: str, request: Request, me: Principal = Caller):
+        """Simulated: submit + confirm. Testnet mode (BK_SETTLEMENT_MODE=testnet): the adapter signs, broadcasts and
+        confirms on proof; calling again advances the same transfer. Permission is enforced by the kernel either way."""
         tid = _uuid(tx_id, "transaction")
-        kernel.settle_start(P(request), transaction_id=tid, actor=me.id)
-        return _jsonable(kernel.settle_confirm(P(request), transaction_id=tid, actor=me.id))
+        st = request.app.state.settlement
+        if st is None:
+            kernel.settle_start(P(request), transaction_id=tid, actor=me.id)
+            return _jsonable(kernel.settle_confirm(P(request), transaction_id=tid, actor=me.id))
+        from budget_kernel.settlement.adapter import SettlementRefused, settle as chain_settle
+        chain, signer, cfg = st
+        try:
+            return _jsonable(chain_settle(P(request), transaction_id=tid, actor=me.id, chain=chain, signer=signer, cfg=cfg))
+        except SettlementRefused as e:
+            raise HTTPException(409, {"code": "SETTLEMENT_REFUSED", "message": str(e)}) from None
+
+    @app.post("/settlement/reconcile", dependencies=[Depends(require_admin)])
+    def settlement_reconcile(request: Request, me: Principal = Caller):
+        """Advance every unfinished transfer (re-broadcasts the stored bytes; never re-signs)."""
+        st = request.app.state.settlement
+        if st is None:
+            raise HTTPException(409, {"code": "NOT_TESTNET_MODE", "message": "BK_SETTLEMENT_MODE is not testnet"})
+        from budget_kernel.settlement.adapter import reconcile
+        return _jsonable({"results": reconcile(P(request), actor=me.id, chain=st[0], cfg=st[2])})
 
     @app.post("/transactions/{tx_id}/settle-fail")
     def settle_fail(tx_id: str, body: schemas.SettleFail, request: Request, me: Principal = Caller):
