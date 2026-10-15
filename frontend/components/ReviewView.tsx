@@ -60,6 +60,23 @@ export default function ReviewView() {
               <dt className="text-muted">Grant</dt><dd className="text-right font-mono text-xs">{t.grant_id.slice(0, 8)}</dd>
               <dt className="text-muted">Requested</dt><dd className="text-right">{new Date(t.created_at).toLocaleString()}</dd>
             </dl>
+            {t.proposal && (
+              <details className="mt-2 rounded-md border border-line p-2 text-sm">
+                <summary className="cursor-pointer text-muted">Model proposal (untrusted)</summary>
+                <p className="mt-1 wrap-anywhere whitespace-pre-wrap">{t.proposal.explanation}</p>
+                {t.proposal.purpose && <p className="mt-1 wrap-anywhere text-muted">Purpose: {t.proposal.purpose}</p>}
+                {t.proposal.evidence?.length > 0 && (
+                  <ul className="mt-1 list-disc pl-5 text-xs text-muted">
+                    {t.proposal.evidence.map((e, i) => (
+                      <li key={i} className="wrap-anywhere">{e.field}: &ldquo;{e.quote}&rdquo;</li>
+                    ))}
+                  </ul>
+                )}
+                {[...(t.proposal.ambiguities ?? []), ...(t.proposal.conflicts ?? [])].map((x, i) => (
+                  <p key={i} className="mt-1 wrap-anywhere text-xs text-muted">{x}</p>
+                ))}
+              </details>
+            )}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button disabled={busyId === t.id} onClick={() => void decide(t, true)} className="btn-primary">Approve</button>
               <button disabled={busyId === t.id} onClick={() => void decide(t, false)} className="btn-ghost min-h-12">Deny</button>
