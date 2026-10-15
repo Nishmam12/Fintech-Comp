@@ -18,7 +18,7 @@ function Row({ k, v }: { k: string; v: string | number | null | undefined }) {
   return (
     <div className="flex justify-between gap-3 text-sm">
       <dt className="text-muted">{k}</dt>
-      <dd className="break-words text-right">{String(v)}</dd>
+      <dd className="wrap-anywhere text-right">{String(v)}</dd>
     </div>
   );
 }

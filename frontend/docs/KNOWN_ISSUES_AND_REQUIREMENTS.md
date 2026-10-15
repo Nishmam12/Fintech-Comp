@@ -12,7 +12,7 @@ Everything below was observed or read from the code. Nothing here is a guess unl
 | Screen 3 request box (interpretation beside kernel decision) | built | reserved, held (`ABOVE_THRESHOLD`) and unresolved paths all exercised |
 | Screen 4 review queue (BK-322, 3 s polling) | built | approve and deny each changed the held count (3 → 2 → 1) and showed the API result |
 | Kill switch (BK-323) | built | two-step confirm; result showed 300.00 reclaimed, 3 reservations released, 0 in flight. Server then showed child `revoked`, root 600.00 → 900.00, invariants ok, next agent request refused `GRANT_REVOKED` |
-| Screen 5 budget meter + audit feed | not started | |
+| Screen 5 budget meter + audit feed | built | screen showed 13 events and 5 budget buckets, identical to the API; a request made while the tab was open appeared as event #14 within one poll |
 | Screen 6 attack panel | not started | |
 | BK-321 PWA, BK-324 velocity meter, BK-325 explorer links, BK-326 Playwright smoke | not started | |
 
@@ -46,6 +46,9 @@ Checks run on every change: `npx tsc --noEmit`, `npm run lint`, `npm run build`,
 
 | K5 | Owner cannot revoke the root grant (`revoke` uses `allow_self=False`), so the kill switch is offered on non-root grants only. | Killing everything under a mandate means revoking each direct child. | By design in the kernel. |
 | K6 | The Ask screen lists active grants only, so after a kill the form shows "No active grant" and cannot send. The kernel's own `GRANT_REVOKED` refusal was verified directly over the API. | None. | By design. |
+
+| K7 | Long unbroken strings (JSON audit details, recipients) widened the page to 643 px on a 390 px phone. `break-words` is not enough inside flex/grid; use `wrap-anywhere` on every untrusted string. Fixed in Activity, Ask and Review. | Horizontal scroll on phones. | New screens must reuse `wrap-anywhere` and be re-checked at 390 px. |
+| K8 | `/budget` has five buckets (`global`, `primary`, `escalation`, `retries`, `eval`), all at 0 spent while no model key is set. | The meter looks idle until keys arrive. | Expected. |
 
 ## 5. Required later (by task)
 

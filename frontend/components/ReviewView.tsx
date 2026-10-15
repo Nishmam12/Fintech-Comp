@@ -54,9 +54,9 @@ export default function ReviewView() {
           <li key={t.id} className="rounded-lg border border-line bg-card p-3">
             <p className="text-xl font-semibold">{money(t.amount, t.currency || cur)}</p>
             <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-              <dt className="text-muted">To</dt><dd className="break-words text-right">{t.recipient}</dd>
-              <dt className="text-muted">Category</dt><dd className="break-words text-right">{t.category}</dd>
-              <dt className="text-muted">Why held</dt><dd className="break-words text-right">{t.review_reason ?? "—"}</dd>
+              <dt className="text-muted">To</dt><dd className="wrap-anywhere text-right">{t.recipient}</dd>
+              <dt className="text-muted">Category</dt><dd className="wrap-anywhere text-right">{t.category}</dd>
+              <dt className="text-muted">Why held</dt><dd className="wrap-anywhere text-right">{t.review_reason ?? "—"}</dd>
               <dt className="text-muted">Grant</dt><dd className="text-right font-mono text-xs">{t.grant_id.slice(0, 8)}</dd>
               <dt className="text-muted">Requested</dt><dd className="text-right">{new Date(t.created_at).toLocaleString()}</dd>
             </dl>
