@@ -54,6 +54,15 @@ def grounded_amounts(text: str) -> set[int]:
     return {c for c in cands if c > 0}
 
 
+def name_in_text(name: str | None, text: str) -> bool:
+    """True iff `name` occurs in the user's text as a whole word (case-insensitive). Recipient and category
+    decide where money goes and what it is for, so they must come from the text, never from the model's guess."""
+    if not name or not name.strip():
+        return False
+    pattern = r"(?<![A-Za-z0-9])" + re.escape(name.strip()) + r"(?![A-Za-z0-9])"
+    return re.search(pattern, text, re.IGNORECASE) is not None
+
+
 def injection_suspected(text: str) -> bool:
     return bool(_INJECTION.search(text))
 
@@ -66,6 +75,11 @@ def semantic_issues(p: Proposal, text: str) -> list[str]:
         issues.append("INCOMPLETE_WITHOUT_MISSING_FIELDS")
     if p.complete and p.amount_minor not in grounded_amounts(text):
         issues.append("AMOUNT_UNGROUNDED")
+    if p.complete:
+        if not name_in_text(p.recipient, text):
+            issues.append("RECIPIENT_UNGROUNDED")
+        if not name_in_text(p.category, text):
+            issues.append("CATEGORY_UNGROUNDED")
     for ev in p.evidence:
         if ev.quote.lower() not in low:
             issues.append("EVIDENCE_NOT_IN_INPUT")

@@ -1,5 +1,6 @@
 """Interpretation pipeline: fast path, primary, escalation, failure classes, budget. Providers are
 mocked at the HTTP layer; the cost ledger is the real one on Postgres."""
+import contextlib
 import json
 
 import httpx
@@ -236,3 +237,58 @@ def test_grounding_accepts_sums_and_percent_adjustments_only():
 
 def test_ungrounded_amounts_are_not_accepted():
     assert 123_456 not in grounded_amounts("Pay $120.50 for cloud")
+
+
+# ------------------------------------------------------------------ normalization of display-only quirks (prompt v2)
+
+def test_overlong_explanation_is_clipped_not_fatal():
+    from budget_kernel.routing.interpret import _parse
+    body = json.loads(json.dumps(proposal()))      # a valid proposal dict from this module's helper
+    body["explanation"] = "x" * 900
+    assert len(_parse(json.dumps(body)).explanation) == 300
+
+
+def test_purpose_listed_as_missing_does_not_make_a_complete_request_incomplete():
+    from budget_kernel.routing.interpret import _parse
+    body = json.loads(json.dumps(proposal()))
+    body["purpose"], body["missing_fields"] = None, ["purpose"]
+    p = _parse(json.dumps(body))
+    assert p.missing_fields == [] and p.complete
+
+
+def test_normalization_does_not_loosen_anything_else():
+    from budget_kernel.routing.interpret import _parse
+    body = json.loads(json.dumps(proposal()))
+    for bad in ({"authorized": True}, {"state": "reserved"}, {"amount_minor": 0}, {"missing_fields": ["amount"]}):
+        with pytest.raises(Exception) if "authorized" in bad or "state" in bad or "amount_minor" in bad else contextlib.nullcontext():
+            p = _parse(json.dumps({**body, **bad}))
+        if "missing_fields" in bad:
+            assert not p.complete                  # a real missing field still blocks completeness
+
+
+# ------------------------------------------------------------------ recipient and category must come from the text
+
+def test_a_category_the_model_inferred_is_held_for_review(clean_budget):
+    """Found by the live evaluation: 'Pay github $80' names no category, yet the model answered 'tools'."""
+    fake = Fake(**{QWEN: [proposal(category="cloud", evidence=[{"field": "amount", "quote": "$80"}], amount=8000)]})
+    out = run(clean_budget, "Pay aws $80", fake)
+    assert out["status"] == "needs_review" and "CATEGORY_UNGROUNDED" in out["reasons"]
+    assert fake.calls == [QWEN]                      # not escalated: a bigger model cannot make a missing word appear
+
+
+def test_a_recipient_the_model_inferred_is_held_for_review(clean_budget):
+    fake = Fake(**{QWEN: [proposal(evidence=[{"field": "amount", "quote": "$80"}], amount=8000)]})
+    out = run(clean_budget, "Pay $80 for cloud", fake)
+    assert out["status"] == "needs_review" and "RECIPIENT_UNGROUNDED" in out["reasons"]
+
+
+def test_names_stated_in_the_text_still_pass(clean_budget):
+    fake = Fake(**{QWEN: [proposal(evidence=[{"field": "amount", "quote": "$80"}], amount=8000)]})
+    out = run(clean_budget, "Please send AWS $80 for the cloud bill", fake)
+    assert out["status"] == "ok" and out["reasons"] == []
+
+
+def test_a_name_that_is_only_part_of_another_word_does_not_count():
+    from budget_kernel.proposals.validate import name_in_text
+    assert name_in_text("aws", "Pay AWS $5") and name_in_text("cloud", "the cloud-hosting bill")
+    assert not name_in_text("aws", "Pay lawsuits $5") and not name_in_text("ads", "Pay roads $5") and not name_in_text(None, "x")

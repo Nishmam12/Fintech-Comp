@@ -83,6 +83,7 @@ Section 7 lists all known risks.
 | Split purchases; large spends without the owner | Velocity window over the grant subtree, checked on every grant on the path under the lock; approval threshold = lowest `review_above` on the path (owner exempt); held requests hold no funds; at most 20 pending reviews per grant (ADR-0008) | `test_velocity_threshold.py` (incl. 8 racing spends vs a window); scenario `split_purchases` (plain vs windowed grant); state-machine test with the new fields |
 | Expiry seen late because of lock wait | Clock read *after* the lock (`clock_timestamp()` → `ctx.now`), never SQL `now()` | `test_kernel_hardening.py` |
 | Prompt injection / "ignore your rules" | Request text sent as delimited data; regex injection flag → human review (never escalated); model has no authority fields | `test_interpret.py`; gate cases (25/25) |
+| Model-inferred recipient or category (found by the live evaluation) | A complete proposal must name its recipient and category in the user's own text (whole words), else it is held for human review and not escalated | `test_interpret.py` (inferred category, inferred recipient, word-boundary cases); config B runs 4c and 4d |
 | Hallucinated or altered amounts | Deterministic grounding: the amount must appear in the text, or be a sum of 2–3 amounts or a stated percentage of them; otherwise escalate, then review | `proposals/validate.py`; `test_interpret.py`; config A results |
 | Invalid, truncated or oversized model output | Strict JSON schema; `finish_reason=length` treated as invalid; input capped at 2,000 chars | `test_interpret.py` |
 | Runaway inference spend | Worst-case reservation on global + route buckets before dispatch (one conditional UPDATE); reconcile from usage; stale calls charged at worst case; overruns audited | `test_cost_ledger.py` (concurrent cap test) |
@@ -103,7 +104,8 @@ All numbers come from runs against the hosted Postgres database and are recorded
 | Kernel scripts (50 cases, 134 steps) | 134/134 correct; 0 unauthorized approvals; 0 invariant violations |
 | Gate cases (recorded model outputs, 25) | 25/25 |
 | Config A, rules only (131 text cases) | 51/131 resolved correctly (coverage); **0 unauthorized approvals, 0 wrong-value approvals** |
-| Configs B, C (live models) | **Not yet run.** Waiting on API keys; will be added with provider and model versions |
+| Config B, Qwen only (131 text cases, live model) | 106/131 (80.9%) on dataset v1 and 108/131 (82.4%) on a fresh dataset v2; **0 unauthorized approvals, 0 wrong-value approvals** in the final runs. An intermediate run had 1 of each (a model-inferred category was approved); fixed by requiring recipient and category to appear in the user's text. Details and caveats: `memory/evaluation/RESULTS.md` Run 4 |
+| Config C (with escalation model) | **Not yet run** (needs the DeepSeek key) |
 
 **Attack scenarios.** Each scenario runs the same attack against an intentionally unsafe read-then-write baseline and against the kernel:
 
@@ -162,7 +164,7 @@ Severity is rated for a production deployment. Status is one of: **Mitigated** (
 | R15 | **Model text is shown in the UI** (XSS if rendered as HTML) | Medium | Open | Requirement for BK-090 |
 | R16 | **Simulations run in the live schema** (keyless identities, separate `naive_*` tables) | Low | Mitigated | Human-only endpoint; one run at a time (`SIMULATION_RUNNING` 409); the baseline module is isolated by boundary tests |
 | R17 | **A development DB credential was exposed in a session log** | Medium | Mitigated | Password rotated 2026-10-15. The replacement appeared in a chat transcript, so rotate once more just before submission |
-| R18 | **Provider drift.** Model IDs, prices and the "thinking disabled" parameters are not yet verified live | Low | Open | Prices are frozen per call from a versioned rate card; overruns are charged and audited. Live smoke test pending keys |
+| R18 | **Provider drift.** Model IDs, prices and the "thinking disabled" parameters | Low | Partly mitigated | Qwen verified live on 2026-10-16 (call accepted, 0 reasoning tokens billed, cost within the reservation). DeepSeek `thinking: disabled` is still unverified (no key yet). Prices are frozen per call from a versioned rate card; overruns are charged and audited |
 | R19 | **Injection detection is pattern-based** and misses paraphrased attacks | Low | Accepted | A missed injection still cannot authorize. The amount must be grounded in the text, and recipient and category must be in scope. Worst case: an in-scope, grounded payment the user's text actually contains |
 | R20 | **Direct database access bypasses the kernel** (anyone holding the DB password) | High | Accepted | No DB credential leaves the server. Append-only triggers protect the audit and movement tables. Invariant checks (`GET /mandates/{id}/state`) detect tampering with balances |
 | R21 | **Approval-inbox flooding.** A holder can send many above-threshold requests that wait for the owner | Low | Mitigated | Held requests reserve nothing; at most 20 pending reviews per grant (`TOO_MANY_PENDING_REVIEWS`); unreviewed requests expire after 24 h |

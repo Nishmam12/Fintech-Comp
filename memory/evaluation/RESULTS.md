@@ -55,3 +55,31 @@ Script: `eval/measure_latency.py`; raw file `eval/results/2026-10-15/latency-042
 - Added cost of evaluating a window and a threshold: **+47 ms median** (about one extra round trip for the subtree sum). The ADR-0008 target was under 100 ms.
 - A whole `authorize` call takes about 1.1 s end to end on this database. That is the full call, not only the time the mandate lock is held. Operations on one mandate are serialized, so throughput per mandate is roughly one operation per second here; different mandates run in parallel.
 - Sample size is small (25 per arm) and the p95 and max values are noisy; treat the median as the figure.
+
+## Run 4: live config B, Qwen only (2026-10-16)
+Model `qwen3.7-flash-2026-07-15` (DashScope international, non-thinking), `temperature 0`, escalation **off**. Rate card `2026-10-15.1`. Text cases only (131 per dataset). Raw files in `eval/results/2026-10-15/`. The runs executed on a working tree on top of commit `7c37a99`; the changes were committed afterwards together with these files.
+
+| Step | Dataset | Prompt | Correct | Unauthorized approvals | Wrong-value approvals | Safe misses (failed closed) | Cost |
+|---|---|---|---|---|---|---|---|
+| 4a first live run | v1 (seed 20261015, sha `eacf79821e5d`) | v1 | 92/131 (70.2%) | 0 | 0 | 30 | 3,329 micro-USD |
+| 4b after fixing two output quirks | v1 | v2 | 106/131 (80.9%) | **1** | **1** | 12 | 2,702 |
+| 4c after grounding recipient and category | v1 | v2 | 106/131 (80.9%) | 0 | 0 | 13 | 2,700 |
+| 4d fresh dataset, nothing tuned on it | v2 (seed 20261016, sha `b3f76ea2f21b`) | v2 | 108/131 (82.4%) | 0 | 0 | 12 | 2,685 |
+
+For comparison, rules-only config A: 51/131 (38.9%), 0 unauthorized, 0 wrong-value (Run 1). Each live run made 84 model calls (the other 47 cases were answered by the free rules path); end-to-end latency p50 about 3.9 s, p95 about 5.5 s; no cost overrun in any run.
+
+### What went wrong in 4b, and the fix
+- Step 4a failed mostly for two reasons that had nothing to do with safety: the model wrote `explanation` text longer than 300 characters (rejected as `INVALID_SCHEMA`), and it listed the optional `purpose` as a "missing field" (so complete requests were held as `INCOMPLETE`).
+- Fixes (prompt `interpret-v2` plus clipping a display-only field and ignoring `purpose` as a missing field) raised accuracy, **but exposed a real gap**: for "Pay github $80" (no category given) the model inferred `category = tools` six times out of six, and the pipeline approved it because that category is inside the grant's scope. That is the 1 unauthorized and 1 wrong-value approval in 4b.
+- The gap: the amount was checked against the text, but the recipient and category were not. **Fix:** for a complete proposal, both names must occur in the user's text as whole words, otherwise the request is held for human review (and is not escalated, because a bigger model cannot make a missing word appear). Result in 4c and 4d: 0 and 0.
+- Cost of the stricter rule: it holds some requests that name a merchant by an alias (for example "Amazon Web Services" for `aws`). Those become human reviews, not approvals. One natural-language case on v1 was held for this reason.
+
+### Remaining misses (all fail closed)
+- `arithmetic_fees` 0/12 and `conflicting` 0/6 on both datasets. These families are meant to be resolved by the stronger escalation model (config C). With escalation off they end `unresolved` or held for review, which is the safe outcome but counts as a miss. Config C has **not been run** (no DeepSeek key yet).
+- Number words ("forty dollars") are not recognised by the amount check and end `unresolved`.
+
+### Caveats (read before quoting these numbers)
+- The 4b and 4c fixes were chosen after reading the failures on v1, so v1 numbers after 4a are tuned. v2 was generated after the fixes and not inspected before its run, so 4d is the fairer estimate.
+- v2 uses the same case generator and phrasing templates with a different seed (different names and amounts), so it is not an independent test set. A real held-out set written by someone else would be stronger.
+- One run per setting, 131 cases: differences of a few cases are noise.
+- All data is synthetic.

@@ -33,7 +33,8 @@ from budget_kernel.db.migrate import migrate
 from budget_kernel.routing.agent import interpret_then_decide
 
 ROOT = Path(__file__).resolve().parent
-DATASET = ROOT / "datasets" / "v1" / "cases.jsonl"
+DATASET_VERSION = os.environ.get("BK_DATASET_VERSION", "v1")      # v2 = a fresh set nothing was tuned on
+DATASET = ROOT / "datasets" / DATASET_VERSION / "cases.jsonl"
 RECIPIENTS, CATEGORIES = ["aws", "google", "stripe", "github"], ["cloud", "ads", "payments", "tools"]
 SC_ROOT = {"categories": ["cloud", "ads"], "recipients": ["aws", "google"], "per_tx_limit": 100_000, "can_delegate": True}
 TEXT_SCOPE = {"categories": CATEGORIES, "recipients": RECIPIENTS, "per_tx_limit": 50_000, "can_delegate": True}
@@ -332,8 +333,10 @@ def run_kernel(env, split):
 
 # --------------------------------------------------------------------------- main
 
-def have_keys():
-    return bool(os.environ.get("DASHSCOPE_API_KEY", "").strip()) and bool(os.environ.get("DEEPSEEK_API_KEY", "").strip())
+def missing_keys(config: str) -> list[str]:
+    """Config B uses the primary model only; C also escalates, so it needs the second provider's key too."""
+    need = {"B": ["DASHSCOPE_API_KEY"], "C": ["DASHSCOPE_API_KEY", "DEEPSEEK_API_KEY"]}[config]
+    return [k for k in need if not os.environ.get(k, "").strip()]
 
 
 def main():
@@ -343,16 +346,16 @@ def main():
     args = ap.parse_args()
     wanted = {"offline": ["A", "gate", "kernel"]}.get(args.config, [args.config])
     env = Env()
-    report = {"dataset": json.loads((ROOT / "datasets" / "v1" / "MANIFEST.json").read_text()),
+    report = {"dataset": json.loads((ROOT / "datasets" / DATASET_VERSION / "MANIFEST.json").read_text()),
               "started_at": datetime.now(timezone.utc).isoformat(), "split": args.split, "sections": {},
               "git_commit": subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
                                            cwd=ROOT).stdout.strip(), "rate_card_version": env.card.version}
     # keep a real env var from leaking into offline-only gate runs: scripted transports never use the network
     for name in wanted:
         t0 = time.perf_counter()
-        if name in ("B", "C") and not have_keys():
+        if name in ("B", "C") and missing_keys(name):
             report["sections"][f"text_{name}"] = {"skipped": "model API keys not configured; no numbers were invented"}
-            print(f"[{name}] SKIPPED: set DASHSCOPE_API_KEY and DEEPSEEK_API_KEY in .env")
+            print(f"[{name}] SKIPPED: set {' and '.join(missing_keys(name))} in .env")
             continue
         if name in ("A", "B", "C"):
             report["sections"][f"text_{name}"] = run_text(env, name, args.split)

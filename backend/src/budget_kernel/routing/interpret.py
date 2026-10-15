@@ -22,7 +22,7 @@ from budget_kernel.proposals.validate import MAX_TEXT, semantic_issues
 
 from .fastpath import try_fast_path
 
-PROMPT_VERSION = "interpret-v1"
+PROMPT_VERSION = "interpret-v2"
 MAX_TOKENS = {"primary": 400, "escalation": 600}
 # Issue classes that justify paying for the stronger model. INJECTION_SUSPECTED is deliberately absent:
 # a bigger model does not make hostile text trustworthy, it goes straight to human review.
@@ -38,15 +38,31 @@ def _system_prompt(recipients: list[str], categories: list[str], currency: str) 
         "Rules: amount_minor is an integer in minor units (cents); copy numbers from the text, do not invent them; "
         "if a field is missing or ambiguous, set it to null and list it in missing_fields / ambiguities; "
         "if numbers conflict, list the conflict; evidence quotes must be copied verbatim from the text; "
-        "you cannot approve, authorize or reject anything. Output exactly one JSON object like:\n"
+        "purpose is optional: never list it in missing_fields; keep explanation to one short sentence under 200 "
+        "characters; you cannot approve, authorize or reject anything. Output exactly one JSON object like:\n"
         + PROPOSAL_JSON_EXAMPLE
     )
+
+
+def _normalize(raw: object) -> object:
+    """Two display-only quirks of model output are repaired BEFORE strict validation; nothing else is touched.
+    - explanation is free text for humans and never feeds a decision: an over-long one is clipped, not fatal.
+    - purpose is optional in the schema, so a model that lists it as 'missing' must not make a request incomplete.
+    Every other field, including unknown keys, still goes through the strict schema unchanged."""
+    if not isinstance(raw, dict):
+        return raw
+    out = dict(raw)
+    if isinstance(out.get("explanation"), str):
+        out["explanation"] = out["explanation"][:300]
+    if isinstance(out.get("missing_fields"), list):
+        out["missing_fields"] = [m for m in out["missing_fields"] if m != "purpose"]
+    return out
 
 
 def _parse(text: str) -> Proposal:
     s = text.strip()
     s = re.sub(r"^```(?:json)?\s*|\s*```$", "", s)
-    return Proposal.model_validate(json.loads(s))
+    return Proposal.model_validate(_normalize(json.loads(s)))
 
 
 def _paid_call(pool, card: RateCard, cfg: ProviderConfig, bucket: str, system: str, user: str,

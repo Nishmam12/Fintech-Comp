@@ -1,0 +1,653 @@
+{
+  "dataset": {
+    "version": "v1",
+    "seed": 20261015,
+    "sha256": "eacf79821e5d14839e341a47ae0b06756677b82109a379e331033126176a0104",
+    "total": 206,
+    "by_kind": {
+      "text": 131,
+      "gate": 25,
+      "kernel": 50
+    },
+    "heldout": 66,
+    "note": "synthetic data only; held-out split must not be used to tune routing thresholds"
+  },
+  "started_at": "2026-10-15T19:17:20.158866+00:00",
+  "split": "all",
+  "sections": {
+    "text_A": {
+      "n": 131,
+      "correct": 51,
+      "accuracy": 0.3893,
+      "decision_match": 87,
+      "status_match": 51,
+      "route_match": 57,
+      "field_exact_match": {
+        "n": 44,
+        "ok": 44
+      },
+      "unauthorized_approvals": 0,
+      "wrong_value_approvals": 0,
+      "safe_misses_failed_closed": 44,
+      "fast_path_share": 0.3359,
+      "model_calls": 0,
+      "escalation_rate_of_model_cases": null,
+      "latency_ms_p50": 0.0,
+      "latency_ms_p95": 1571.3,
+      "inference": {
+        "calls": 0,
+        "actual_micro": 0,
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "overrun_micro": 0
+      },
+      "cost_micro_usd_per_correct": null,
+      "by_family": {
+        "ambiguous": {
+          "n": 6,
+          "correct": 0
+        },
+        "arithmetic_fees": {
+          "n": 12,
+          "correct": 0
+        },
+        "bad_input": {
+          "n": 3,
+          "correct": 3
+        },
+        "conflicting": {
+          "n": 6,
+          "correct": 0
+        },
+        "fast_path_canonical": {
+          "n": 40,
+          "correct": 40
+        },
+        "missing_fields": {
+          "n": 8,
+          "correct": 0
+        },
+        "natural_language": {
+          "n": 32,
+          "correct": 0
+        },
+        "out_of_distribution": {
+          "n": 6,
+          "correct": 0
+        },
+        "over_per_tx_limit": {
+          "n": 4,
+          "correct": 4
+        },
+        "prompt_injection": {
+          "n": 10,
+          "correct": 0
+        },
+        "unknown_names": {
+          "n": 4,
+          "correct": 4
+        }
+      },
+      "failures": [
+        {
+          "id": "TEX-041",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-042",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-043",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-044",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-045",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-046",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-047",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-048",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-049",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-050",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-051",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-052",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-053",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-054",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-055",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-056",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-057",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-058",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-059",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-060",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-061",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-062",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-063",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-064",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-065",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-066",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-067",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-068",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-069",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-070",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-071",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-072",
+          "family": "natural_language",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-073",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-074",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-075",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-076",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-077",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-078",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-079",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-080",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-081",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-082",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-083",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-084",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-085",
+          "family": "missing_fields",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-086",
+          "family": "missing_fields",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-087",
+          "family": "missing_fields",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-088",
+          "family": "missing_fields",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-089",
+          "family": "missing_fields",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-090",
+          "family": "missing_fields",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-091",
+          "family": "missing_fields",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-092",
+          "family": "missing_fields",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-093",
+          "family": "ambiguous",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-094",
+          "family": "ambiguous",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-095",
+          "family": "ambiguous",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-096",
+          "family": "ambiguous",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-097",
+          "family": "ambiguous",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-098",
+          "family": "ambiguous",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-099",
+          "family": "conflicting",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        },
+        {
+          "id": "TEX-100",
+          "family": "conflicting",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "NO_FAST_PATH_MATCH"
+          ]
+        }
+      ]
+    },
+    "gate": {
+      "n": 25,
+      "ok": 25,
+      "note": "fixed recorded outputs: measures validation/escalation/fail-closed logic, NOT model quality",
+      "failures": []
+    },
+    "kernel": {
+      "cases": 50,
+      "cases_ok": 50,
+      "steps": 134,
+      "steps_ok": 134,
+      "unauthorized_approvals": 0,
+      "invariant_violations": 0,
+      "note": "invariants I1,I2,I3,I5 checked after every step; a zero result is scoped to these scripts only",
+      "failures": []
+    }
+  },
+  "git_commit": "7c37a99",
+  "rate_card_version": "2026-10-15.1"
+}

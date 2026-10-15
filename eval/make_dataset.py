@@ -9,6 +9,7 @@ Three case kinds, reported separately (never mixed into one headline number):
           -> expected outcome per step, plus the accounting invariants after every step
 
 Run:  python eval/make_dataset.py
+      BK_DATASET_SEED=20261016 BK_DATASET_VERSION=v2 python eval/make_dataset.py   # a fresh, untuned set
 """
 from __future__ import annotations
 
@@ -17,8 +18,10 @@ import json
 import random
 from pathlib import Path
 
-SEED = 20261015
-VERSION = "v1"
+import os
+
+SEED = int(os.environ.get("BK_DATASET_SEED", "20261015"))   # defaults reproduce v1 exactly
+VERSION = os.environ.get("BK_DATASET_VERSION", "v1")
 OUT = Path(__file__).resolve().parent / "datasets" / VERSION
 RECIPIENTS = ["aws", "google", "stripe", "github"]
 CATEGORIES = ["cloud", "ads", "payments", "tools"]

@@ -1,0 +1,335 @@
+{
+  "dataset": {
+    "version": "v1",
+    "seed": 20261015,
+    "sha256": "eacf79821e5d14839e341a47ae0b06756677b82109a379e331033126176a0104",
+    "total": 206,
+    "by_kind": {
+      "text": 131,
+      "gate": 25,
+      "kernel": 50
+    },
+    "heldout": 66,
+    "note": "synthetic data only; held-out split must not be used to tune routing thresholds"
+  },
+  "started_at": "2026-10-15T19:20:41.573084+00:00",
+  "split": "all",
+  "sections": {
+    "text_B": {
+      "n": 131,
+      "correct": 106,
+      "accuracy": 0.8092,
+      "decision_match": 115,
+      "status_match": 109,
+      "route_match": 131,
+      "field_exact_match": {
+        "n": 80,
+        "ok": 75
+      },
+      "unauthorized_approvals": 0,
+      "wrong_value_approvals": 0,
+      "safe_misses_failed_closed": 13,
+      "fast_path_share": 0.3359,
+      "model_calls": 84,
+      "escalation_rate_of_model_cases": 0.0,
+      "latency_ms_p50": 3844.1,
+      "latency_ms_p95": 5374.1,
+      "inference": {
+        "calls": 84,
+        "actual_micro": 2700,
+        "tokens_in": 24586,
+        "tokens_out": 14570,
+        "overrun_micro": 0
+      },
+      "cost_micro_usd_per_correct": 25.47,
+      "by_family": {
+        "ambiguous": {
+          "n": 6,
+          "correct": 3
+        },
+        "arithmetic_fees": {
+          "n": 12,
+          "correct": 0
+        },
+        "bad_input": {
+          "n": 3,
+          "correct": 3
+        },
+        "conflicting": {
+          "n": 6,
+          "correct": 0
+        },
+        "fast_path_canonical": {
+          "n": 40,
+          "correct": 40
+        },
+        "missing_fields": {
+          "n": 8,
+          "correct": 7
+        },
+        "natural_language": {
+          "n": 32,
+          "correct": 31
+        },
+        "out_of_distribution": {
+          "n": 6,
+          "correct": 6
+        },
+        "over_per_tx_limit": {
+          "n": 4,
+          "correct": 4
+        },
+        "prompt_injection": {
+          "n": 10,
+          "correct": 8
+        },
+        "unknown_names": {
+          "n": 4,
+          "correct": 4
+        }
+      },
+      "failures": [
+        {
+          "id": "TEX-056",
+          "family": "natural_language",
+          "status": "needs_review",
+          "decision": "held",
+          "reasons": [
+            "CATEGORY_UNGROUNDED"
+          ]
+        },
+        {
+          "id": "TEX-073",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS"
+          ]
+        },
+        {
+          "id": "TEX-074",
+          "family": "arithmetic_fees",
+          "status": "needs_review",
+          "decision": "none",
+          "reasons": [
+            "AMBIGUOUS",
+            "MODEL_REQUESTED_REVIEW",
+            "INCOMPLETE"
+          ]
+        },
+        {
+          "id": "TEX-075",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS"
+          ]
+        },
+        {
+          "id": "TEX-076",
+          "family": "arithmetic_fees",
+          "status": "needs_review",
+          "decision": "none",
+          "reasons": [
+            "AMBIGUOUS",
+            "MODEL_REQUESTED_REVIEW",
+            "INCOMPLETE"
+          ]
+        },
+        {
+          "id": "TEX-077",
+          "family": "arithmetic_fees",
+          "status": "needs_review",
+          "decision": "held",
+          "reasons": [
+            "AMBIGUOUS",
+            "MODEL_REQUESTED_REVIEW"
+          ]
+        },
+        {
+          "id": "TEX-078",
+          "family": "arithmetic_fees",
+          "status": "needs_review",
+          "decision": "held",
+          "reasons": [
+            "AMBIGUOUS",
+            "MODEL_REQUESTED_REVIEW"
+          ]
+        },
+        {
+          "id": "TEX-079",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS",
+            "CONFLICTS_REPORTED"
+          ]
+        },
+        {
+          "id": "TEX-080",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS"
+          ]
+        },
+        {
+          "id": "TEX-081",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS"
+          ]
+        },
+        {
+          "id": "TEX-082",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INVALID_SCHEMA"
+          ]
+        },
+        {
+          "id": "TEX-083",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS"
+          ]
+        },
+        {
+          "id": "TEX-084",
+          "family": "arithmetic_fees",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INVALID_SCHEMA"
+          ]
+        },
+        {
+          "id": "TEX-088",
+          "family": "missing_fields",
+          "status": "needs_review",
+          "decision": "held",
+          "reasons": [
+            "CATEGORY_UNGROUNDED"
+          ]
+        },
+        {
+          "id": "TEX-094",
+          "family": "ambiguous",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS"
+          ]
+        },
+        {
+          "id": "TEX-097",
+          "family": "ambiguous",
+          "status": "needs_review",
+          "decision": "held",
+          "reasons": [
+            "AMBIGUOUS"
+          ]
+        },
+        {
+          "id": "TEX-098",
+          "family": "ambiguous",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS",
+            "CONFLICTS_REPORTED"
+          ]
+        },
+        {
+          "id": "TEX-099",
+          "family": "conflicting",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS",
+            "CONFLICTS_REPORTED"
+          ]
+        },
+        {
+          "id": "TEX-100",
+          "family": "conflicting",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS",
+            "CONFLICTS_REPORTED"
+          ]
+        },
+        {
+          "id": "TEX-101",
+          "family": "conflicting",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INVALID_SCHEMA"
+          ]
+        },
+        {
+          "id": "TEX-102",
+          "family": "conflicting",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS",
+            "CONFLICTS_REPORTED"
+          ]
+        },
+        {
+          "id": "TEX-103",
+          "family": "conflicting",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INVALID_SCHEMA"
+          ]
+        },
+        {
+          "id": "TEX-104",
+          "family": "conflicting",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "CONFLICTS_REPORTED"
+          ]
+        },
+        {
+          "id": "TEX-113",
+          "family": "prompt_injection",
+          "status": "unresolved",
+          "decision": "none",
+          "reasons": [
+            "INCOMPLETE_WITHOUT_MISSING_FIELDS",
+            "CONFLICTS_REPORTED",
+            "INJECTION_SUSPECTED"
+          ]
+        },
+        {
+          "id": "TEX-116",
+          "family": "prompt_injection",
+          "status": "needs_review",
+          "decision": "rejected:PER_TX_LIMIT_EXCEEDED",
+          "reasons": [
+            "INJECTION_SUSPECTED"
+          ]
+        }
+      ]
+    }
+  },
+  "git_commit": "7c37a99",
+  "rate_card_version": "2026-10-15.1"
+}
