@@ -52,21 +52,36 @@ All of these go into one migration (`005_robustness.sql`, reserved for the lead)
 
 ## 2. Who does what
 
-### Lead (Nishmam + Claude)
-- **Kernel features:** BK-301, 302, 303, 304, 305. BK-306 if time allows.
-- **Live evaluation** (configs B and C, plus D on OpenRouter) as soon as API keys exist.
-- **Technical document** (deliverable 1) and the final security self-assessment (deliverable 5).
-- **Merges and integration:** review and merge every PR, then run the end-to-end clean-start demo.
-- **Owner actions:** registration email, DB password rotation, final submission email.
+The lead built M0 to M5, so phase 2 is deliberately weighted toward Members 2 and 3. The lead keeps only the kernel design work, plus review and merge.
 
-### Member 2 (RTX 2070 Super): product surface and pitch
+### Lead (Nishmam + Claude): design, review, merge
+- **Kernel core:** BK-301 velocity limits and BK-302 approval threshold. They change the money logic, so they stay with the code's author. The schema is pushed first, as the contract freeze.
+- **Review and merge** every PR. Kernel-touching PRs also get the Opus review.
+- **Final security pass** and the self-assessment update (Oct 19).
+- **Owner actions:** registration email, DB password rotation, share the model API keys privately with the team, final submission email.
+
+### Member 2 (RTX 2070 Super): product, story and evaluation
 - BK-090 dashboard + BK-321 to 326.
-- **BK-120 Deck** (deliverable 2, 10 minutes or less). The lead supplies the outline and measured numbers; Member 2 builds the slides and the screenshots.
+- **BK-305** replay before interpret. This is in `api/` and `routing/`, not the kernel. Test: a retry with the same key makes no second model call.
+- **BK-150 Live evaluation:** run `eval/runner.py --config B`, `C` and `D` once the lead shares the keys. Record the results in `memory/evaluation/RESULTS.md` with model IDs and dates. Report numbers exactly as measured.
+- **BK-120 Deck** (deliverable 2, 10 minutes or less).
+- **BK-160 Technical document draft** (deliverable 1). The deck and the document tell the same story, so they're written together. Sources: the ADRs, the README, the self-assessment and RESULTS.md. The lead reviews it.
 
-### Member 3 (RTX 5060): chain and evidence
+### Member 3 (RTX 5060): chain, evidence and video
 - BK-075 settlement adapter + BK-311 to 315.
+- **BK-303** mandate-bound settlement services. This is the one kernel change a member makes, because it is part of settlement. It touches `kernel/ops.py` `_require_settler` plus a table in migration 003. The PR needs the lead's review and the Opus review.
+- **BK-304** per-principal inference budget *(stretch, after BK-311..315)*. Changes to `costledger/` follow the same review rule.
 - **BK-130 Execution evidence pack** (deliverable 6): a script that exports every testnet transaction (hash, explorer link, amount, kernel transaction ID, audit trail) to `evidence/` as Markdown and JSON.
-- **BK-140 Demo video** (deliverable 3, 5 minutes or less): record and edit once the dashboard and settlement work end to end. The lead supplies the script and shot list.
+- **BK-140 Demo video** (deliverable 3, 5 minutes or less): write the script, record and edit once the dashboard and settlement work end to end.
+
+### Ownership exception
+The rule "only the lead edits kernel, costledger, db and migrations" is relaxed for **BK-303** and **BK-304** only. Each needs:
+- its own branch
+- a claim on WHO_IS_WORKING
+- tests
+- the lead's review and the Opus review before merge
+
+Migration numbers: **003** is Member 3's (settlement + `mandate_settlers`), and **005** is the lead's (BK-301/302).
 
 ---
 
@@ -74,12 +89,12 @@ All of these go into one migration (`005_robustness.sql`, reserved for the lead)
 
 | Day | Lead | Member 2 | Member 3 |
 |---|---|---|---|
-| **Oct 15 (today)** | Push this plan; full-suite run; ADR-0008; start BK-301/302 | Set up; scaffold `frontend/`; sign-in + mandate view | Set up; verify USDC contract; create and fund testnet wallet (report back) |
-| **Oct 16** | Push the BK-301/302 schema (contract freeze); BK-303/305; tech doc outline | Agent request box, approval inbox, kill switch | Signing + `on_submit` + broadcast + reconciler with a fake chain |
-| **Oct 17** | BK-304; Opus review of 301–305; live eval if keys | Attack panel, budget/audit, PWA, velocity meter | **First real Base Sepolia transfer + hash**; BK-311 to 314 |
-| **Oct 18** | Merge settlement (Opus review); integration run; tech doc draft | Deck draft; Playwright smoke; polish | BK-315; evidence-pack script; video script walkthrough |
-| **Oct 19** | Final security pass (Opus); clean-start run; freeze at 20:00 | Deck final | Record + edit video |
-| **Oct 20 (by 12:00)** | Assemble the 6 deliverables; email before 17:00 BST | Review deck | Final evidence export |
+| **Oct 15 (today)** | ADR-0008; share keys privately; owner email | Set up; scaffold `frontend/`; sign-in + mandate view | Set up; verify USDC contract; create and fund testnet wallet (report back) |
+| **Oct 16** | Push the BK-301/302 schema (contract freeze); implement | Agent request box, approval inbox, kill switch; BK-305 | Signing + `on_submit` + broadcast + reconciler with a fake chain; BK-303 |
+| **Oct 17** | Opus review of 301/302; review PRs | Attack panel, budget/audit, PWA, velocity meter; live eval B/C/D | **First real Base Sepolia transfer + hash**; BK-311 to 314 |
+| **Oct 18** | Merge settlement + BK-303 (Opus review); integration run | Tech doc draft + deck draft; Playwright smoke | BK-315; evidence-pack script; video script; BK-304 if time |
+| **Oct 19** | Final security pass (Opus); review tech doc; freeze at 20:00 | Tech doc + deck final | Record + edit video |
+| **Oct 20 (by 12:00)** | Assemble the 6 deliverables; email before 17:00 BST | Final read of doc + deck | Final evidence export |
 
 ## 4. Cut order if late
 1. BK-306 signed receipts.

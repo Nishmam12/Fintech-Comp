@@ -57,8 +57,8 @@ The full suite takes about 7 minutes because the database is overseas (~60 ms pe
 ## 4. Starting tasks
 
 > **Phase 2 (from Oct 15):** after your starting task, continue with your items in [`docs/plans/PHASE2_PLAN.md`](docs/plans/PHASE2_PLAN.md):
-> - **Member 2:** dashboard extras BK-321..326 and the deck BK-120
-> - **Member 3:** settlement hardening BK-311..315, the evidence pack BK-130 and the demo video BK-140
+> - **Member 2:** dashboard extras BK-321..326, BK-305 (replay before interpret), live evaluation BK-150, the deck BK-120 and the technical document draft BK-160
+> - **Member 3:** settlement hardening BK-311..315, BK-303 (mandate-bound settlers), the evidence pack BK-130, the demo video BK-140 and BK-304 as a stretch
 >
 > The plan has the day-by-day timeline and the cut order.
 

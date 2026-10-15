@@ -24,13 +24,15 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 | BK-110 | Submission pack: tech doc, deck (10 min or less), demo video (5 min or less), security self-assessment (permission tiers + known risks), execution evidence (tx hashes + logs) | IN PROGRESS | All 6 checklist items in [[research/COMPETITION]] present and emailed by 2026-10-20 17:00 BST. Security self-assessment drafted: docs/SECURITY_SELF_ASSESSMENT.md (2026-10-15). |
 | BK-301 | Velocity limits (window_limit/window_seconds, subtree sum, attenuation) | READY | **Lead.** Plan: docs/plans/PHASE2_PLAN.md. Closes R1; tests + Opus review. |
 | BK-302 | Approval threshold (review_above -> proposed, stricter only) | READY | **Lead.** Schema pushed first (API contract freeze, target Oct 16). |
-| BK-303 | Mandate-bound settlement services | READY | **Lead.** Closes R2. |
-| BK-304 | Per-principal daily inference budget | READY | **Lead.** Closes R7. Cut 4th if late. |
-| BK-305 | /agent/request replays by idempotency key before interpreting | READY | **Lead.** Closes R9. |
+| BK-303 | Mandate-bound settlement services | READY | **Member 3** (kernel exception: lead + Opus review before merge). Closes R2. |
+| BK-304 | Per-principal daily inference budget | BACKLOG | **Member 3, stretch** (costledger exception: lead + Opus review). Closes R7. Cut 4th if late. |
+| BK-305 | /agent/request replays by idempotency key before interpreting | READY | **Member 2** (api/ + routing/). Closes R9. |
 | BK-306 | Signed grant receipts (Ed25519) | BACKLOG | **Lead, stretch.** Cut 1st if late. |
 | BK-311..315 | Settlement hardening: confirmations, gas ceiling, verified settle_fail, recipient registry, explorer links | READY | **Member 3**, after BK-075 core. |
 | BK-321..326 | Dashboard: mobile-first PWA, approval inbox, kill switch, velocity meter, explorer links, Playwright smoke | READY | **Member 2**, with BK-090. |
 | BK-120 | Deck (deliverable 2, 10 min or less) | READY | **Member 2.** Lead supplies outline + measured numbers. |
+| BK-150 | Live evaluation configs B/C/D, results recorded as measured | BLOCKED | **Member 2.** Blocked on API keys (lead shares privately). |
+| BK-160 | Technical document draft (deliverable 1) | READY | **Member 2**, written alongside the deck; lead reviews. |
 | BK-130 | Execution evidence pack script -> evidence/ (hash, explorer link, kernel tx, audit) | READY | **Member 3.** Deliverable 6. |
 | BK-140 | Demo video (deliverable 3, 5 min or less) | READY | **Member 3.** Lead supplies script + shot list. Oct 19. |
 | BK-OWN-1 | **Owner:** email registration form + passport pages to wangyr@pbcsf.tsinghua.edu.cn | READY | Must be sent by 2026-10-20 17:00 BST; send early to confirm the slot. |
