@@ -32,11 +32,11 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
 - **Status:** ACTIVE
-- **Task ID:** BK-075 (testnet settlement adapter)
-- **Branch:** afnan/BK-075-settlement
-- **Claimed areas (paths):** backend/src/budget_kernel/settlement/, backend/migrations/003_settlement.sql, backend/tests/integration/test_settlement*.py, evidence/, scripts/evidence*.py, memory/research/SETTLEMENT.md
-- **Started / last update (UTC):** 2026-10-15 03:20
-- **Notes / blockers:** Step 1: verifying Circle test-USDC on Base Sepolia, wallet + faucets.
+- **Task ID:** BK-075/303/315/130 (settlement; first real tx waiting on test ETH)
+- **Branch:** afnan/BK-303-mandate-settlers (carries BK-075 + BK-303 + BK-315 + BK-130 script)
+- **Claimed areas (paths):** backend/src/budget_kernel/settlement/, backend/migrations/003_settlement.sql, backend/tests/integration/test_settlement*.py, evidence/, scripts/evidence*.py, backend/src/budget_kernel/api/app.py (settlement endpoints only), memory/research/SETTLEMENT.md
+- **Started / last update (UTC):** 2026-10-15 06:45
+- **Notes / blockers:** Wallet has 20 test USDC, 0 ETH: Alchemy/QuickNode/Superchain faucets all need mainnet balance or World ID, Coinbase CDP down. Need 0.001 Base Sepolia ETH (teammate send?). PR pending for lead + Opus review (kernel change BK-303).
 
 Status values: `ACTIVE`, `PAUSED` (claim kept), `IDLE` (no claim), `REVIEW` (waiting on review/merge).
 
