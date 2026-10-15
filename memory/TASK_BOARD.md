@@ -17,7 +17,7 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 | BK-050 | Implement model provider adapters | BACKLOG | Explicit model IDs, timeout behavior, bounded retries and usage metrics; mocked tests pass. |
 | BK-060 | Implement internal spend ledger and global cap | DONE | 13 tests pass incl. 50-way concurrent cap test and 60-call mixed-route no-deadlock test (2026-10-15). |
 | BK-070 | Implement route policy and primary/escalation path | BACKLOG | Routes driven by documented deterministic criteria; no arbitrary quota enforcement. |
-| BK-080 | Build labeled evaluation set and naive isolated baseline | BACKLOG | Versioned scenarios, expected labels, reproducible runner and baseline report. |
+| BK-080 | Build labeled evaluation set and naive isolated baseline | REVIEW | 206-case dataset + runner done; offline sections measured (see memory/evaluation/RESULTS.md). Baseline comparison and configs B/C pending: unsafe baseline not built, API keys not yet provided. Versioned scenarios, expected labels, reproducible runner and baseline report. |
 | BK-090 | Build dashboard wired to backend | READY | **Member 2.** Brief in ONBOARDING.md section 4. UI displays actual server results and runs repeatable simulations. |
 | BK-100 | Complete security review, README, demo and event submission | BACKLOG | Clean-start demo, passing tests, disclosed limitations and submission requirements met. |
 | BK-075 | Testnet settlement adapter (Topic F): kernel-authorized spends settle as real testnet txs; tx hash stored on the transaction | READY | **Member 3.** Brief in ONBOARDING.md section 4. Adapter is called only after kernel `reserved`; testnet only, key from .env; hashes visible in audit + UI; ADR-0007 accepted. |

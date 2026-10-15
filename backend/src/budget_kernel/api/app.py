@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from budget_kernel import kernel
 from budget_kernel.costledger import ledger as cost_ledger
 from budget_kernel.costledger.rate_card import RateCard
+from budget_kernel.routing.agent import interpret_then_decide
 from budget_kernel.routing.interpret import interpret as run_interpret
 from budget_kernel.config import Settings
 from budget_kernel.db.connection import make_pool
@@ -170,16 +171,11 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         reserved); unresolved interpretation never reaches the kernel at all."""
         gid = _uuid(body.grant_id, "grant")
         g = _grant_context(request, gid, me)
-        interp = _interpret(request, g, body.text)
-        p = interp["proposal"]
-        decision = None
-        if interp["status"] in ("ok", "needs_review") and p and p["request_type"] == "payment" and None not in (
-                p["amount_minor"], p["currency"], p["recipient"], p["category"]) and not p["missing_fields"]:
-            decision = kernel.authorize(
-                P(request), grant_id=gid, actor=me.id, amount=p["amount_minor"], currency=p["currency"],
-                recipient=p["recipient"], category=p["category"], idempotency_key=body.idempotency_key,
-                needs_review=interp["status"] == "needs_review", proposal=p)
-        return _jsonable({"interpretation": interp, "decision": decision})
+        return _jsonable(interpret_then_decide(
+            P(request), request.app.state.card, grant_id=gid, actor=me.id, text=body.text,
+            idempotency_key=body.idempotency_key, recipients=g["scope"]["recipients"],
+            categories=g["scope"]["categories"], currency=g["currency"].strip(),
+            transport=request.app.state.llm_transport))
 
     @app.get("/budget")
     def budget(request: Request, me: Principal = Caller):

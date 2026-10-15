@@ -1,0 +1,13 @@
+{
+  "version": "v1",
+  "seed": 20261015,
+  "sha256": "eacf79821e5d14839e341a47ae0b06756677b82109a379e331033126176a0104",
+  "total": 206,
+  "by_kind": {
+    "text": 131,
+    "gate": 25,
+    "kernel": 50
+  },
+  "heldout": 66,
+  "note": "synthetic data only; held-out split must not be used to tune routing thresholds"
+}

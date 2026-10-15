@@ -73,8 +73,11 @@ def _paid_call(pool, card: RateCard, cfg: ProviderConfig, bucket: str, system: s
 
 def interpret(pool, card: RateCard, text: str, *, recipients: list[str], categories: list[str], currency: str,
               primary: ProviderConfig | None = None, escalation: ProviderConfig | None = None,
-              transport: httpx.BaseTransport | None = None) -> dict:
-    """Return {status, proposal, reasons, trail}. status: ok | needs_review | unresolved | rejected_input."""
+              transport: httpx.BaseTransport | None = None, allow_models: bool = True,
+              allow_escalation: bool = True) -> dict:
+    """Return {status, proposal, reasons, trail}. status: ok | needs_review | unresolved | rejected_input.
+
+    allow_models=False is evaluation config A (rules only); allow_escalation=False is config B."""
     trail: list[dict] = []
     recips, cats = sorted({r.lower() for r in recipients}), sorted({c.lower() for c in categories})
     if not isinstance(text, str) or not text.strip() or len(text) > MAX_TEXT:
@@ -85,9 +88,13 @@ def interpret(pool, card: RateCard, text: str, *, recipients: list[str], categor
         trail.append({"step": "fast_path", "outcome": "matched", "cost_micro": 0})
         return _finish(fast, text, trail, [])
 
+    if not allow_models:
+        return _unresolved(trail, ["NO_FAST_PATH_MATCH"])
     system = _system_prompt(recips, cats, currency)
     user = f"<request>\n{text}\n</request>"
-    steps = [("primary", primary or routes.primary()), ("escalation", escalation or routes.escalation())]
+    steps = [("primary", primary or routes.primary())]
+    if allow_escalation:
+        steps.append(("escalation", escalation or routes.escalation()))
     last_reasons: list[str] = []
     for bucket, cfg in steps:
         entry = {"step": bucket, "provider": cfg.name, "model_id": cfg.model_id, "prompt_version": PROMPT_VERSION}
