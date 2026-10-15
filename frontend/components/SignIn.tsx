@@ -21,7 +21,7 @@ export default function SignIn() {
       const who = await getMe(k);
       const { mandates: list } = await listMandates(k);
       setMe(who);
-      if (list.length === 1) signIn({ key: k, mandateId: list[0].id });
+      if (list.length === 1) signIn({ key: k, mandateId: list[0].id, kind: who.kind });
       else setMandates(list);
     } catch (e) {
       setErr(e instanceof ApiError ? `${e.code}: ${e.message}` : "Sign-in failed");
@@ -52,7 +52,7 @@ export default function SignIn() {
             {mandates.map((m) => (
               <li key={m.id}>
                 <button
-                  onClick={() => signIn({ key: key.trim(), mandateId: m.id })}
+                  onClick={() => signIn({ key: key.trim(), mandateId: m.id, kind: me?.kind })}
                   className="min-h-14 w-full rounded-lg border border-line bg-card p-3 text-left"
                 >
                   <span className="block font-semibold">{money(m.total, m.currency)}</span>
