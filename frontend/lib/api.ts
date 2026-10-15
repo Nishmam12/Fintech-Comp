@@ -56,20 +56,57 @@ export type MandateState = {
   invariants: { ok: boolean; violations: unknown[] };
 };
 
+export type TrailStep = {
+  step: string;
+  outcome?: string;
+  provider?: string;
+  model_id?: string;
+  prompt_version?: string;
+  cost_micro?: number;
+  [k: string]: unknown;
+};
+
+export type Proposal = {
+  request_type: string;
+  amount_minor: number | null;
+  currency: string | null;
+  recipient: string | null;
+  category: string | null;
+  purpose: string | null;
+  evidence: { field: string; quote: string }[];
+  missing_fields: string[];
+  ambiguities: string[];
+  conflicts: string[];
+  needs_human_review: boolean;
+  explanation: string;
+};
+
+export type Interpretation = {
+  status: "ok" | "needs_review" | "unresolved" | "rejected_input";
+  proposal: Proposal | null;
+  reasons: string[];
+  trail: TrailStep[];
+};
+
+export type Decision = {
+  transaction_id: string;
+  state: string;
+  reason: string | null;
+  review_reason?: string | null;
+  replayed: boolean;
+};
+
+export type AgentResponse = { interpretation: Interpretation; decision: Decision | null };
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) {
     super(message);
   }
 }
 
-export async function api<T>(
-  key: string,
-  path: string,
-  init?: { method?: "GET" | "POST"; body?: unknown },
-): Promise<T> {
-  let res: Response;
+async function once(key: string, path: string, init?: { method?: "GET" | "POST"; body?: unknown }) {
   try {
-    res = await fetch(`${API_BASE}${path}`, {
+    return await fetch(`${API_BASE}${path}`, {
       method: init?.method ?? "GET",
       headers: {
         Authorization: `Bearer ${key}`,
@@ -80,6 +117,17 @@ export async function api<T>(
   } catch {
     throw new ApiError(0, "NETWORK", "Cannot reach the API");
   }
+}
+
+export async function api<T>(
+  key: string,
+  path: string,
+  init?: { method?: "GET" | "POST"; body?: unknown },
+): Promise<T> {
+  let res = await once(key, path, init);
+  // The hosted database sometimes drops an idle pooled connection, which surfaces as one 5xx.
+  // Reads are idempotent, so retry a GET once; writes are never retried here.
+  if (res.status >= 500 && (init?.method ?? "GET") === "GET") res = await once(key, path, init);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const detail = typeof data?.detail === "string" ? data.detail : undefined;

@@ -1,7 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { ApiError, getState, money, type Grant, type MandateState } from "@/lib/api";
-import { useSession } from "@/lib/session";
+import { money, type Grant } from "@/lib/api";
+import { useMandate } from "@/lib/mandate";
 
 function childrenOf(grants: Grant[], parent: string | null) {
   return grants.filter((g) => g.parent_id === parent);
@@ -36,20 +35,7 @@ function GrantNode({ g, all, cur }: { g: Grant; all: Grant[]; cur: string }) {
 }
 
 export default function MandateView() {
-  const { session } = useSession();
-  const [state, setState] = useState<MandateState | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    if (!session) return;
-    let live = true;
-    getState(session.key, session.mandateId)
-      .then((st) => { if (live) { setState(st); setErr(null); } })
-      .catch((e) => { if (live) setErr(e instanceof ApiError ? `${e.code}: ${e.message}` : "Could not load the mandate"); });
-    return () => { live = false; };
-  }, [session, tick]);
+  const { state, error: err, refresh } = useMandate();
 
   if (!state) return <p className="p-4 text-sm text-muted">{err ?? "Loading…"}</p>;
   const cur = state.mandate.currency;
@@ -76,7 +62,7 @@ export default function MandateView() {
             <span className="text-sm font-normal text-muted">· {money(state.mandate.protected_reserve, cur)}</span>
           </p>
         </div>
-        <button onClick={() => setTick((t) => t + 1)} className="btn-ghost">Refresh</button>
+        <button onClick={refresh} className="btn-ghost">Refresh</button>
       </div>
       {err && <p role="alert" className="text-sm text-bad">{err}</p>}
       <ul className="flex flex-col gap-2">
