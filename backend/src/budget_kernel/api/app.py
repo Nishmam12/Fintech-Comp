@@ -150,6 +150,8 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             kernel.settle_start(P(request), transaction_id=tid, actor=me.id)
             return _jsonable(kernel.settle_confirm(P(request), transaction_id=tid, actor=me.id))
         from budget_kernel.settlement.adapter import SettlementRefused, settle as chain_settle
+        if me.kind != "service":                     # a real transfer must be run by a bound settler, never the owner
+            raise kernel.Forbidden("testnet settlement requires a service principal", code="NOT_SETTLER")
         chain, signer, cfg = st
         try:
             return _jsonable(chain_settle(P(request), transaction_id=tid, actor=me.id, chain=chain, signer=signer, cfg=cfg))

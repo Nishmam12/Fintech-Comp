@@ -155,6 +155,8 @@ def test_testnet_mode_settles_via_adapter(pool, monkeypatch):
             "grant_id": g, "amount": 5_000, "currency": "USD", "recipient": "aws", "category": "cloud",
             "idempotency_key": "t1"}).json()["transaction_id"]
         assert client.post(f"/transactions/{tx}/settle", headers=svc).status_code == 403    # not bound yet
+        r = client.post(f"/transactions/{tx}/settle", headers=owner)                        # F3: owner never runs testnet settlement
+        assert (r.status_code, r.json()["code"]) == (403, "NOT_SETTLER") and chain.sent == []
         assert client.post(f"/mandates/{m['mandate_id']}/settlers", headers=owner, json={"principal_id": svc_id}).status_code == 201
         r = client.post(f"/transactions/{tx}/settle", headers=svc)
         assert r.status_code == 200 and r.json()["status"] == "broadcast", r.text

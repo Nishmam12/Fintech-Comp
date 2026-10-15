@@ -79,10 +79,57 @@ def test_revert_releases_funds(env):
     world, chain, signer, cfg = env
     tid = _reserved(world)
     _go(world, chain, signer, cfg, tid)
-    chain.mine(status=0)
+    chain.mine(status=0, blocks=2)                      # reverted, 2 confirmations deep
     assert advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)["status"] == "failed"
     assert world.tx(tid)["state"] == "released"
     world.check()
+
+
+def test_shallow_revert_keeps_funds_reserved(env):
+    """Review F1: a revert at depth 1 is not final; funds are released only once it is `confirmations` deep."""
+    world, chain, signer, cfg = env
+    tid = _reserved(world)
+    _go(world, chain, signer, cfg, tid)
+    chain.mine(status=0, blocks=1)
+    assert advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)["status"] == "broadcast"
+    assert world.tx(tid)["state"] == "submitted"
+    chain.height += 1
+    assert advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)["status"] == "failed"
+    assert world.tx(tid)["state"] == "released"
+
+
+def test_revert_reorged_then_success_settles_never_releases(env):
+    """Review F1: revert at depth 1, re-org, same bytes mined again and succeed -> settled, never released."""
+    world, chain, signer, cfg = env
+    tid = _reserved(world)
+    _go(world, chain, signer, cfg, tid)
+    chain.mine(status=0, blocks=1)
+    advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)
+    chain.reorg()
+    advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)
+    chain.mine(status=1, blocks=2)
+    assert advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)["status"] == "confirmed"
+    assert world.tx(tid)["state"] == "settled" and len(set(chain.sent)) == 1
+    world.check()
+
+
+def test_reconcile_continues_past_a_refused_transfer(env):
+    """Review F2: a transfer the caller may not settle is reported as an error entry; the rest still advance."""
+    from tests.conftest import future, new_principal, scope
+    from budget_kernel import kernel
+    world, chain, signer, cfg = env
+    tid = _reserved(world)
+    _go(world, chain, signer, cfg, tid)
+    owner2, svc2 = new_principal(world.pool, "owner2", "human"), new_principal(world.pool, "settler2", "service")
+    m2 = kernel.create_mandate(world.pool, owner_principal_id=owner2, currency="USD", total=100_000, protected_reserve=10_000,
+                               expires_at=future(30), scope=scope(per_tx_limit=100_000))
+    kernel.bind_settler(world.pool, mandate_id=m2["mandate_id"], actor=owner2, principal_id=svc2)
+    tid2 = world.authorize(m2["root_grant_id"], owner2, 5_000)["transaction_id"]
+    settle(world.pool, transaction_id=tid2, actor=svc2, chain=chain, signer=signer, cfg=cfg)
+    chain.mine(blocks=2)
+    res = {r["transaction_id"]: r for r in reconcile(world.pool, actor=world.svc, chain=chain, cfg=cfg)}
+    assert res[tid]["status"] == "confirmed" and res[tid2]["error"] == "NOT_SETTLER"
+    assert world.tx(tid)["state"] == "settled" and world.tx(tid2)["state"] == "submitted"
 
 
 def test_unregistered_recipient_and_gas_ceiling_leave_tx_reserved(env):

@@ -110,13 +110,13 @@ def advance(pool, *, transaction_id, actor, chain, cfg: SettlementConfig, now=No
             if not just_sent:
                 chain.send_raw(bytes(row["raw_tx"]))     # idempotent re-broadcast of identical bytes
             return _no_receipt(pool, row, out, actor=actor, chain=chain, cfg=cfg, now=now)
-        if receipt["status"] == 0:                   # reverted: no token moved, proven failure
+        if chain.block_number() - receipt["block"] + 1 < cfg.confirmations:
+            _update(pool, transaction_id, block_number=receipt["block"])
+            return out                                # not final yet, succeeded or reverted: a re-org may flip it
+        if receipt["status"] == 0:                   # reverted and deep: no token moved, proven failure
             kernel.settle_fail(pool, transaction_id=transaction_id, actor=actor, proof=f"reverted receipt {row['tx_hash']}")
             _update(pool, transaction_id, status="failed", block_number=receipt["block"])
             return {**out, "status": "failed"}
-        if chain.block_number() - receipt["block"] + 1 < cfg.confirmations:
-            _update(pool, transaction_id, block_number=receipt["block"])
-            return out                                # not deep enough yet; a later call re-checks the receipt (re-org safe)
         kernel.settle_confirm(pool, transaction_id=transaction_id, actor=actor)
         _update(pool, transaction_id, status="confirmed", block_number=receipt["block"], confirmed_at=now)
         return {**out, "status": "confirmed", "block_number": receipt["block"]}
@@ -151,4 +151,10 @@ def reconcile(pool, *, actor, chain, cfg: SettlementConfig, now=None) -> list[di
     with pool.connection() as c:
         ids = [r["transaction_id"] for r in c.execute(
             "SELECT transaction_id FROM chain_settlements WHERE status = ANY(%s) ORDER BY created_at", (list(PENDING),))]
-    return [advance(pool, transaction_id=i, actor=actor, chain=chain, cfg=cfg, now=now) for i in ids]
+    results = []
+    for i in ids:
+        try:
+            results.append(advance(pool, transaction_id=i, actor=actor, chain=chain, cfg=cfg, now=now))
+        except kernel.KernelError as e:              # e.g. NOT_SETTLER for one mandate must not stall the rest
+            results.append({"transaction_id": i, "error": e.code})
+    return results
