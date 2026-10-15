@@ -16,10 +16,10 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 
 ### Nishmam (RTX 4070 Ti Super)
 - **Status:** ACTIVE
-- **Task ID:** BK-020/BK-030 (kernel + tests) — in REVIEW
-- **Branch:** main (docs only)
-- **Claimed areas (paths):** backend/src/budget_kernel/{kernel,db}, backend/migrations, backend/tests, memory/
-- **Started / last update (UTC):** 2026-10-14 19:55
+- **Task ID:** BK-110 (security self-assessment) + BK-080 (eval configs B/C when keys arrive)
+- **Branch:** main
+- **Claimed areas (paths):** backend/src/budget_kernel/{kernel,db,simulation}, backend/migrations, backend/tests, docs/SECURITY_SELF_ASSESSMENT.md, memory/
+- **Started / last update (UTC):** 2026-10-15 07:25
 - **Notes / blockers:** Supabase DB reachable via DATABASE_URL (psycopg). Project-scoped Supabase MCP not loaded in this session.
 
 ### Member 2 (RTX 2070 Super)

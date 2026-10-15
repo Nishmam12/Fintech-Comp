@@ -11,6 +11,7 @@ def test_concurrent_overspend_breaks_the_baseline_but_not_the_kernel(pool):
     assert r["naive"]["violated"] is True and r["naive"]["metrics"]["spent_total"] > 90_000
     assert r["naive"]["metrics"]["lowest_balance"] < 0
     assert r["kernel"]["violated"] is False and r["kernel"]["metrics"]["approved"] == 3
+    assert r["kernel"]["metrics"]["gave_up"] == 0          # safe AND live: nobody was refused for being busy
     assert r["kernel"]["metrics"]["invariant_violations"] == []
 
 
@@ -18,6 +19,7 @@ def test_delegation_amplification_breaks_the_baseline_but_not_the_kernel(pool):
     r = simulation.run(pool, "delegation_amplification")
     assert r["naive"]["violated"] is True and r["naive"]["metrics"]["delegated_total"] > 90_000
     assert r["kernel"]["violated"] is False and r["kernel"]["metrics"]["children_created"] == 3
+    assert r["kernel"]["metrics"]["rejected"] == 3 and r["kernel"]["metrics"]["gave_up"] == 0
 
 
 def test_revoked_ancestor_is_honoured_only_by_the_kernel(pool):
@@ -45,7 +47,19 @@ def test_split_purchase_limitation_is_reported_honestly(pool):
     m = r["kernel"]["metrics"]
     assert m["single_large_request"] == "PER_TX_LIMIT_EXCEEDED"
     assert m["split_requests_approved"] == 5 and m["split_total"] == 50_000      # bounded by the grant balance
-    assert "not a velocity limit" in r["kernel"]["summary"]
+    assert "not a velocity limit" in r["kernel"]["summary"] and "but 5 requests" in r["kernel"]["summary"]
+
+
+def test_only_one_simulation_runs_at_a_time():
+    from budget_kernel import kernel
+    from budget_kernel.simulation import scenarios
+    assert scenarios._RUNNING.acquire(blocking=False)
+    try:
+        with pytest.raises(kernel.Conflict) as exc:
+            simulation.run(None, "revoked_ancestor")         # refused before touching the pool
+        assert exc.value.code == "SIMULATION_RUNNING"
+    finally:
+        scenarios._RUNNING.release()
 
 
 def test_simulation_api_is_human_only_and_validates_names(pool, monkeypatch):

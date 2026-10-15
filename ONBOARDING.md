@@ -61,7 +61,13 @@ Read **`memory/decisions/ADR-0007-TESTNET-SETTLEMENT-ADAPTER.md`** first; it spe
 - **Paths you own:** `backend/src/budget_kernel/settlement/`, `backend/migrations/003_settlement.sql`, `backend/tests/integration/test_settlement*.py`.
 - **Step 1 (do first, report back before coding):** verify the Circle test-USDC contract address on Base Sepolia and the faucet limits from Circle's official docs; create a **new testnet-only** wallet; fund it with test ETH (gas) and test USDC. Put the private key in `.env` as `SETTLEMENT_PRIVATE_KEY` only. Record the contract address, chain ID and the wallet **address** (never the key) in `memory/research/SETTLEMENT.md`.
 - **Step 2:** add `web3` to `backend/pyproject.toml`; implement the flow in ADR-0007: sign locally inside the `on_submit` hook of `kernel.settle_start` (it already exists), persist the raw transaction, broadcast **after** the commit, confirm, and a reconciler that re-sends the same bytes. Use `kernel.settle_confirm` / `kernel.settle_fail` with a **service-kind principal** (the kernel enforces this).
-- **Acceptance:** tests with a fake chain client for every crash window in ADR-0007; one real transfer on Base Sepolia with its **transaction hash** recorded (this is the competition's execution evidence); no key material in logs, DB or exceptions.
+- **Security requirements (from the security review, `docs/SECURITY_SELF_ASSESSMENT.md` section 6, all required before merge):**
+  1. Call `settle_fail` **only** with on-chain proof the transfer cannot land: a mined receipt with `status = 0`, or the nonce consumed by a different transaction. A timeout or mempool drop is not proof. Keep those `submitted` and re-broadcast. Calling `settle_fail` on a transfer that landed double-spends.
+  2. Recipient → address mapping comes from a static, operator-controlled allowlist (config or migration), never from a request, proposal or model output. Refuse unknown recipients before signing.
+  3. Integer conversion only (1 cent = 10,000 base units), USD only.
+  4. Add `BK_SETTLEMENT_MODE` (`simulated` default | `testnet`). In `testnet` mode the simulated `POST /transactions/{id}/settle` returns 409, and `settle_start` is always called with your `on_submit` hook.
+  5. `on_submit` signs and persists only. No network I/O, because it runs under the mandate lock.
+- **Acceptance:** tests with a fake chain client for every crash window in ADR-0007 and for each requirement above; one real transfer on Base Sepolia with its **transaction hash** recorded (this is the competition's execution evidence); no key material in logs, DB or exceptions.
 
 ### Member 2 — BK-090: Dashboard (Next.js + TypeScript + Tailwind)
 - **Paths you own:** `frontend/` only.
@@ -72,7 +78,8 @@ Read **`memory/decisions/ADR-0007-TESTNET-SETTLEMENT-ADAPTER.md`** first; it spe
   3. Agent request box: free text to `POST /agent/request`; show the interpretation (route used, reasons, trail) **and** the kernel decision side by side.
   4. Review queue for the owner: held (`proposed`) transactions with approve/deny (`POST /transactions/{id}/review`).
   5. Budget meter from `GET /budget` (micro-USD → dollars) and a live audit feed from `GET /mandates/{id}/audit`.
-  6. Placeholder panel for attack scenarios; the lead will add `POST /simulation/run` (named scenarios return measured outcomes).
+  6. Attack-scenario panel: list from `GET /simulation/scenarios`, run with `POST /simulation/run` (human key only; 409 `SIMULATION_RUNNING` if one is already running). Show baseline vs kernel side by side, including `gave_up` and the invariant result.
+- **Security requirement:** proposal fields, evidence quotes, reasons and audit details are untrusted text. Render them as plain text only: no `dangerouslySetInnerHTML`, no Markdown-to-HTML.
 - **Acceptance:** every number on screen comes from the API (nothing hard-coded); works at phone width; screenshots in the PR. Do not add features beyond this list.
 
 ### Lead

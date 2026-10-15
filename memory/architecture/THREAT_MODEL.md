@@ -1,6 +1,6 @@
 # Threat Model — Initial Draft
 
-**Status:** initial threat inventory; expand after repository and design inspection.
+**Status:** initial threat inventory. Superseded for the submission by `docs/SECURITY_SELF_ASSESSMENT.md` (2026-10-15), which maps every threat below to a control and its evidence, and keeps the known-risk list (R1–R20). Update that document, not this one.
 
 ## Assets to protect
 - User mandate and restrictions.

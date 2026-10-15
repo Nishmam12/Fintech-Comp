@@ -45,6 +45,12 @@ def _retry(fn, attempts: int = 12):
     raise kernel.KernelBusy("gave up after retries")
 
 
+def _gave_up(res) -> int:
+    """Attempts that ended in an exception (e.g. still busy after every retry). Reported separately:
+    refusing everything would look 'safe', so liveness must be visible next to safety."""
+    return sum(1 for r in res if not isinstance(r, tuple))
+
+
 def _race(fns):
     barrier = threading.Barrier(len(fns))
 
@@ -113,8 +119,10 @@ def concurrency_overspend(pool, n: int = 8, amount: int = 30_000, funds: int = 9
     inv = fx.invariants()
     kernel_out = {"violated": reserved * amount > funds or bool(inv),
                   "metrics": {"requests": n, "approved": reserved, "reserved_total": reserved * amount, "funds": funds,
-                              "busy_retries": sum(r[1] for r in res if isinstance(r, tuple)), "invariant_violations": inv},
-                  "summary": f"approved {reserved} of {n}; reserved {reserved * amount} of {funds}; invariants hold: {not inv}"}
+                              "busy_retries": sum(r[1] for r in res if isinstance(r, tuple)), "gave_up": _gave_up(res),
+                              "invariant_violations": inv},
+                  "summary": f"approved {reserved} of {n}; reserved {reserved * amount} of {funds}; "
+                             f"gave up {_gave_up(res)}; invariants hold: {not inv}"}
     return _result("concurrency_overspend", "Concurrent overspend",
                    "Parallel spend requests cannot exceed the funds that exist", naive_out, kernel_out)
 
@@ -130,10 +138,11 @@ def delegation_amplification(pool, n: int = 6, amount: int = 30_000, funds: int 
     fx = Fixture(pool)
     res = _race([lambda: _retry(lambda: fx.delegate(fx.root, fx.agent, amount)) for _ in range(n)])
     ok = [r for r in res if isinstance(r, tuple)]
+    refused = sum(1 for r in res if isinstance(r, kernel.DelegationRejected))
     inv = fx.invariants()
     kernel_out = {"violated": len(ok) * amount > funds or bool(inv),
                   "metrics": {"children_created": len(ok), "delegated_total": len(ok) * amount, "parent_funds": funds,
-                              "rejected": n - len(ok), "invariant_violations": inv},
+                              "rejected": refused, "gave_up": n - len(ok) - refused, "invariant_violations": inv},
                   "summary": f"created {len(ok)} children holding {len(ok) * amount} of {funds}; invariants hold: {not inv}"}
     return _result("delegation_amplification", "Delegation amplification",
                    "Delegating transfers authority; it can never create more than the parent holds", naive_out, kernel_out)
@@ -182,8 +191,8 @@ def revocation_race(pool, n: int = 6, amount: int = 5_000) -> dict:
                  "summary": f"{late} spend(s) were recorded after the revocation committed (timing-dependent)"}
     fx = Fixture(pool)
     c = fx.delegate(fx.root, fx.agent, 30_000)
-    _race([lambda: _retry(lambda: kernel.revoke(pool, grant_id=c, actor=fx.owner))]
-          + [lambda: _retry(lambda: fx.authorize(c, fx.agent, amount)) for _ in range(n)])
+    res = _race([lambda: _retry(lambda: kernel.revoke(pool, grant_id=c, actor=fx.owner))]
+                + [lambda: _retry(lambda: fx.authorize(c, fx.agent, amount)) for _ in range(n)])
     with pool.connection() as cn:
         live = cn.execute("SELECT count(*) AS n FROM transactions WHERE grant_id = %s AND state IN ('reserved','submitted')",
                           (c,)).fetchone()["n"]
@@ -191,7 +200,7 @@ def revocation_race(pool, n: int = 6, amount: int = 5_000) -> dict:
     g = fx.grant(c)
     kernel_out = {"violated": live > 0 or bool(inv) or g["reserved"] != 0,
                   "metrics": {"live_reservations_on_revoked_grant": live, "grant_status": g["status"],
-                              "grant_available": g["available"], "invariant_violations": inv},
+                              "grant_available": g["available"], "gave_up": _gave_up(res), "invariant_violations": inv},
                   "summary": f"{live} live reservation(s) on the revoked grant; invariants hold: {not inv}"}
     return _result("revocation_race", "Revocation race",
                    "Whatever order revoke and spend interleave in, no live authority survives revocation",
@@ -215,7 +224,7 @@ def replay_duplicate(pool, n: int = 5, amount: int = 10_000) -> dict:
     inv = fx.invariants()
     kernel_out = {"violated": len(ids) != 1 or g["reserved"] != amount or bool(inv),
                   "metrics": {"requests_with_same_key": n, "transactions_created": len(ids), "reserved": g["reserved"],
-                              "invariant_violations": inv},
+                              "gave_up": _gave_up(res), "invariant_violations": inv},
                   "summary": f"the same request sent {n} times created {len(ids)} transaction; reserved {g['reserved']}"}
     return _result("replay_duplicate", "Replay / duplicate delivery",
                    "An idempotency key bound to the payload makes retries safe", naive_out, kernel_out)
@@ -231,9 +240,9 @@ def split_purchases(pool, per_tx: int = 10_000, grant_funds: int = 50_000) -> di
     parts = [fx.authorize(g, fx.agent, per_tx) for _ in range(7)]
     approved = sum(1 for p in parts if p["state"] == "reserved")
     inv = fx.invariants()
-    note = ("The per-transaction limit is not a velocity limit: a 30,000 request is refused, but three 10,000 "
-            "requests are approved. Total spend is still capped by the grant's balance. Velocity limits are out "
-            "of scope for the MVP and are on the known-risk list.")
+    note = (f"The per-transaction limit is not a velocity limit: a 30,000 request is refused, but {approved} "
+            f"requests of {per_tx} are approved. Total spend is still capped by the grant's balance. Velocity "
+            "limits are out of scope for the MVP and are on the known-risk list.")
     kernel_out = {"violated": bool(inv), "informational_finding": True,
                   "metrics": {"single_large_request": big["reason"], "split_requests_approved": approved,
                               "split_total": approved * per_tx, "grant_funds": grant_funds, "invariant_violations": inv},
@@ -255,10 +264,20 @@ SCENARIOS = {
 }
 
 
+_RUNNING = threading.Lock()
+
+
 def run(pool, name: str) -> dict:
+    """One simulation at a time per process: a scenario uses up to 8 pooled connections, and
+    overlapping runs would starve real API requests on the same pool."""
     if name not in SCENARIOS:
         raise KeyError(name)
-    t0 = time.perf_counter()
-    out = SCENARIOS[name](pool)
-    out["duration_ms"] = round((time.perf_counter() - t0) * 1000)
-    return out
+    if not _RUNNING.acquire(blocking=False):
+        raise kernel.Conflict("a simulation is already running", code="SIMULATION_RUNNING")
+    try:
+        t0 = time.perf_counter()
+        out = SCENARIOS[name](pool)
+        out["duration_ms"] = round((time.perf_counter() - t0) * 1000)
+        return out
+    finally:
+        _RUNNING.release()
