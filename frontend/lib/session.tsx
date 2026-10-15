@@ -2,7 +2,7 @@
 // The API key lives in React state only: never localStorage, never a cookie, gone on reload.
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-type Session = { key: string; mandateId: string };
+type Session = { key: string; mandateId: string; kind?: string };
 type Ctx = { session: Session | null; signIn: (s: Session) => void; signOut: () => void };
 
 const SessionCtx = createContext<Ctx | null>(null);

@@ -188,3 +188,17 @@ export type MandateSummary = {
 };
 export const getMe = (key: string) => api<Me>(key, "/me");
 export const listMandates = (key: string) => api<{ mandates: MandateSummary[] }>(key, "/mandates");
+
+export type SimSide = { violated: boolean; summary: string; metrics: Record<string, unknown> };
+export type SimResult = {
+  scenario: string;
+  title: string;
+  what_it_proves: string;
+  informational: boolean;
+  duration_ms: number;
+  naive: SimSide;
+  kernel: SimSide;
+};
+export const listScenarios = (key: string) => api<{ scenarios: string[] }>(key, "/simulation/scenarios");
+export const runScenario = (key: string, scenario: string) =>
+  api<SimResult>(key, "/simulation/run", { method: "POST", body: { scenario } });
