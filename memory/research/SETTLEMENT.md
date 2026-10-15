@@ -33,3 +33,9 @@ Demo mandates must stay small (about $20 total, ADR-0007) so the 10 USDC faucet 
 - BK-311: confirmations default 2; `test_reorg_before_depth_does_not_confirm_or_fail`.
 - BK-312: `max_fee_ceiling` (50 gwei); above it nothing is signed and no nonce is used; `test_gas_ceiling_waits_without_consuming_a_nonce`. A signed tx is only ever re-broadcast, never re-signed.
 - BK-313/314: proof rules and recipient registry covered by the review-gate tests in `test_settlement.py`.
+
+## Gas ETH routes re-checked (2026-10-15, from the faucets' own pages)
+- **QuickNode Base Sepolia** (faucet.quicknode.com/base/sepolia): page states no account, no mainnet balance, no X post needed (post only boosts the amount); verification step; once per 12 h per wallet. Base amount shown only after entering the address. Earlier note said it gated on mainnet balance: the page now says otherwise, and a 2026 third-party guide still says it does, so treat as "try it".
+- **ZalalenA** (faucet.zalalena.com/base): page states no login/balance, captcha, 60 min cooldown, 10 claims/day. Small third-party operator; paste only the public address.
+- Alchemy and GetBlock still need mainnet balance / signup (third-party roundup, unverified). Base docs list page did not render its faucet table when fetched.
+- Paste only the PUBLIC address 0x228F0C5Dcdd12b2A9E21d289969FF286ff71a97D. Needed: about 0.001 ETH (a transfer costs well under that).
