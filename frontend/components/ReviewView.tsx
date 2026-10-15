@@ -1,0 +1,72 @@
+"use client";
+// Screen 4 / BK-322: the owner's approval inbox. Held ("proposed") transactions hold no funds until approved.
+// Approving re-runs every kernel check, so an approval can still come back refused; that result is shown as-is.
+import { useEffect, useState } from "react";
+import { api, ApiError, money, type Transaction } from "@/lib/api";
+import { useMandate } from "@/lib/mandate";
+import { useSession } from "@/lib/session";
+
+const POLL_MS = 3000;
+
+export default function ReviewView() {
+  const { session } = useSession();
+  const { state, refresh } = useMandate();
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    const id = setInterval(() => { if (document.visibilityState === "visible") refresh(); }, POLL_MS);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  if (!state || !session) return <p className="p-4 text-sm text-muted">Loading…</p>;
+  const held = state.transactions.filter((t) => t.state === "proposed");
+  const cur = state.mandate.currency;
+
+  async function decide(t: Transaction, approve: boolean) {
+    setBusyId(t.id);
+    setNotice(null);
+    try {
+      const r = await api<{ state: string; reason?: string | null }>(session!.key, `/transactions/${t.id}/review`, {
+        method: "POST",
+        body: { approve },
+      });
+      setNotice({ ok: true, text: `${approve ? "Approve" : "Deny"} → ${r.state}${r.reason ? ` (${r.reason})` : ""}` });
+    } catch (e) {
+      setNotice({ ok: false, text: e instanceof ApiError ? `${e.code}: ${e.message}` : "Review failed" });
+    } finally {
+      setBusyId(null);
+      refresh();
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <p className="text-xs text-muted">Refreshes every 3 seconds. Held requests reserve no funds until you approve.</p>
+      {notice && (
+        <p role="status" className={`rounded-md border px-3 py-2 text-sm ${notice.ok ? "border-ok/40 bg-ok/10 text-ok" : "border-bad/40 bg-bad/10 text-bad"}`}>
+          {notice.text}
+        </p>
+      )}
+      {held.length === 0 && <p className="rounded-lg border border-line bg-card p-4 text-sm text-muted">Nothing is waiting for review.</p>}
+      <ul className="flex flex-col gap-3">
+        {held.map((t) => (
+          <li key={t.id} className="rounded-lg border border-line bg-card p-3">
+            <p className="text-xl font-semibold">{money(t.amount, t.currency || cur)}</p>
+            <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+              <dt className="text-muted">To</dt><dd className="break-words text-right">{t.recipient}</dd>
+              <dt className="text-muted">Category</dt><dd className="break-words text-right">{t.category}</dd>
+              <dt className="text-muted">Why held</dt><dd className="break-words text-right">{t.review_reason ?? "—"}</dd>
+              <dt className="text-muted">Grant</dt><dd className="text-right font-mono text-xs">{t.grant_id.slice(0, 8)}</dd>
+              <dt className="text-muted">Requested</dt><dd className="text-right">{new Date(t.created_at).toLocaleString()}</dd>
+            </dl>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button disabled={busyId === t.id} onClick={() => void decide(t, true)} className="btn-primary">Approve</button>
+              <button disabled={busyId === t.id} onClick={() => void decide(t, false)} className="btn-ghost min-h-12">Deny</button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}

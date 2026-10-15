@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import AskView from "@/components/AskView";
+import ReviewView from "@/components/ReviewView";
 import MandateView from "@/components/MandateView";
 import SignIn from "@/components/SignIn";
 import { MandateProvider } from "@/lib/mandate";
@@ -9,6 +10,7 @@ import { SessionProvider, useSession } from "@/lib/session";
 const TABS = [
   { id: "mandate", label: "Mandate" },
   { id: "ask", label: "Ask" },
+  { id: "review", label: "Review" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
@@ -23,7 +25,9 @@ function Shell() {
           <h1 className="text-lg font-semibold">Budget Kernel</h1>
           <button onClick={signOut} className="btn-ghost">Sign out</button>
         </header>
-        {tab === "mandate" ? <MandateView /> : <AskView />}
+        {tab === "mandate" && <MandateView />}
+        {tab === "ask" && <AskView />}
+        {tab === "review" && <ReviewView />}
       </div>
       <nav className="fixed inset-x-0 bottom-0 border-t border-line bg-card">
         <ul className="mx-auto flex max-w-3xl">
