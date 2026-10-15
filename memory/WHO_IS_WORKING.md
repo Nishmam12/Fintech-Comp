@@ -30,13 +30,13 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Started / last update (UTC):** —
 - **Notes / blockers:** —
 
-### Member 3 (RTX 5060)
-- **Status:** IDLE
-- **Task ID:** —
-- **Branch:** —
-- **Claimed areas (paths):** —
-- **Started / last update (UTC):** —
-- **Notes / blockers:** —
+### Member 3 (RTX 5060) — Afnan Mojumder
+- **Status:** ACTIVE
+- **Task ID:** BK-075 (testnet settlement adapter)
+- **Branch:** afnan/BK-075-settlement
+- **Claimed areas (paths):** backend/src/budget_kernel/settlement/, backend/migrations/003_settlement.sql, backend/tests/integration/test_settlement*.py, evidence/, scripts/evidence*.py, memory/research/SETTLEMENT.md
+- **Started / last update (UTC):** 2026-10-15 03:20
+- **Notes / blockers:** Step 1: verifying Circle test-USDC on Base Sepolia, wallet + faucets.
 
 Status values: `ACTIVE`, `PAUSED` (claim kept), `IDLE` (no claim), `REVIEW` (waiting on review/merge).
 
