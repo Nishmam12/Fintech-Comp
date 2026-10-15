@@ -18,3 +18,4 @@ node_modules/
 .obsidian/
 .remember/
 .demo-server.log
+.frontend-dev.log
