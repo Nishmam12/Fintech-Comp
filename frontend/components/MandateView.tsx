@@ -1,10 +1,45 @@
 "use client";
-import { money, type Grant } from "@/lib/api";
+import { money, type Grant, type Transaction } from "@/lib/api";
 import RevokeControl from "@/components/RevokeControl";
 import { useMandate } from "@/lib/mandate";
 
 function childrenOf(grants: Grant[], parent: string | null) {
   return grants.filter((g) => g.parent_id === parent);
+}
+
+// Velocity meter (BK-324). window_used, window_limit and review_above are shown exactly as the server returned them.
+function Velocity({ g, cur }: { g: Grant; cur: string }) {
+  const { window_limit: limit, window_seconds: secs, review_above: above } = g.scope;
+  if (limit === undefined && above === undefined) return null;
+  return (
+    <div className="mt-2 text-xs text-muted">
+      {limit !== undefined && g.window_used !== undefined && (
+        <>
+          <div className="flex justify-between">
+            <span>Velocity{secs !== undefined ? ` · per ${secs >= 3600 && secs % 3600 === 0 ? `${secs / 3600} h` : `${secs} s`}` : ""}</span>
+            <span>{money(g.window_used, cur)} of {money(limit, cur)}</span>
+          </div>
+          <progress
+            className="mt-1 h-2 w-full overflow-hidden rounded [&::-webkit-progress-bar]:bg-line [&::-webkit-progress-value]:bg-accent [&::-moz-progress-bar]:bg-accent"
+            max={limit}
+            value={g.window_used}
+            aria-label="Spend in the current window"
+          />
+        </>
+      )}
+      {above !== undefined && <p className="mt-1">Needs your approval above {money(above, cur)}</p>}
+    </div>
+  );
+}
+
+function TxLink({ t }: { t: Transaction }) {
+  // Only the API-provided link, and only https: model/user text must never become a clickable script URL.
+  if (!t.explorer_url || !t.explorer_url.startsWith("https://")) return null;
+  return (
+    <a href={t.explorer_url} target="_blank" rel="noopener noreferrer" className="text-accent underline">
+      View on explorer
+    </a>
+  );
 }
 
 function GrantNode({ g, all, cur }: { g: Grant; all: Grant[]; cur: string }) {
@@ -25,6 +60,7 @@ function GrantNode({ g, all, cur }: { g: Grant; all: Grant[]; cur: string }) {
         <p className="mt-2 text-xs text-muted">
           Expires {new Date(g.expires_at).toLocaleString()} · per-tx limit {money(g.scope.per_tx_limit, cur)}
         </p>
+        <Velocity g={g} cur={cur} />
         {g.parent_id !== null && <RevokeControl g={g} currency={cur} />}
       </div>
       {kids.length > 0 && (
@@ -70,6 +106,25 @@ export default function MandateView() {
       <ul className="flex flex-col gap-2">
         {roots.map((g) => <GrantNode key={g.id} g={g} all={state.grants} cur={cur} />)}
       </ul>
+      <div className="rounded-lg border border-line bg-card p-3">
+        <h3 className="text-sm font-semibold">Transactions</h3>
+        {state.transactions.length === 0 && <p className="mt-2 text-sm text-muted">No transactions yet.</p>}
+        <ul className="mt-2 flex flex-col gap-2">
+          {state.transactions.slice(0, 30).map((t) => (
+            <li key={t.id} className="rounded border border-line px-2 py-1.5 text-sm">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-medium">{money(t.amount, t.currency || cur)}</span>
+                <span className="text-xs uppercase text-muted">{t.state}</span>
+              </div>
+              <p className="wrap-anywhere text-xs text-muted">
+                {t.recipient} · {t.category}
+                {t.reject_reason ? ` · ${t.reject_reason}` : ""}
+              </p>
+              <TxLink t={t} />
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }
