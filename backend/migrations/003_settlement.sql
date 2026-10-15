@@ -33,3 +33,14 @@ CREATE INDEX chain_settlements_pending_idx ON chain_settlements (status)
 
 ALTER TABLE settlement_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chain_settlements   ENABLE ROW LEVEL SECURITY;
+
+-- BK-303: a service principal may perform settlement steps only on mandates it is bound to (closes R2).
+-- Only the mandate owner can bind; bindings are append-only in practice (no unbind path in the MVP).
+CREATE TABLE mandate_settlers (
+  mandate_id    uuid NOT NULL REFERENCES mandates(id),
+  principal_id  uuid NOT NULL REFERENCES principals(id),
+  bound_by      uuid NOT NULL REFERENCES principals(id),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (mandate_id, principal_id)
+);
+ALTER TABLE mandate_settlers ENABLE ROW LEVEL SECURITY;

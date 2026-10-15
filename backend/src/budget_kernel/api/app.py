@@ -97,6 +97,11 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
                                     scope=body.scope.model_dump(exclude_none=True))
         return _jsonable(out)
 
+    @app.post("/mandates/{mandate_id}/settlers", status_code=201)
+    def bind_settler(mandate_id: str, body: schemas.BindSettler, request: Request, me: Principal = Caller):
+        return _jsonable(kernel.bind_settler(P(request), mandate_id=_uuid(mandate_id, "mandate"), actor=me.id,
+                                             principal_id=_uuid(body.principal_id, "principal")))
+
     @app.post("/grants", status_code=201)
     def delegate(body: schemas.Delegate, request: Request, me: Principal = Caller):
         out = kernel.delegate(P(request), parent_grant_id=_uuid(body.parent_grant_id, "grant"), actor=me.id,

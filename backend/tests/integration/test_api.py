@@ -125,5 +125,8 @@ def test_revoke_via_api_reports_in_flight_exposure(client):
         "idempotency_key": "t"}).json()["transaction_id"]
     r = client.post(f"/grants/{child}/revoke", headers=owner)
     assert r.status_code == 200 and r.json()["reclaimed"] == 30_000
+    assert client.post(f"/transactions/{tx}/settle", headers=svc).status_code == 403   # not bound to this mandate
+    assert client.post(f"/mandates/{m['mandate_id']}/settlers", headers=alice, json={"principal_id": svc_id}).status_code == 403
+    assert client.post(f"/mandates/{m['mandate_id']}/settlers", headers=owner, json={"principal_id": svc_id}).status_code == 201
     r = client.post(f"/transactions/{tx}/settle", headers=svc)
     assert r.status_code == 409          # reservation was released by the revoke

@@ -98,5 +98,6 @@ def world(pool) -> World:
     m = kernel.create_mandate(pool, owner_principal_id=owner, currency="USD", total=100_000, protected_reserve=10_000,
                               expires_at=future(30), scope=scope(per_tx_limit=100_000))
     w = World(pool, owner, alice, bob, m["mandate_id"], m["root_grant_id"], new_principal(pool, "settler", "service"))
+    kernel.bind_settler(pool, mandate_id=w.mandate_id, actor=owner, principal_id=w.svc)
     w.check()
     return w
