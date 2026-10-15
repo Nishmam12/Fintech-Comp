@@ -1,5 +1,6 @@
 "use client";
 import { money, type Grant } from "@/lib/api";
+import RevokeControl from "@/components/RevokeControl";
 import { useMandate } from "@/lib/mandate";
 
 function childrenOf(grants: Grant[], parent: string | null) {
@@ -24,6 +25,7 @@ function GrantNode({ g, all, cur }: { g: Grant; all: Grant[]; cur: string }) {
         <p className="mt-2 text-xs text-muted">
           Expires {new Date(g.expires_at).toLocaleString()} · per-tx limit {money(g.scope.per_tx_limit, cur)}
         </p>
+        {g.parent_id !== null && <RevokeControl g={g} currency={cur} />}
       </div>
       {kids.length > 0 && (
         <ul className="ml-3 mt-2 flex flex-col gap-2 border-l border-line pl-3">
