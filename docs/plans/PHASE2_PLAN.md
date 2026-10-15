@@ -25,7 +25,7 @@
 
 All of these go into one migration (`005_robustness.sql`, reserved for the lead) and one ADR (`ADR-0008`).
 
-**API contract freeze:** the new scope fields are optional and default to "off". The lead pushes the schema change for BK-301/302 **first** (target Oct 16 morning), so Member 2 builds against the final shape. Until then, treat these fields as optional.
+**API contract freeze (done 2026-10-15, ADR-0008):** optional scope fields `window_limit`, `window_seconds`, `review_above`; `GET /mandates/{id}/state` adds `window_used` per windowed grant and `review_reason` per transaction. The new scope fields are optional and default to "off". The lead pushes the schema change for BK-301/302 **first** (target Oct 16 morning), so Member 2 builds against the final shape. Until then, treat these fields as optional.
 
 ### Settlement hardening (Member 3, on top of BK-075)
 
