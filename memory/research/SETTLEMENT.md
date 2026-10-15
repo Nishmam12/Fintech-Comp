@@ -23,3 +23,13 @@ Verified 2026-10-15 by Member 3 (Afnan).
 - [ ] Wallet funded with test USDC — manual, browser faucet.
 
 Demo mandates must stay small (about $20 total, ADR-0007) so the 10 USDC faucet drip covers them 1:1.
+
+## Explorer check (2026-10-15)
+- `https://sepolia-explorer.base.org` (Blockscout) answers 200 from curl. `https://sepolia.basescan.org` answers 403 to curl (likely bot check; unverified in a browser). No real tx page exists yet; open the real link before the demo and pick the one that renders.
+- `BK_EXPLORER_URL` (tx-page prefix ending in `/tx/`) switches the link the API returns, for both `GET /mandates/{id}/state` (`explorer_url`) and the settle response. Default stays basescan.
+- Wallet 0x228F...a71D balance checked via public RPC: 0 ETH (still blocked on gas).
+
+## Hardening status (Step 4)
+- BK-311: confirmations default 2; `test_reorg_before_depth_does_not_confirm_or_fail`.
+- BK-312: `max_fee_ceiling` (50 gwei); above it nothing is signed and no nonce is used; `test_gas_ceiling_waits_without_consuming_a_nonce`. A signed tx is only ever re-broadcast, never re-signed.
+- BK-313/314: proof rules and recipient registry covered by the review-gate tests in `test_settlement.py`.

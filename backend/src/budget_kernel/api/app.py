@@ -25,7 +25,7 @@ from . import schemas
 from .auth import Caller, Principal, hash_key, new_key, require_admin
 
 
-EXPLORER = "https://sepolia.basescan.org/tx/"
+EXPLORER = os.environ.get("BK_EXPLORER_URL") or "https://sepolia.basescan.org/tx/"   # tx-page prefix; one source for state + adapter
 
 
 def _uuid(v: str, what: str) -> uuid.UUID:
@@ -55,7 +55,7 @@ def _settlement_from_env():
     from budget_kernel.settlement.adapter import SettlementConfig
     from budget_kernel.settlement.chain import RpcChain
     from budget_kernel.settlement.signer import Signer
-    cfg = SettlementConfig(recipients=json.load(open(os.environ["BK_SETTLEMENT_RECIPIENTS"])))
+    cfg = SettlementConfig(recipients=json.load(open(os.environ["BK_SETTLEMENT_RECIPIENTS"])), explorer=EXPLORER)
     chain = RpcChain(os.environ.get("BASE_SEPOLIA_RPC_URL", "https://sepolia.base.org"), cfg.chain_id)
     return chain, Signer(os.environ["SETTLEMENT_PRIVATE_KEY"]), cfg
 

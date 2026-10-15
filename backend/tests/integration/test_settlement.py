@@ -243,3 +243,32 @@ def test_crash_after_broadcast_before_confirm_is_recovered_by_reconcile(env):
     reconcile(world.pool, actor=world.svc, chain=chain, cfg=cfg)
     assert world.tx(tid)["state"] == "settled"
     world.check()
+
+
+def test_reorg_before_depth_does_not_confirm_or_fail(env):
+    """BK-311: a receipt that vanishes (re-org) before it is `confirmations` deep never settles or releases;
+    the same bytes are re-sent and the transfer confirms when it is deep enough again."""
+    world, chain, signer, cfg = env
+    tid = _reserved(world)
+    _go(world, chain, signer, cfg, tid)
+    chain.mine(blocks=0)                                   # included, 1 confirmation
+    assert advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)["status"] == "broadcast"
+    chain.reorg()
+    assert advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)["status"] == "broadcast"
+    assert world.tx(tid)["state"] == "submitted" and len(set(chain.sent)) == 1     # same hash, never re-signed
+    chain.mine(blocks=2)
+    assert advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)["status"] == "confirmed"
+
+
+def test_gas_ceiling_waits_without_consuming_a_nonce(env):
+    """BK-312: above the ceiling nothing is signed and no nonce is used; when gas drops, the first transfer gets nonce 0."""
+    world, chain, signer, cfg = env
+    tid = _reserved(world)
+    chain.base_fee = 10**12
+    with pytest.raises(SettlementRefused):
+        _go(world, chain, signer, cfg, tid)
+    with world.pool.connection() as c:
+        assert c.execute("SELECT next_nonce FROM settlement_accounts").fetchone()["next_nonce"] == 0
+    chain.base_fee = 10**9
+    _go(world, chain, signer, cfg, tid)
+    assert _row(world.pool, tid)["nonce"] == 0 and world.tx(tid)["state"] == "submitted"

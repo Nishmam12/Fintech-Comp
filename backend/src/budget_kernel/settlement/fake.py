@@ -29,6 +29,12 @@ class FakeChain:
             del self.mempool[h]
         self.height += blocks
 
+    def reorg(self) -> None:
+        """Drop every mined tx back into the mempool (a re-org that un-includes them)."""
+        for h in list(self.mined):
+            self.mempool[h] = b""      # raw not needed again: advance re-sends its own stored bytes
+            del self.mined[h]
+
     def get_receipt(self, tx_hash: str) -> dict | None:
         if self.down:
             raise ChainError("eth_getTransactionReceipt failed: ConnectError")
