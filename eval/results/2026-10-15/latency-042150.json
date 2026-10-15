@@ -1,0 +1,20 @@
+{
+  "measured_at": "2026-10-15T04:21:50.205328+00:00",
+  "schema": "bk_eval",
+  "plain_grant": {
+    "n": 25,
+    "median_ms": 1089,
+    "p95_ms": 1322,
+    "min_ms": 1078,
+    "max_ms": 1610
+  },
+  "with_window_and_threshold": {
+    "n": 25,
+    "median_ms": 1136,
+    "p95_ms": 1189,
+    "min_ms": 1129,
+    "max_ms": 1189
+  },
+  "delta_median_ms": 47,
+  "note": "Sequential authorizations on the hosted database, including network round trips. The guarded grant has a window and a threshold set but neither triggers; delta is the added cost of evaluating them."
+}

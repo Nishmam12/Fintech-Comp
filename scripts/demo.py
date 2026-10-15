@@ -93,8 +93,8 @@ class Demo:
                                          "idempotency_key": f"d2-{tag}"})
         self.expect("wider scope than the parent is refused", r.status_code >= 400, r.json().get("code", ""))
 
-        def ask(text: str, key: str) -> dict:
-            return self.post("/agent/request", agent, {"grant_id": grant, "text": text, "idempotency_key": key}).json()
+        def ask(text: str, key: str, gid: str | None = None) -> dict:
+            return self.post("/agent/request", agent, {"grant_id": gid or grant, "text": text, "idempotency_key": key}).json()
 
         self.say("== 6. The agent asks in plain language; the kernel decides")
         d = ask("pay 50 USD to aws for cloud", f"r1-{tag}")
@@ -118,6 +118,28 @@ class Demo:
         self.expect("settlement service settles the reservation", r.json().get("state") == "settled")
         r = self.post(f"/transactions/{tx}/settle-fail", owner, {"proof": "owner-claims-failure"})
         self.expect("owner cannot declare a settled transfer failed", r.status_code >= 400, r.json().get("code", ""))
+
+        self.say("== 7b. Guard rails: approval threshold and velocity window (a second 200.00 grant)")
+        guarded = {**child_scope, "window_limit": 15_000, "window_seconds": 3600, "review_above": 6_000}
+        r = self.post("/grants", owner, {"parent_grant_id": root, "holder_principal_id": agent_id, "amount": 20_000,
+                                         "expires_at": expires.isoformat(), "scope": guarded,
+                                         "idempotency_key": f"d3-{tag}"})
+        self.expect("guarded grant created (review above 60.00, at most 150.00 per hour)", r.status_code == 201)
+        g2 = r.json()["grant_id"]
+        d = ask("pay 70 USD to aws for cloud", f"g1-{tag}", g2)
+        held = d["decision"] or {}
+        self.expect("a 70.00 request is held for the owner, nothing reserved",
+                    held.get("state") == "proposed" and held.get("review_reason") == "ABOVE_THRESHOLD")
+        r = self.post(f"/transactions/{held['transaction_id']}/review", owner, {"approve": True})
+        self.expect("owner approves it and the money is reserved", r.json().get("state") == "reserved")
+        d = ask("pay 50 USD to aws for cloud", f"g2-{tag}", g2)
+        self.expect("a 50.00 request is under the threshold and reserved", (d["decision"] or {}).get("state") == "reserved")
+        d = ask("pay 40 USD to aws for cloud", f"g3-{tag}", g2)
+        self.expect("the next 40.00 would break the hourly limit and is refused",
+                    (d["decision"] or {}).get("reason") == "VELOCITY_LIMIT_EXCEEDED")
+        st = self.http.get(f"/mandates/{mandate}/state", headers=owner).json()
+        used = next(x for x in st["grants"] if x["id"] == g2).get("window_used")
+        self.expect("the server reports window use (120.00 of 150.00)", used == 12_000, f"window_used={used}")
 
         self.say("== 8. Owner revokes the agent's grant; the agent is cut off immediately")
         r = self.post(f"/grants/{grant}/revoke", owner)

@@ -43,3 +43,15 @@ Notes on honesty:
 - The revocation race against the baseline depends on timing; one run did not reproduce it. The deterministic *revoked ancestor* scenario is the reliable demonstration of the same class of failure.
 - The kernel side retries a retryable `KERNEL_BUSY` answer as a real client would; the number of retries is part of the recorded metrics (`busy_retries`).
 - Scenarios use keyless simulation identities and a fresh mandate per run, so they cannot touch user data.
+
+## Run 3: cost of the ADR-0008 controls (2026-10-15)
+Script: `eval/measure_latency.py`; raw file `eval/results/2026-10-15/latency-042150.json`. 25 sequential `authorize` calls per grant, hosted Postgres (about 60 ms per round trip), schema `bk_eval`, no contention.
+
+| Grant | Median | p95 | Min | Max |
+|---|---|---|---|---|
+| Plain (no window, no threshold) | 1089 ms | 1322 ms | 1078 ms | 1610 ms |
+| Window + threshold set (neither triggers) | 1136 ms | 1189 ms | 1129 ms | 1189 ms |
+
+- Added cost of evaluating a window and a threshold: **+47 ms median** (about one extra round trip for the subtree sum). The ADR-0008 target was under 100 ms.
+- A whole `authorize` call takes about 1.1 s end to end on this database. That is the full call, not only the time the mandate lock is held. Operations on one mandate are serialized, so throughput per mandate is roughly one operation per second here; different mandates run in parallel.
+- Sample size is small (25 per arm) and the p95 and max values are noisy; treat the median as the figure.
