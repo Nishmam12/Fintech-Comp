@@ -126,3 +126,120 @@ def test_owner_cannot_fail_a_transfer(env):
     _go(world, chain, signer, cfg, tid)
     with pytest.raises(Forbidden):
         kernel.settle_fail(world.pool, transaction_id=tid, actor=world.owner, proof="x")
+
+
+# ---- review-gate tests (docs/SECURITY_SELF_ASSESSMENT.md section 6) ----
+
+def test_rpc_error_never_releases_funds(env):
+    """Gate 1: a dead RPC after broadcast is not proof of failure; the transfer stays submitted and recovers."""
+    world, chain, signer, cfg = env
+    tid = _reserved(world)
+    _go(world, chain, signer, cfg, tid)
+    chain.down = True
+    assert "error" in advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)
+    assert world.tx(tid)["state"] == "submitted"
+    chain.down = False
+    chain.mine(blocks=2)
+    assert advance(world.pool, transaction_id=tid, actor=world.svc, chain=chain, cfg=cfg)["status"] == "confirmed"
+
+
+def test_address_in_recipient_field_is_not_an_address(env):
+    """Gate 2: only the static registry resolves recipients; a raw 0x address in the request is just an unknown name."""
+    world, chain, signer, cfg = env
+    from budget_kernel.kernel.errors import Conflict
+    tid = world.authorize(world.root, world.owner, 100, recipient="0x" + "ab" * 20)["transaction_id"]
+    assert world.tx(tid)["state"] == "rejected"          # the kernel refuses it at authorize; settlement can never see it
+    with pytest.raises((SettlementRefused, Conflict)):
+        _go(world, chain, signer, cfg, tid)
+    assert chain.sent == [] and _row(world.pool, tid) is None
+
+
+def test_amount_is_integer_base_units_and_usd_only(env):
+    """Gate 3: 1 cent = 10_000 base units, exactly; a currency without a registered rate is refused before signing."""
+    world, chain, signer, cfg = env
+    tid = _reserved(world, amount=1)
+    _go(world, chain, signer, cfg, tid)
+    amt = _row(world.pool, tid)["token_amount"]
+    assert amt == 10_000 and type(int(amt)) is int
+    tid2 = _reserved(world, amount=7)
+    eur_only = SettlementConfig(recipients={"aws": AWS}, rates={"EUR": 10_000})
+    with pytest.raises(SettlementRefused):
+        _go(world, chain, signer, eur_only, tid2)
+    assert _row(world.pool, tid2) is None and world.tx(tid2)["state"] == "reserved"
+
+
+def test_on_submit_makes_no_network_call(env, monkeypatch):
+    """Gate 5: signing runs under the mandate lock; the chain must not be touched between lock and commit."""
+    from budget_kernel import kernel
+    world, chain, signer, cfg = env
+    calls = {"n": 0, "inside": 0, "in_hook": False}
+    for name in ("send_raw", "get_receipt", "nonce", "block_number", "fees"):
+        real = getattr(chain, name)
+        def wrap(*a, _real=real, **k):
+            calls["n"] += 1
+            calls["inside"] += calls["in_hook"]
+            return _real(*a, **k)
+        monkeypatch.setattr(chain, name, wrap)
+    real_start = kernel.settle_start
+    def spy(pool, *, transaction_id, actor, on_submit=None):
+        def hook(ctx, tx):
+            calls["in_hook"] = True
+            try:
+                on_submit(ctx, tx)
+            finally:
+                calls["in_hook"] = False
+        return real_start(pool, transaction_id=transaction_id, actor=actor, on_submit=hook)
+    monkeypatch.setattr(kernel, "settle_start", spy)
+    _go(world, chain, signer, cfg, _reserved(world))
+    assert calls["n"] > 0 and calls["inside"] == 0
+
+
+def test_private_key_never_appears_in_errors_db_or_audit(env):
+    """Gate 6: trigger refusals and outages, then search every surface for the key."""
+    import json
+    world, chain, signer, cfg = env
+    key = "22" * 32
+    texts = [repr(signer), str(signer)]
+    tid = world.authorize(world.root, world.owner, 100, recipient="google")["transaction_id"]
+    with pytest.raises(SettlementRefused) as e1:
+        _go(world, chain, signer, cfg, tid)
+    texts.append(repr(e1.value))
+    tid2 = _reserved(world)
+    chain.down = True
+    texts.append(json.dumps(_go(world, chain, signer, cfg, tid2), default=str))   # outage text returned to the caller
+    chain.down = False
+    chain.mine(status=0)
+    reconcile(world.pool, actor=world.svc, chain=chain, cfg=cfg)                   # also writes a settle_failed audit row
+    with world.pool.connection() as c:
+        for table in ("chain_settlements", "audit_events", "transactions", "settlement_accounts"):
+            texts += [json.dumps(r, default=str) for r in c.execute(f"SELECT * FROM {table}").fetchall()]
+    blob = "\n".join(texts).lower()
+    assert key not in blob
+
+
+def test_crash_after_broadcast_before_status_write_resends_same_bytes(env):
+    """Gate 8b: node got the tx but we died before recording 'broadcast': the stored row is still 'signed';
+    recovery re-sends the identical bytes (never re-signs) and the transfer settles exactly once."""
+    world, chain, signer, cfg = env
+    tid = _reserved(world)
+    _go(world, chain, signer, cfg, tid)
+    row = _row(world.pool, tid)
+    with world.pool.connection() as c:
+        c.execute("UPDATE chain_settlements SET status='signed' WHERE transaction_id=%s", (tid,))   # simulate the lost write
+    chain.mine(blocks=2)                                                                            # tx is already in a block
+    reconcile(world.pool, actor=world.svc, chain=chain, cfg=cfg)
+    assert world.tx(tid)["state"] == "settled" and _row(world.pool, tid)["raw_tx"] == row["raw_tx"]
+    with world.pool.connection() as c:
+        assert c.execute("SELECT count(*) AS n FROM chain_settlements").fetchone()["n"] == 1
+
+
+def test_crash_after_broadcast_before_confirm_is_recovered_by_reconcile(env):
+    """Gate 8c: process dies after broadcast, before settle_confirm; a fresh reconcile pass confirms it."""
+    world, chain, signer, cfg = env
+    tid = _reserved(world)
+    _go(world, chain, signer, cfg, tid)
+    chain.mine(blocks=2)
+    assert world.tx(tid)["state"] == "submitted"           # nobody called confirm: this is the crash window
+    reconcile(world.pool, actor=world.svc, chain=chain, cfg=cfg)
+    assert world.tx(tid)["state"] == "settled"
+    world.check()
