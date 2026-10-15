@@ -25,7 +25,7 @@ from . import schemas
 from .auth import Caller, Principal, hash_key, new_key, require_admin
 
 
-EXPLORER = os.environ.get("BK_EXPLORER_URL") or "https://sepolia.basescan.org/tx/"   # tx-page prefix; one source for state + adapter
+EXPLORER = os.environ.get("BK_EXPLORER_URL") or "https://sepolia-explorer.base.org/tx/"   # tx-page prefix; one source for state + adapter
 
 
 def _uuid(v: str, what: str) -> uuid.UUID:

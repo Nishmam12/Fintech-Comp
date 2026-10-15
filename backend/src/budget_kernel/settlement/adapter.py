@@ -28,7 +28,7 @@ class SettlementConfig:
     max_fee_ceiling: int = 50 * 10**9                # wei/gas; above this we wait, never re-sign
     nonce_gone_wait: timedelta = timedelta(seconds=60)
     stuck_after: timedelta = timedelta(minutes=30)
-    explorer: str = "https://sepolia.basescan.org/tx/"
+    explorer: str = "https://sepolia-explorer.base.org/tx/"
 
     def __post_init__(self):
         if self.chain_id not in ALLOWED_CHAIN_IDS:

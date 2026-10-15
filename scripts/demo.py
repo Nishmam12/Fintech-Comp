@@ -20,6 +20,7 @@ from pathlib import Path
 import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
+PAY = os.environ.get("DEMO_PAY_USD", "50")   # whole USD paid in beat 6; a real testnet run sets this tiny (wallet holds ~20 test USDC)
 
 
 def _admin_token() -> str:
@@ -98,7 +99,7 @@ class Demo:
             return self.post("/agent/request", agent, {"grant_id": gid or grant, "text": text, "idempotency_key": key}).json()
 
         self.say("== 6. The agent asks in plain language; the kernel decides")
-        d = ask("pay 50 USD to aws for cloud", f"r1-{tag}")
+        d = ask(f"pay {PAY} USD to aws for cloud", f"r1-{tag}")
         decision = d["decision"] or {}
         self.expect("in-scope request reserved", decision.get("state") == "reserved",
                     f"route={[t['step'] for t in d['interpretation']['trail']]}")
@@ -109,7 +110,7 @@ class Demo:
                                                           "recipient": "github", "category": "cloud",
                                                           "idempotency_key": f"r3-{tag}"})
         self.expect("recipient outside the grant rejected", r.json().get("reason") == "RECIPIENT_NOT_ALLOWED")
-        again = ask("pay 50 USD to aws for cloud", f"r1-{tag}")
+        again = ask(f"pay {PAY} USD to aws for cloud", f"r1-{tag}")
         self.expect("retry with the same key replays, no double reservation",
                     (again["decision"] or {}).get("replayed") is True
                     and again["decision"]["transaction_id"] == tx)

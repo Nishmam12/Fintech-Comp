@@ -39,3 +39,13 @@ Demo mandates must stay small (about $20 total, ADR-0007) so the 10 USDC faucet 
 - **ZalalenA** (faucet.zalalena.com/base): page states no login/balance, captcha, 60 min cooldown, 10 claims/day. Small third-party operator; paste only the public address.
 - Alchemy and GetBlock still need mainnet balance / signup (third-party roundup, unverified). Base docs list page did not render its faucet table when fetched.
 - Paste only the PUBLIC address 0x228F0C5Dcdd12b2A9E21d289969FF286ff71a97D. Needed: about 0.001 ETH (a transfer costs well under that).
+
+## FIRST REAL TRANSACTION (2026-10-15 15:58 UTC / 21:58 BST+6 local)
+- Kernel tx `769b9063-fe9d-4226-bd0f-962e92d17c9b` (mandate in schema `bk_afnan_demo`, run by `scripts/demo.py` with `BK_SETTLEMENT_MODE=testnet`, `DEMO_PAY_USD=1`)
+- Tx hash `0x2c5665e7908ebb775e03185e5aef9fd9e566b79c21652d7f3c789db1add49090`, block 48155797, nonce 0, 1.000000 test USDC to `aws` (0x69fF...88A0)
+- Independently verified over public RPC: receipt status 1, `to` = Base Sepolia USDC contract, Transfer log amount 1000000.
+- Explorer: https://sepolia-explorer.base.org/tx/0x2c5665e7908ebb775e03185e5aef9fd9e566b79c21652d7f3c789db1add49090 -> HTTP 200. **The demo uses Blockscout (sepolia-explorer.base.org)**; basescan returns 403 to curl so it is not the demo explorer. Defaults in API, adapter and evidence.py now point at Blockscout.
+- Gas ETH came from the ZalalenA faucet (0.001 ETH). After the transfer the wallet had 0.000999627 ETH, so this transfer cost ~0.00000037 ETH, plenty for the rest.
+- Ran in own schema `bk_afnan_demo` (migration 003 applied there). Production schema `bk` still lacks 003: the lead decides when to apply it.
+- Evidence: `evidence/SETTLEMENTS.md` + `evidence/settlements.json` (hashes and links only).
+- Demo needs an admin token: `BK_ADMIN_TOKEN` in .env is empty, so a session token was passed by environment for both API and demo.

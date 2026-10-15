@@ -15,7 +15,7 @@ from budget_kernel.config import Settings
 from budget_kernel.db.connection import make_pool
 
 OUT = Path(__file__).resolve().parents[1] / "evidence"
-EXPLORER = "https://sepolia.basescan.org/tx/"
+EXPLORER = "https://sepolia-explorer.base.org/tx/"
 
 
 def collect(pool) -> list[dict]:
