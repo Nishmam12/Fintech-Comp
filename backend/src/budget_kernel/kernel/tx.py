@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 import os
@@ -38,6 +38,9 @@ class Ctx:
     conn: psycopg.Connection
     mandate: dict
     now: datetime  # wall clock read AFTER the lock was granted; use this, never SQL now()
+    # grant id -> scope, filled by the path check. Scope is immutable after insert (DB trigger), so this
+    # cache cannot go stale within the operation; status/expiry are NOT cached and are always re-read.
+    scopes: dict = field(default_factory=dict)
 
     @property
     def mandate_id(self) -> uuid.UUID:

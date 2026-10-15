@@ -21,6 +21,7 @@ from .scope import MAX_BIGINT, is_subset, validate_scope
 from .tx import RESERVE_TTL_SECONDS, Ctx, audit, kernel_tx, mandate_of_grant, mandate_of_tx, movement
 
 MAX_DEPTH = 4
+MAX_PENDING_REVIEWS = 20  # per grant; proposals awaiting the owner (ADR-0008 review: inbox-flooding guard)
 
 
 def _amount(v: Any) -> int:
@@ -173,10 +174,11 @@ def _path_problem(ctx: Ctx, grant) -> str | None:
     if ctx.mandate["expires_at"] <= ctx.now:
         return "MANDATE_EXPIRED"
     rows = ctx.conn.execute(
-        "SELECT status, (expires_at <= %s) AS expired FROM grants WHERE id = ANY(%s)", (ctx.now, grant["path"])
-    ).fetchall()
+        "SELECT id, scope, status, (expires_at <= %s) AS expired FROM grants WHERE id = ANY(%s)",
+        (ctx.now, grant["path"])).fetchall()
     if len(rows) != len(grant["path"]):
         return "PATH_BROKEN"
+    ctx.scopes.update({r["id"]: r["scope"] for r in rows})   # reused by the ADR-0008 checks: no extra round trip
     for r in rows:
         if r["status"] == "revoked":
             return "GRANT_REVOKED"
@@ -220,6 +222,15 @@ def authorize(pool, *, grant_id, actor, amount: int, currency: str, recipient: s
                 audit(c, mid, "TX_REJECTED", actor, tx["id"], reason=reason, amount=amount)
                 return _decision(tx)
             held = _hold_reason(ctx, g, actor, amount, needs_review)
+            if held and c.execute("SELECT count(*) AS n FROM transactions WHERE grant_id = %s AND state = 'proposed'",
+                                  (grant_id,)).fetchone()["n"] >= MAX_PENDING_REVIEWS:
+                # Held requests cost the holder nothing; without a cap one agent could bury the owner's
+                # approval inbox. Refusing is fail-closed: nothing is reserved either way.
+                reason = "TOO_MANY_PENDING_REVIEWS"
+                tx = _insert_tx(ctx, g, amount, currency, recipient, category, "rejected", key, phash,
+                                reason=reason, proposal=proposal)
+                audit(c, mid, "TX_REJECTED", actor, tx["id"], reason=reason, amount=amount)
+                return _decision(tx)
             if held:
                 tx = _insert_tx(ctx, g, amount, currency, recipient, category, "proposed", key, phash,
                                 proposal=proposal, review_reason=held)
@@ -266,8 +277,12 @@ def _authorize_problem(ctx: Ctx, g, amount, currency, recipient, category) -> st
 
 
 def _path_scopes(ctx: Ctx, g) -> list[dict]:
-    """(id, scope) of every grant on the request's path, self included."""
-    return ctx.conn.execute("SELECT id, scope FROM grants WHERE id = ANY(%s)", (g["path"],)).fetchall()
+    """(id, scope) of every grant on the request's path, self included. Normally served from the cache the
+    path check filled under this same lock; queried only if a caller skipped the path check."""
+    if not all(gid in ctx.scopes for gid in g["path"]):
+        ctx.scopes.update({r["id"]: r["scope"] for r in ctx.conn.execute(
+            "SELECT id, scope FROM grants WHERE id = ANY(%s)", (g["path"],))})
+    return [{"id": gid, "scope": ctx.scopes[gid]} for gid in g["path"]]
 
 
 def _velocity_exceeded(ctx: Ctx, g, amount: int) -> bool:

@@ -103,3 +103,7 @@ The rules exist so that a child's *declared* scope never reads wider than its pa
 - **A per-grant counter column updated on each spend:** a second representation of the same money, with drift risk (ADR-0004 forbids derived duplicates). Rejected in favour of an aggregate query under the lock.
 - **Enforcing velocity in the router or interpretation layer:** bypassable by direct API calls. Rejected.
 - **A threshold that applies only to the declaring grant:** a child could escape the parent's threshold by delegating. Rejected in favour of the path minimum.
+
+## Review amendments (Opus, 2026-10-15)
+- **Pending-review cap.** At most `MAX_PENDING_REVIEWS = 20` proposals may wait per grant. A further request that would be held is refused with `TOO_MANY_PENDING_REVIEWS` (stored as `rejected`, nothing reserved). Without the cap, a holder could bury the owner's approval inbox at no cost (self-assessment R21).
+- **No extra round trips.** The path check now returns each path grant's scope, cached on the operation context. Scope is immutable by trigger, so the cache can't go stale. The window and threshold checks reuse it, so grants without these controls pay no extra queries under the lock.

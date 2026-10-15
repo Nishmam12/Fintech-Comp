@@ -145,6 +145,20 @@ def test_replay_returns_the_stored_hold(world):
     assert again["state"] == "proposed" and again["review_reason"] == "ABOVE_THRESHOLD"
 
 
+def test_pending_reviews_are_capped_per_grant(world, monkeypatch):
+    from budget_kernel.kernel import ops
+    monkeypatch.setattr(ops, "MAX_PENDING_REVIEWS", 2)
+    g = grant_for(world, world.alice, review_above=1_000)
+    held = [world.authorize(g, world.alice, 5_000) for _ in range(2)]
+    assert states(held) == ["proposed", "proposed"]
+    third = world.authorize(g, world.alice, 5_000)
+    assert third["state"] == "rejected" and third["reason"] == "TOO_MANY_PENDING_REVIEWS"
+    assert world.authorize(g, world.alice, 500)["state"] == "reserved"               # under the threshold still works
+    kernel.review(world.pool, transaction_id=held[0]["transaction_id"], actor=world.owner, approve=False)
+    assert world.authorize(g, world.alice, 5_000)["state"] == "proposed"             # a decided review frees a slot
+    world.check()
+
+
 # ------------------------------------------------------------------ scope validation and attenuation
 
 @pytest.mark.parametrize("over", [
