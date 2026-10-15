@@ -56,6 +56,12 @@ The full suite takes about 7 minutes because the database is overseas (~60 ms pe
 
 ## 4. Starting tasks
 
+> **Phase 2 (from Oct 15):** after your starting task, continue with your items in [`docs/plans/PHASE2_PLAN.md`](docs/plans/PHASE2_PLAN.md):
+> - **Member 2:** dashboard extras BK-321..326 and the deck BK-120
+> - **Member 3:** settlement hardening BK-311..315, the evidence pack BK-130 and the demo video BK-140
+>
+> The plan has the day-by-day timeline and the cut order.
+
 ### Member 3 — BK-075: Testnet settlement adapter (Topic F, the on-chain evidence)
 Read **`memory/decisions/ADR-0007-TESTNET-SETTLEMENT-ADAPTER.md`** first; it specifies the design.
 - **Paths you own:** `backend/src/budget_kernel/settlement/`, `backend/migrations/003_settlement.sql`, `backend/tests/integration/test_settlement*.py`.
