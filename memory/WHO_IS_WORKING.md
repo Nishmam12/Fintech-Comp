@@ -24,8 +24,8 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 
 ### Member 2 (RTX 2070 Super) — daniel
 - **Status:** ACTIVE
-- **Task ID:** BK-090 (dashboard) then BK-321..326
-- **Branch:** daniel/BK-090-dashboard
+- **Task ID:** BK-090..327 done and in PRs; next BK-305 (claim api/ + routing/ first)
+- **Branch:** daniel/BK-321-pwa (stack: PRs #1-#6)
 - **Claimed areas (paths):** frontend/
 - **Started / last update (UTC):** 2026-10-15
 - **Notes / blockers:** BK-305 (api/, routing/) and docs/submission/ will be claimed when I start them.
