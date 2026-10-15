@@ -35,8 +35,8 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Task ID:** BK-075/303/315/130 (settlement; first real tx DONE 2026-10-15)
 - **Branch:** afnan/BK-303-mandate-settlers (carries BK-075 + BK-303 + BK-315 + BK-130 script)
 - **Claimed areas (paths):** backend/src/budget_kernel/settlement/, backend/migrations/003_settlement.sql, backend/tests/integration/test_settlement*.py, evidence/, scripts/evidence*.py, backend/src/budget_kernel/api/app.py (settlement endpoints only), memory/research/SETTLEMENT.md
-- **Started / last update (UTC):** 2026-10-15 06:45
-- **Notes / blockers:** Gas solved via ZalalenA faucet; first real tx 0x2c5665e7...9090 (block 48155797), see SETTLEMENT.md. Rebased onto dee775c; full non-slow suite green (200 passed + 1 test fixed, now 15/15 settlement tests). READY for lead + Opus review (kernel change BK-303).
+- **Started / last update (UTC):** 2026-10-15 19:30
+- **Notes / blockers:** Review fixes F1-F3 done on the branch (commit d643819+), full non-slow suite result in CHANGELOG; waiting on lead merge, then lead applies migration 003 and runs demo in testnet mode.
 
 Status values: `ACTIVE`, `PAUSED` (claim kept), `IDLE` (no claim), `REVIEW` (waiting on review/merge).
 
