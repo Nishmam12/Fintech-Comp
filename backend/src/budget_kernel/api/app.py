@@ -25,6 +25,9 @@ from . import schemas
 from .auth import Caller, Principal, hash_key, new_key, require_admin
 
 
+EXPLORER = "https://sepolia.basescan.org/tx/"
+
+
 def _uuid(v: str, what: str) -> uuid.UUID:
     try:
         return uuid.UUID(str(v))
@@ -274,9 +277,13 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             grants = c.execute("SELECT id, parent_id, depth, holder_principal_id, available, reserved, settled, status,"
                                " expires_at, scope FROM grants WHERE mandate_id = %s ORDER BY depth, created_at",
                                (mid,)).fetchall()
-            txs = c.execute("SELECT id, grant_id, amount, currency, recipient, category, state, reject_reason,"
-                            " review_reason, proposal, reserve_expires_at, created_at FROM transactions WHERE mandate_id = %s"
-                            " ORDER BY created_at DESC LIMIT 200", (mid,)).fetchall()
+            txs = c.execute("SELECT t.id, t.grant_id, t.amount, t.currency, t.recipient, t.category, t.state,"
+                            " t.reject_reason, t.review_reason, t.proposal, t.reserve_expires_at, t.created_at, s.tx_hash,"
+                            " s.status AS chain_status, s.block_number FROM transactions t"
+                            " LEFT JOIN chain_settlements s ON s.transaction_id = t.id WHERE t.mandate_id = %s"
+                            " ORDER BY t.created_at DESC LIMIT 200", (mid,)).fetchall()
+            for t in txs:                              # BK-315: explorer link for the dashboard (derived, never stored)
+                t["explorer_url"] = EXPLORER + t["tx_hash"] if t["tx_hash"] else None
             # window_used is computed here, never in the browser (ADR-0008 section 6): the same subtree sum the
             # kernel uses, measured now. Read-only; the kernel re-checks under the lock when it decides.
             for g in grants:

@@ -162,3 +162,5 @@ def test_testnet_mode_settles_via_adapter(pool, monkeypatch):
         chain.mine(blocks=2)
         res = client.post("/settlement/reconcile", headers={**svc, **admin}).json()["results"]
         assert res[0]["status"] == "confirmed", res
+        t = client.get(f"/mandates/{m['mandate_id']}/state", headers=owner).json()["transactions"][0]
+        assert t["explorer_url"].endswith(t["tx_hash"]) and t["chain_status"] == "confirmed"
