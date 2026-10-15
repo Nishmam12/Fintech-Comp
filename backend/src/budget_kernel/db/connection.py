@@ -40,6 +40,11 @@ def make_pool(settings: Settings, schema: str | None = None, max_size: int = 10)
         max_size=max_size,
         kwargs={"row_factory": dict_row, "connect_timeout": 15},
         configure=_configure,
+        # The hosted pooler silently drops idle connections. Test each connection as it is handed out
+        # (a dead one is discarded and replaced), and retire idle ones before the server does.
+        check=ConnectionPool.check_connection,
+        max_idle=60,
+        max_lifetime=1800,
         open=True,
         timeout=30,
     )

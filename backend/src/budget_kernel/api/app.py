@@ -211,6 +211,23 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
                 raise kernel.Forbidden("not a participant in this mandate", code="NOT_PERMITTED")
         return m
 
+    @app.get("/me")
+    def whoami(me: Principal = Caller):
+        """Who the API key belongs to (lets a client sign in with a key alone)."""
+        return {"principal_id": str(me.id), "name": me.name, "kind": me.kind}
+
+    @app.get("/mandates")
+    def my_mandates(request: Request, me: Principal = Caller):
+        """Mandates the caller may view: owned, or holding a grant in (service principals see all, as in /state)."""
+        with P(request).connection() as c:
+            rows = c.execute(
+                "SELECT m.id, m.currency, m.total, m.status, m.expires_at, m.created_at,"
+                " (m.owner_principal_id = %(me)s) AS is_owner FROM mandates m"
+                " WHERE m.owner_principal_id = %(me)s OR %(svc)s"
+                " OR EXISTS (SELECT 1 FROM grants g WHERE g.mandate_id = m.id AND g.holder_principal_id = %(me)s)"
+                " ORDER BY m.created_at DESC LIMIT 50", {"me": me.id, "svc": me.kind == "service"}).fetchall()
+        return _jsonable({"mandates": [{**r, "role": "owner" if r["is_owner"] else "holder"} for r in rows]})
+
     @app.get("/mandates/{mandate_id}/state")
     def state(mandate_id: str, request: Request, me: Principal = Caller):
         mid = _uuid(mandate_id, "mandate")
@@ -220,7 +237,7 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
                                " expires_at, scope FROM grants WHERE mandate_id = %s ORDER BY depth, created_at",
                                (mid,)).fetchall()
             txs = c.execute("SELECT id, grant_id, amount, currency, recipient, category, state, reject_reason,"
-                            " review_reason, reserve_expires_at, created_at FROM transactions WHERE mandate_id = %s"
+                            " review_reason, proposal, reserve_expires_at, created_at FROM transactions WHERE mandate_id = %s"
                             " ORDER BY created_at DESC LIMIT 200", (mid,)).fetchall()
             # window_used is computed here, never in the browser (ADR-0008 section 6): the same subtree sum the
             # kernel uses, measured now. Read-only; the kernel re-checks under the lock when it decides.
