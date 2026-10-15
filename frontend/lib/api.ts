@@ -39,6 +39,10 @@ export type Transaction = {
   review_reason: string | null;
   reserve_expires_at: string | null;
   created_at: string;
+  // Untrusted model output (null for non-agent requests). Render as plain text only.
+  proposal?: Proposal | null;
+  // Null until a real transfer exists. Use as returned; never build explorer URLs client-side.
+  explorer_url?: string | null;
 };
 
 export type MandateState = {
@@ -171,3 +175,16 @@ export function microUsd(micro: number): string {
   const s = Math.abs(micro).toString().padStart(7, "0");
   return `${neg ? "-" : ""}$${s.slice(0, -6)}.${s.slice(-6)}`;
 }
+
+export type Me = { principal_id: string; name: string; kind: string };
+export type MandateSummary = {
+  id: string;
+  currency: string;
+  total: number;
+  status: string;
+  expires_at: string;
+  created_at: string;
+  role: "owner" | "holder";
+};
+export const getMe = (key: string) => api<Me>(key, "/me");
+export const listMandates = (key: string) => api<{ mandates: MandateSummary[] }>(key, "/mandates");
