@@ -94,14 +94,14 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
     def create_mandate(body: schemas.CreateMandate, request: Request, me: Principal = Caller):
         out = kernel.create_mandate(P(request), owner_principal_id=me.id, currency=body.currency, total=body.total,
                                     protected_reserve=body.protected_reserve, expires_at=body.expires_at,
-                                    scope=body.scope.model_dump())
+                                    scope=body.scope.model_dump(exclude_none=True))
         return _jsonable(out)
 
     @app.post("/grants", status_code=201)
     def delegate(body: schemas.Delegate, request: Request, me: Principal = Caller):
         out = kernel.delegate(P(request), parent_grant_id=_uuid(body.parent_grant_id, "grant"), actor=me.id,
                               holder_principal_id=_uuid(body.holder_principal_id, "principal"), amount=body.amount,
-                              expires_at=body.expires_at, scope=body.scope.model_dump(),
+                              expires_at=body.expires_at, scope=body.scope.model_dump(exclude_none=True),
                               idempotency_key=body.idempotency_key)
         return _jsonable(out)
 
@@ -220,8 +220,19 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
                                " expires_at, scope FROM grants WHERE mandate_id = %s ORDER BY depth, created_at",
                                (mid,)).fetchall()
             txs = c.execute("SELECT id, grant_id, amount, currency, recipient, category, state, reject_reason,"
-                            " reserve_expires_at, created_at FROM transactions WHERE mandate_id = %s"
+                            " review_reason, reserve_expires_at, created_at FROM transactions WHERE mandate_id = %s"
                             " ORDER BY created_at DESC LIMIT 200", (mid,)).fetchall()
+            # window_used is computed here, never in the browser (ADR-0008 section 6): the same subtree sum the
+            # kernel uses, measured now. Read-only; the kernel re-checks under the lock when it decides.
+            for g in grants:
+                sc = g["scope"]
+                if "window_limit" in sc:
+                    g["window_used"] = c.execute(
+                        "SELECT coalesce(sum(t.amount), 0)::bigint AS s FROM transactions t"
+                        " JOIN grants x ON x.id = t.grant_id WHERE t.mandate_id = %s AND x.path @> ARRAY[%s]::uuid[]"
+                        " AND t.state IN ('reserved','submitted','settled')"
+                        " AND t.reserved_at > clock_timestamp() - make_interval(secs => %s)",
+                        (mid, g["id"], sc["window_seconds"])).fetchone()["s"]
         violations = kernel.check_invariants(P(request), mid)
         return _jsonable({"mandate": m, "grants": grants, "transactions": txs,
                           "invariants": {"ok": not violations, "violations": violations}})

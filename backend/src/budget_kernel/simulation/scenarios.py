@@ -230,26 +230,38 @@ def replay_duplicate(pool, n: int = 5, amount: int = 10_000) -> dict:
                    "An idempotency key bound to the payload makes retries safe", naive_out, kernel_out)
 
 
-def split_purchases(pool, per_tx: int = 10_000, grant_funds: int = 50_000) -> dict:
-    """INFORMATIONAL. Splitting is not blocked by a per-transaction limit; the grant's balance still bounds it."""
+def split_purchases(pool, per_tx: int = 10_000, grant_funds: int = 50_000, window_limit: int = 20_000) -> dict:
+    """Splitting defeats a per-transaction limit (the grant balance still bounds it). A velocity window
+    (ADR-0008) is the control that stops it; both grants are attacked identically and measured."""
     fx = Fixture(pool)
-    scope = {**OWNER_SCOPE, "per_tx_limit": per_tx}
-    g = kernel.delegate(pool, parent_grant_id=fx.root, actor=fx.owner, holder_principal_id=fx.agent, amount=grant_funds,
-                        expires_at=FUTURE() - timedelta(minutes=1), scope=scope, idempotency_key=uuid.uuid4().hex)["grant_id"]
-    big = fx.authorize(g, fx.agent, 30_000)
-    parts = [fx.authorize(g, fx.agent, per_tx) for _ in range(7)]
+    expires = FUTURE() - timedelta(minutes=1)
+
+    def grant(funds, **extra):
+        return kernel.delegate(pool, parent_grant_id=fx.root, actor=fx.owner, holder_principal_id=fx.agent,
+                               amount=funds, expires_at=expires, scope={**OWNER_SCOPE, "per_tx_limit": per_tx, **extra},
+                               idempotency_key=uuid.uuid4().hex)["grant_id"]
+
+    plain = grant(grant_funds)
+    big = fx.authorize(plain, fx.agent, 30_000)
+    parts = [fx.authorize(plain, fx.agent, per_tx) for _ in range(7)]
     approved = sum(1 for p in parts if p["state"] == "reserved")
+    windowed = grant(grant_funds - 10_000, window_limit=window_limit, window_seconds=3600)
+    wparts = [fx.authorize(windowed, fx.agent, per_tx) for _ in range(7)]
+    wapproved = sum(1 for p in wparts if p["state"] == "reserved")
+    wrefusal = next((p["reason"] for p in wparts if p["state"] == "rejected"), None)
     inv = fx.invariants()
     note = (f"The per-transaction limit is not a velocity limit: a 30,000 request is refused, but {approved} "
-            f"requests of {per_tx} are approved. Total spend is still capped by the grant's balance. Velocity "
-            "limits are out of scope for the MVP and are on the known-risk list.")
-    kernel_out = {"violated": bool(inv), "informational_finding": True,
+            f"requests of {per_tx} are approved. Total spend is still capped by the grant's balance. A grant with "
+            f"a velocity window of {window_limit} per hour refuses the same split after {wapproved} ({wrefusal}).")
+    kernel_out = {"violated": bool(inv) or wapproved * per_tx > window_limit, "informational_finding": True,
                   "metrics": {"single_large_request": big["reason"], "split_requests_approved": approved,
-                              "split_total": approved * per_tx, "grant_funds": grant_funds, "invariant_violations": inv},
+                              "split_total": approved * per_tx, "grant_funds": grant_funds,
+                              "windowed_requests_approved": wapproved, "windowed_total": wapproved * per_tx,
+                              "window_limit": window_limit, "windowed_refusal": wrefusal, "invariant_violations": inv},
                   "summary": f"one {30_000} request: {big['reason']}; {approved} split requests of {per_tx} approved "
                              f"(total {approved * per_tx} of {grant_funds}) -- {note}"}
-    return _result("split_purchases", "Split purchases (known limitation)",
-                   "Disclosed limit: per-transaction caps can be split; the grant balance still bounds total spend",
+    return _result("split_purchases", "Split purchases (per-tx limit vs velocity window)",
+                   "A per-transaction cap can be split; a velocity window over the grant subtree stops the split",
                    {"violated": None, "metrics": {}, "summary": "not applicable: baseline has no per-transaction limit"},
                    kernel_out, informational=True)
 

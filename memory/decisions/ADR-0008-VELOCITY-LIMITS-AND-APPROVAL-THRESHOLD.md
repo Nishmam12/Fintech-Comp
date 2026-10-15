@@ -1,6 +1,6 @@
 # ADR-0008: Velocity Limits and Approval Threshold
 
-- **Status:** PROPOSED (2026-10-15, Opus planner). Becomes ACCEPTED when the lead approves.
+- **Status:** ACCEPTED (2026-10-15, team lead)
 - **Date:** 2026-10-15
 - **Owner:** Opus planner (design) / project lead (approval) / Sonnet orchestrator (implementation)
 - **Related tasks:** BK-301, BK-302, and BK-090/BK-324 (dashboard)
@@ -61,7 +61,7 @@ Both new controls must be enforced by the kernel, under the mandate lock, from d
 
 ### 4. Attenuation (delegation)
 `is_subset(child, parent)` gains three rules:
-- **Window limit.** If the parent has `window_limit`, the child **may** omit it. The ancestor check in section 2 still binds the child. If the child sets one, it must satisfy `child.window_limit ≤ parent.window_limit`.
+- **Window limit.** If the parent has `window_limit`, the child **may** omit it. The ancestor check in section 2 still binds the child. If the child sets one, it must satisfy `child.window_limit ≤ parent.window_limit` **and** `child.window_seconds ≥ parent.window_seconds` (amended during implementation: the same cap over a *shorter* window allows more spend per hour than the parent declared, so it reads looser; a longer window binds harder).
 - **Approval threshold.** If the parent has `review_above`, the child may omit it, and the ancestor minimum still binds. If set, it must satisfy `child.review_above ≤ parent.review_above`.
 - **Parent without these fields.** The child may add either control freely; adding one only narrows the child.
 

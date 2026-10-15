@@ -48,6 +48,8 @@ def test_split_purchase_limitation_is_reported_honestly(pool):
     assert m["single_large_request"] == "PER_TX_LIMIT_EXCEEDED"
     assert m["split_requests_approved"] == 5 and m["split_total"] == 50_000      # bounded by the grant balance
     assert "not a velocity limit" in r["kernel"]["summary"] and "but 5 requests" in r["kernel"]["summary"]
+    assert m["windowed_requests_approved"] == 2 and m["windowed_total"] == 20_000      # ADR-0008 stops the split
+    assert m["windowed_refusal"] == "VELOCITY_LIMIT_EXCEEDED" and r["kernel"]["violated"] is False
 
 
 def test_only_one_simulation_runs_at_a_time():

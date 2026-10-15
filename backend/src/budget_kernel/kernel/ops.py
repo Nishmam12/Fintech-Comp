@@ -219,10 +219,11 @@ def authorize(pool, *, grant_id, actor, amount: int, currency: str, recipient: s
                                 reason=reason, proposal=proposal)
                 audit(c, mid, "TX_REJECTED", actor, tx["id"], reason=reason, amount=amount)
                 return _decision(tx)
-            if needs_review:
+            held = _hold_reason(ctx, g, actor, amount, needs_review)
+            if held:
                 tx = _insert_tx(ctx, g, amount, currency, recipient, category, "proposed", key, phash,
-                                proposal=proposal)
-                audit(c, mid, "TX_PROPOSED", actor, tx["id"], amount=amount)
+                                proposal=proposal, review_reason=held)
+                audit(c, mid, "TX_PROPOSED", actor, tx["id"], amount=amount, review_reason=held)
                 return _decision(tx)
             _reserve(ctx, g["id"], amount)
             tx = _insert_tx(ctx, g, amount, currency, recipient, category, "reserved", key, phash,
@@ -257,25 +258,63 @@ def _authorize_problem(ctx: Ctx, g, amount, currency, recipient, category) -> st
         return "RECIPIENT_NOT_ALLOWED"
     if amount > sc["per_tx_limit"]:
         return "PER_TX_LIMIT_EXCEEDED"
+    if _velocity_exceeded(ctx, g, amount):
+        return "VELOCITY_LIMIT_EXCEEDED"
     if amount > g["available"]:
         return "INSUFFICIENT_FUNDS"
     return None
 
 
+def _path_scopes(ctx: Ctx, g) -> list[dict]:
+    """(id, scope) of every grant on the request's path, self included."""
+    return ctx.conn.execute("SELECT id, scope FROM grants WHERE id = ANY(%s)", (g["path"],)).fetchall()
+
+
+def _velocity_exceeded(ctx: Ctx, g, amount: int) -> bool:
+    """ADR-0008: for every grant on the path that sets a window, committed spend across ITS WHOLE SUBTREE
+    in the rolling window, plus this request, must stay within window_limit. Committed = reserved, submitted
+    or settled, dated by reserved_at. Read under the mandate lock, so concurrent requests cannot both pass."""
+    for row in _path_scopes(ctx, g):
+        sc = row["scope"]
+        if "window_limit" not in sc:
+            continue
+        spent = ctx.conn.execute(
+            "SELECT coalesce(sum(t.amount), 0)::bigint AS s FROM transactions t JOIN grants x ON x.id = t.grant_id"
+            " WHERE t.mandate_id = %s AND x.path @> ARRAY[%s]::uuid[] AND t.state IN ('reserved','submitted','settled')"
+            " AND t.reserved_at > %s - make_interval(secs => %s) AND t.reserved_at <= %s",
+            (ctx.mandate_id, row["id"], ctx.now, sc["window_seconds"], ctx.now)).fetchone()["s"]
+        if spent + amount > sc["window_limit"]:
+            return True
+    return False
+
+
+def _hold_reason(ctx: Ctx, g, actor, amount: int, needs_review: bool) -> str | None:
+    """Why a request that passed every check is held for the owner instead of reserved (ADR-0008).
+    The effective threshold is the LOWEST review_above on the path, so an ancestor's binds descendants.
+    The mandate owner is exempt from the threshold (they are the approver) but not from the caller flag."""
+    if actor != ctx.mandate["owner_principal_id"]:
+        limits = [r["scope"]["review_above"] for r in _path_scopes(ctx, g) if "review_above" in r["scope"]]
+        if limits and amount > min(limits):
+            return "ABOVE_THRESHOLD"
+    return "CALLER_FLAGGED" if needs_review else None
+
+
 def _insert_tx(ctx: Ctx, g, amount, currency, recipient, category, state, key, phash, *, reason=None,
-               proposal=None, ttl=False):
+               proposal=None, ttl=False, review_reason=None):
     expires = ctx.now + timedelta(seconds=RESERVE_TTL_SECONDS) if ttl else None
     return ctx.conn.execute(
         "INSERT INTO transactions(mandate_id, grant_id, amount, currency, recipient, category, state,"
-        " reject_reason, idempotency_key, payload_hash, reserve_expires_at, proposal, created_at, updated_at)"
-        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
+        " reject_reason, idempotency_key, payload_hash, reserve_expires_at, proposal, created_at, updated_at,"
+        " reserved_at, review_reason) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
         (ctx.mandate_id, g["id"], amount, currency, recipient, category, state, reason, key, phash, expires,
-         Jsonb(proposal) if proposal is not None else None, ctx.now, ctx.now),
+         Jsonb(proposal) if proposal is not None else None, ctx.now, ctx.now,
+         ctx.now if state == "reserved" else None, review_reason),
     ).fetchone()
 
 
 def _decision(tx: dict, replayed: bool = False) -> dict:
-    return {"transaction_id": tx["id"], "state": tx["state"], "reason": tx["reject_reason"], "replayed": replayed}
+    return {"transaction_id": tx["id"], "state": tx["state"], "reason": tx["reject_reason"],
+            "review_reason": tx.get("review_reason"), "replayed": replayed}
 
 
 # --------------------------------------------------------------------------- human review
@@ -303,9 +342,9 @@ def review(pool, *, transaction_id, actor, approve: bool) -> dict:
             audit(c, mid, "TX_REVIEW_REJECTED", actor, tx["id"], reason=reason)
             return {"transaction_id": tx["id"], "state": "rejected", "reason": reason, "replayed": False}
         _reserve(ctx, tx["grant_id"], tx["amount"])
-        n = c.execute("UPDATE transactions SET state = 'reserved', reserve_expires_at = %s, updated_at = %s"
-                      " WHERE id = %s AND state = 'proposed'",
-                      (ctx.now + timedelta(seconds=RESERVE_TTL_SECONDS), ctx.now, tx["id"])).rowcount
+        n = c.execute("UPDATE transactions SET state = 'reserved', reserve_expires_at = %s, updated_at = %s,"
+                      " reserved_at = %s WHERE id = %s AND state = 'proposed'",
+                      (ctx.now + timedelta(seconds=RESERVE_TTL_SECONDS), ctx.now, ctx.now, tx["id"])).rowcount
         ensure(n == 1, "review: state guard failed")
         movement(c, mid, "reserve", tx["amount"], from_grant=tx["grant_id"], from_bucket="available",
                  to_grant=tx["grant_id"], to_bucket="reserved", transaction_id=tx["id"], actor=actor)

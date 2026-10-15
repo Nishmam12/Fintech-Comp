@@ -17,6 +17,10 @@ class Scope(Strict):
     recipients: list[str] = Field(min_length=1, max_length=200)
     per_tx_limit: StrictInt = Field(gt=0)
     can_delegate: StrictBool
+    # ADR-0008: optional controls; absent means off. window_limit and window_seconds go together.
+    window_limit: StrictInt | None = Field(default=None, gt=0)
+    window_seconds: StrictInt | None = Field(default=None, ge=60, le=2_592_000)
+    review_above: StrictInt | None = Field(default=None, ge=0)
 
 
 class CreatePrincipal(Strict):

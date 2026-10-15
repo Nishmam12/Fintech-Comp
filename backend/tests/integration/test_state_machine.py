@@ -46,11 +46,17 @@ class KernelMachine(RuleBasedStateMachine):
         return self.root
 
     @rule(target=grants, parent=grants, amount=st.integers(1, 40_000), agent=st.integers(0, 2),
-          can_delegate=st.booleans(), narrow=st.booleans())
-    def delegate(self, parent, amount, agent, can_delegate, narrow):
+          can_delegate=st.booleans(), narrow=st.booleans(),
+          window=st.sampled_from([None, (15_000, 3600), (30_000, 3600), (30_000, 600)]),
+          threshold=st.sampled_from([None, 0, 5_000, 12_000]))
+    def delegate(self, parent, amount, agent, can_delegate, narrow, window, threshold):
         holder = self.agents[agent]
         sc = scope(per_tx_limit=20_000, can_delegate=can_delegate,
                    **({"categories": ["cloud"], "recipients": ["aws"]} if narrow else {}))
+        if window:                                    # ADR-0008 controls, some of which delegation must refuse
+            sc.update(window_limit=window[0], window_seconds=window[1])
+        if threshold is not None:
+            sc["review_above"] = threshold
         try:
             gid = kernel.delegate(self.pool, parent_grant_id=parent, actor=self.holder[parent], holder_principal_id=holder,
                                   amount=amount, expires_at=self._expires(parent), scope=sc,
@@ -64,8 +70,12 @@ class KernelMachine(RuleBasedStateMachine):
     def authorize(self, grant, amount, category, recipient):
         d = kernel.authorize(self.pool, grant_id=grant, actor=self.holder[grant], amount=amount, currency="USD",
                              recipient=recipient, category=category, idempotency_key=uuid.uuid4().hex)
-        assert d["state"] in ("reserved", "rejected")
+        assert d["state"] in ("reserved", "rejected", "proposed")
         return d["transaction_id"]
+
+    @rule(tx=txs, approve=st.booleans())
+    def review(self, tx, approve):
+        kernel.review(self.pool, transaction_id=tx, actor=self.owner, approve=approve)
 
     @rule(tx=txs)
     def settle_start(self, tx):

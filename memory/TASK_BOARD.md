@@ -22,8 +22,8 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 | BK-100 | Complete security review, README, demo and event submission | IN PROGRESS | README + deployment steps + scripts/demo.py done (2026-10-15). Remaining: demo video, final clean-start run recording, submission checklist. Clean-start demo, passing tests, disclosed limitations and submission requirements met. |
 | BK-075 | Testnet settlement adapter (Topic F): kernel-authorized spends settle as real testnet txs; tx hash stored on the transaction | READY | **Member 3.** Brief in ONBOARDING.md section 4. Adapter is called only after kernel `reserved`; testnet only, key from .env; hashes visible in audit + UI; ADR-0007 accepted. |
 | BK-110 | Submission pack: tech doc, deck (10 min or less), demo video (5 min or less), security self-assessment (permission tiers + known risks), execution evidence (tx hashes + logs) | IN PROGRESS | All 6 checklist items in [[research/COMPETITION]] present and emailed by 2026-10-20 17:00 BST. Security self-assessment drafted: docs/SECURITY_SELF_ASSESSMENT.md (2026-10-15). |
-| BK-301 | Velocity limits (window_limit/window_seconds, subtree sum, attenuation) | READY | **Lead.** Plan: docs/plans/PHASE2_PLAN.md. Closes R1; tests + Opus review. |
-| BK-302 | Approval threshold (review_above -> proposed, stricter only) | READY | **Lead.** Schema pushed first (API contract freeze, target Oct 16). |
+| BK-301 | Velocity limits (window_limit/window_seconds, subtree sum, attenuation) | REVIEW | **Lead.** Plan: docs/plans/PHASE2_PLAN.md. Closes R1; tests + Opus review. |
+| BK-302 | Approval threshold (review_above -> proposed, stricter only) | REVIEW | **Lead.** Schema pushed first (API contract freeze, target Oct 16). |
 | BK-303 | Mandate-bound settlement services | READY | **Member 3** (kernel exception: lead + Opus review before merge). Closes R2. |
 | BK-304 | Per-principal daily inference budget | BACKLOG | **Member 3, stretch** (costledger exception: lead + Opus review). Closes R7. Cut 4th if late. |
 | BK-305 | /agent/request replays by idempotency key before interpreting | READY | **Member 2** (api/ + routing/). Closes R9. |

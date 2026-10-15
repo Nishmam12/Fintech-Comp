@@ -67,7 +67,7 @@ Section 7 lists all known risks.
 | **S: settlement service** | `kind = service` principal (the testnet adapter) | Move `reserved → submitted → settled`; declare `submitted → released` only with a failure proof | Create, approve or resize spends; delegate; revoke | `kernel._require_settler` |
 | **No tier** | LLMs, router, fast path, provider adapter, cost ledger, simulation baseline | Produce a proposal or a cost record | Call any kernel write; carry authority fields (schema forbids them) | `proposals/schema.py` (`extra="forbid"`), boundary tests (import graph, single writer) |
 
-**Policy note.** The interpretation layer marks a request `needs_review` when it is ambiguous, ungrounded or looks injected. In that case the kernel records a `proposed` transaction that holds **no funds** until the owner approves it. This protects an honest agent against bad interpretation. It is **not** a control against a malicious grant holder, who can call `POST /transactions/authorize` with structured values directly. Against a malicious holder, the security guarantee is the grant's scope, per-transaction limit and balance, which the holder cannot exceed by any route.
+**Policy note.** The interpretation layer marks a request `needs_review` when it is ambiguous, ungrounded or looks injected. In that case the kernel records a `proposed` transaction that holds **no funds** until the owner approves it. This protects an honest agent against bad interpretation. It is **not** a control against a malicious grant holder, who can call `POST /transactions/authorize` with structured values directly. Against a malicious holder, the guarantee is the grant's scope, per-transaction limit, balance and (when set) velocity window and approval threshold (`review_above`, ADR-0008). The threshold is enforced inside the kernel on the lowest value along the delegation path, so it holds even when the holder calls the authorize endpoint directly; the mandate owner is exempt because the owner is the approver.
 
 ---
 
@@ -113,7 +113,7 @@ All numbers come from runs against the hosted Postgres database and are recorded
 | Revoked ancestor | Grandchild still spent | Refused `GRANT_REVOKED`; descendant revoked |
 | Revocation race | **No violation this run.** Timing-dependent, reported as measured | 0 live reservations on the revoked grant |
 | Duplicate delivery (same key × 5) | Debited 5 times | 1 transaction |
-| Split purchases (informational) | n/a | 30,000 refused (per-tx limit); 5 × 10,000 approved, bounded by the 50,000 grant |
+| Split purchases (informational) | n/a | 30,000 refused (per-tx limit); plain grant: 5 × 10,000 approved, bounded by the 50,000 balance; windowed grant (20,000/hour): 2 approved, then `VELOCITY_LIMIT_EXCEEDED` |
 
 **Honesty rules for the harness.**
 - Baseline violations are measured, not asserted. A scenario that does not reproduce reports `violated: false`.
@@ -144,7 +144,7 @@ Severity is rated for a production deployment. Status is one of: **Mitigated** (
 
 | ID | Risk | Severity | Status | Notes / mitigation |
 |---|---|---|---|---|
-| R1 | **Split purchases.** The per-transaction limit is not a velocity limit; many small spends are allowed | Medium | Accepted | Total spend is always capped by the grant's balance (demonstrated). Future work: rolling-window limits per grant |
+| R1 | **Split purchases.** The per-transaction limit is not a velocity limit; many small spends are allowed | Medium | Mitigated (opt-in) | A grant can set `window_limit` / `window_seconds` (ADR-0008): committed spend across its whole subtree in a rolling window is capped, checked under the mandate lock on every grant on the path. Demonstrated in the `split_purchases` scenario (plain grant approves 5 splits; windowed grant approves 2). Grants without a window are still bounded only by their balance |
 | R2 | **The settlement service is cross-mandate.** Any `service` principal can submit, confirm or fail any transaction, and `settle_fail` relies on the service's proof | High | Open | Requirement 6.1. Future work: bind service principals to mandates and verify receipts in the kernel |
 | R3 | **Simulated settlement path.** The owner can mark a transaction settled with no chain transfer | Medium | Open | Requirement 6.4 (`BK_SETTLEMENT_MODE`) |
 | R4 | **Recipient → address mapping is a trust point** | High | Open | Requirement 6.2 |
@@ -160,7 +160,7 @@ Severity is rated for a production deployment. Status is one of: **Mitigated** (
 | R14 | **Refused requests write audit rows.** Anyone who knows a grant ID can add audit noise | Low | Accepted | IDs are random UUIDs. Mitigated further by R8's rate limiting |
 | R15 | **Model text is shown in the UI** (XSS if rendered as HTML) | Medium | Open | Requirement for BK-090 |
 | R16 | **Simulations run in the live schema** (keyless identities, separate `naive_*` tables) | Low | Mitigated | Human-only endpoint; one run at a time (`SIMULATION_RUNNING` 409); the baseline module is isolated by boundary tests |
-| R17 | **A development DB credential was exposed in a session log** | Medium | Open | Owner action: rotate the Supabase DB password before submission |
+| R17 | **A development DB credential was exposed in a session log** | Medium | Mitigated | Password rotated 2026-10-15. The replacement appeared in a chat transcript, so rotate once more just before submission |
 | R18 | **Provider drift.** Model IDs, prices and the "thinking disabled" parameters are not yet verified live | Low | Open | Prices are frozen per call from a versioned rate card; overruns are charged and audited. Live smoke test pending keys |
 | R19 | **Injection detection is pattern-based** and misses paraphrased attacks | Low | Accepted | A missed injection still cannot authorize. The amount must be grounded in the text, and recipient and category must be in scope. Worst case: an in-scope, grounded payment the user's text actually contains |
 | R20 | **Direct database access bypasses the kernel** (anyone holding the DB password) | High | Accepted | No DB credential leaves the server. Append-only triggers protect the audit and movement tables. Invariant checks (`GET /mandates/{id}/state`) detect tampering with balances |
@@ -170,7 +170,7 @@ Severity is rated for a production deployment. Status is one of: **Mitigated** (
 ## 8. What we do not claim
 
 - This is a hackathon prototype on testnet. It has not been externally audited and must not hold real funds.
-- We do not detect semantically equivalent split purchases (R1), and we do not authenticate real banks or merchants.
+- Velocity limits are opt-in per grant (R1); a grant without a window can still be split up to its balance. We do not authenticate real banks or merchants.
 - Live-model accuracy (configs B and C) is not yet measured. Until it is, the only interpretation numbers we report are the rules-only and recorded-output results above.
 - The revocation-race baseline failure depends on timing and did not reproduce in the recorded run. The revoked-ancestor scenario is the deterministic demonstration of that failure class.
 
