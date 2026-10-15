@@ -1,0 +1,154 @@
+"""Clean-start demo replay against a running API (no model keys needed).
+
+    uv run --project backend uvicorn budget_kernel.api.app:app --port 8000     # terminal 1
+    uv run --project backend python scripts/demo.py [--attacks]                # terminal 2
+
+Reads BK_ADMIN_TOKEN from the environment or .env. Creates fresh principals and a fresh mandate on
+every run, so it can be replayed any number of times. API keys are never printed.
+Exit code 0 only if every expectation below held.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+import uuid
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import httpx
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _admin_token() -> str:
+    if os.environ.get("BK_ADMIN_TOKEN"):
+        return os.environ["BK_ADMIN_TOKEN"]
+    env = ROOT / ".env"
+    if env.exists():
+        for line in env.read_text(encoding="utf-8").splitlines():
+            if line.startswith("BK_ADMIN_TOKEN="):
+                return line.split("=", 1)[1].strip()
+    sys.exit("BK_ADMIN_TOKEN is not set (environment or .env)")
+
+
+class Demo:
+    def __init__(self, base: str):
+        self.http = httpx.Client(base_url=base, timeout=120)
+        self.admin = {"X-Admin-Token": _admin_token()}
+        self.failures: list[str] = []
+
+    def say(self, msg: str) -> None:
+        print(msg, flush=True)
+
+    def expect(self, label: str, ok: bool, detail: str = "") -> None:
+        self.say(f"  [{'ok' if ok else 'FAIL'}] {label}" + (f"  ({detail})" if detail else ""))
+        if not ok:
+            self.failures.append(label)
+
+    def principal(self, name: str, kind: str) -> tuple[str, dict]:
+        r = self.http.post("/admin/principals", json={"name": name, "kind": kind}, headers=self.admin)
+        r.raise_for_status()
+        j = r.json()
+        return j["principal_id"], {"Authorization": f"Bearer {j['api_key']}"}
+
+    def post(self, path: str, headers: dict, body: dict | None = None) -> httpx.Response:
+        return self.http.post(path, json=body or {}, headers=headers)
+
+    def run(self, attacks: bool) -> int:
+        tag = uuid.uuid4().hex[:6]
+        self.say("== 1. Health")
+        self.expect("API reachable", self.http.get("/health").json().get("ok") is True)
+
+        self.say("== 2. People: a human owner, an AI agent, a settlement service")
+        owner_id, owner = self.principal(f"demo-owner-{tag}", "human")
+        agent_id, agent = self.principal(f"demo-agent-{tag}", "agent")
+        _, svc = self.principal(f"demo-settler-{tag}", "service")
+
+        self.say("== 3. Owner creates a mandate: 1000.00 USD, 100.00 protected (never spendable)")
+        expires = (datetime.now(timezone.utc) + timedelta(days=7)).replace(microsecond=0)
+        scope = {"categories": ["cloud", "software"], "recipients": ["aws", "github"], "per_tx_limit": 20_000,
+                 "can_delegate": True}
+        r = self.post("/mandates", owner, {"currency": "USD", "total": 100_000, "protected_reserve": 10_000,
+                                           "expires_at": expires.isoformat(), "scope": scope})
+        m = r.json()
+        self.expect("mandate created", r.status_code == 201, f"spendable {m.get('available')}")
+        mandate, root = m["mandate_id"], m["root_grant_id"]
+
+        self.say("== 4. An agent cannot mint its own authority")
+        r = self.post("/mandates", agent, {"currency": "USD", "total": 100_000, "protected_reserve": 0,
+                                           "expires_at": expires.isoformat(), "scope": scope})
+        self.expect("agent-created mandate refused", r.status_code == 403, r.json().get("code", ""))
+
+        self.say("== 5. Owner delegates 300.00 to the agent: narrower scope, cannot re-delegate")
+        child_scope = {"categories": ["cloud"], "recipients": ["aws"], "per_tx_limit": 10_000, "can_delegate": False}
+        r = self.post("/grants", owner, {"parent_grant_id": root, "holder_principal_id": agent_id, "amount": 30_000,
+                                         "expires_at": expires.isoformat(), "scope": child_scope,
+                                         "idempotency_key": f"d-{tag}"})
+        self.expect("delegation created", r.status_code == 201)
+        grant = r.json()["grant_id"]
+        r = self.post("/grants", owner, {"parent_grant_id": root, "holder_principal_id": agent_id, "amount": 30_000,
+                                         "expires_at": expires.isoformat(),
+                                         "scope": {**child_scope, "categories": ["cloud", "payroll"]},
+                                         "idempotency_key": f"d2-{tag}"})
+        self.expect("wider scope than the parent is refused", r.status_code >= 400, r.json().get("code", ""))
+
+        def ask(text: str, key: str) -> dict:
+            return self.post("/agent/request", agent, {"grant_id": grant, "text": text, "idempotency_key": key}).json()
+
+        self.say("== 6. The agent asks in plain language; the kernel decides")
+        d = ask("pay 50 USD to aws for cloud", f"r1-{tag}")
+        decision = d["decision"] or {}
+        self.expect("in-scope request reserved", decision.get("state") == "reserved",
+                    f"route={[t['step'] for t in d['interpretation']['trail']]}")
+        tx = decision.get("transaction_id")
+        d = ask("pay 150 USD to aws for cloud", f"r2-{tag}")
+        self.expect("over the per-transaction limit rejected", (d["decision"] or {}).get("reason") == "PER_TX_LIMIT_EXCEEDED")
+        r = self.post("/transactions/authorize", agent, {"grant_id": grant, "amount": 2_000, "currency": "USD",
+                                                          "recipient": "github", "category": "cloud",
+                                                          "idempotency_key": f"r3-{tag}"})
+        self.expect("recipient outside the grant rejected", r.json().get("reason") == "RECIPIENT_NOT_ALLOWED")
+        again = ask("pay 50 USD to aws for cloud", f"r1-{tag}")
+        self.expect("retry with the same key replays, no double reservation",
+                    (again["decision"] or {}).get("replayed") is True
+                    and again["decision"]["transaction_id"] == tx)
+
+        self.say("== 7. Settlement (simulated here; the testnet adapter replaces this step)")
+        r = self.post(f"/transactions/{tx}/settle", svc)
+        self.expect("settlement service settles the reservation", r.json().get("state") == "settled")
+        r = self.post(f"/transactions/{tx}/settle-fail", owner, {"proof": "owner-claims-failure"})
+        self.expect("owner cannot declare a settled transfer failed", r.status_code >= 400, r.json().get("code", ""))
+
+        self.say("== 8. Owner revokes the agent's grant; the agent is cut off immediately")
+        r = self.post(f"/grants/{grant}/revoke", owner)
+        self.expect("revoked", r.json().get("status") == "revoked")
+        d = ask("pay 10 USD to aws for cloud", f"r4-{tag}")
+        self.expect("agent request after revocation rejected", (d["decision"] or {}).get("reason") == "GRANT_REVOKED")
+
+        self.say("== 9. Ledger invariants")
+        st = self.http.get(f"/mandates/{mandate}/state", headers=owner).json()
+        self.expect("conservation and backing invariants hold", st["invariants"]["ok"], str(st["invariants"]["violations"]))
+        ev = self.http.get(f"/mandates/{mandate}/audit", headers=owner).json()["events"]
+        self.say(f"  audit trail: {len(ev)} events, e.g. {', '.join(sorted({e['kind'] for e in ev})[:6])}")
+
+        if attacks:
+            self.say("== 10. Attack scenarios: unsafe baseline vs kernel (measured, each takes a while)")
+            names = self.http.get("/simulation/scenarios", headers=owner).json()["scenarios"]
+            for name in names:
+                res = self.post("/simulation/run", owner, {"scenario": name}).json()
+                if "kernel" not in res:
+                    self.expect(f"{name} ran", False, str(res))
+                    continue
+                self.say(f"  {name}:\n      baseline: {res['naive']['summary']}\n      kernel:   {res['kernel']['summary']}")
+                self.expect(f"{name}: kernel held", res["kernel"]["violated"] is False)
+
+        self.say("\nRESULT: " + ("all expectations held" if not self.failures else f"{len(self.failures)} FAILED: {self.failures}"))
+        return 0 if not self.failures else 1
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--base-url", default=os.environ.get("BK_API_URL", "http://localhost:8000"))
+    ap.add_argument("--attacks", action="store_true", help="also run the baseline-vs-kernel attack scenarios")
+    a = ap.parse_args()
+    sys.exit(Demo(a.base_url).run(a.attacks))

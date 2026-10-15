@@ -17,3 +17,4 @@ node_modules/
 # local tools
 .obsidian/
 .remember/
+.demo-server.log
