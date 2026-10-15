@@ -100,13 +100,15 @@ def advance(pool, *, transaction_id, actor, chain, cfg: SettlementConfig, now=No
     if row["status"] in ("confirmed", "failed"):
         return out
     try:
-        if row["status"] == "signed":
+        just_sent = row["status"] == "signed"
+        if just_sent:
             chain.send_raw(bytes(row["raw_tx"]))
             _update(pool, transaction_id, status="broadcast", broadcast_attempts=row["broadcast_attempts"] + 1, last_error=None)
             out["status"] = "broadcast"
         receipt = chain.get_receipt(row["tx_hash"])
         if receipt is None:
-            chain.send_raw(bytes(row["raw_tx"]))     # idempotent re-broadcast of identical bytes
+            if not just_sent:
+                chain.send_raw(bytes(row["raw_tx"]))     # idempotent re-broadcast of identical bytes
             return _no_receipt(pool, row, out, actor=actor, chain=chain, cfg=cfg, now=now)
         if receipt["status"] == 0:                   # reverted: no token moved, proven failure
             kernel.settle_fail(pool, transaction_id=transaction_id, actor=actor, proof=f"reverted receipt {row['tx_hash']}")
