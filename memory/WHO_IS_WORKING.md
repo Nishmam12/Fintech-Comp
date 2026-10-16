@@ -31,12 +31,12 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Notes / blockers:** BK-305 (api/, routing/) and docs/submission/ will be claimed when I start them.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
-- **Status:** REVIEW
-- **Task ID:** BK-075/303/315/130 (settlement; first real tx DONE 2026-10-15)
-- **Branch:** afnan/BK-303-mandate-settlers (carries BK-075 + BK-303 + BK-315 + BK-130 script)
-- **Claimed areas (paths):** backend/src/budget_kernel/settlement/, backend/migrations/003_settlement.sql, backend/tests/integration/test_settlement*.py, evidence/, scripts/evidence*.py, backend/src/budget_kernel/api/app.py (settlement endpoints only), memory/research/SETTLEMENT.md
-- **Started / last update (UTC):** 2026-10-15 19:30
-- **Notes / blockers:** Review fixes F1-F3 done on the branch (commit d643819+), full non-slow suite result in CHANGELOG; waiting on lead merge, then lead applies migration 003 and runs demo in testnet mode.
+- **Status:** ACTIVE
+- **Task ID:** Phase 3: BK-401 anchor (007), BK-402 unbind, BK-403 worker, BK-304 per-agent budget (ADR-0009)
+- **Branch:** afnan/BK-401-anchor (one branch per task)
+- **Claimed areas (paths):** backend/src/budget_kernel/settlement/, backend/migrations/007_anchors.sql, backend/tests/integration/test_anchor*.py, evidence/, scripts/evidence*.py, backend/src/budget_kernel/api/app.py (settlement/anchor/unbind endpoints and the interpret call site only), backend/src/budget_kernel/kernel/ops.py (unbind_settler only), backend/src/budget_kernel/costledger (BK-304 only), backend/src/budget_kernel/worker.py, memory/research/SETTLEMENT.md
+- **Started / last update (UTC):** 2026-10-16 09:30
+- **Notes / blockers:** settlement branch merged (94feaad). Starting BK-401.
 
 Status values: `ACTIVE`, `PAUSED` (claim kept), `IDLE` (no claim), `REVIEW` (waiting on review/merge).
 
