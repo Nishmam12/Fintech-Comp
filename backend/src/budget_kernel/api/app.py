@@ -19,7 +19,7 @@ from budget_kernel.kernel import breaker, integrity
 from budget_kernel.proposals.validate import injection_suspected
 from budget_kernel.costledger import ledger as cost_ledger
 from budget_kernel.costledger.rate_card import RateCard
-from budget_kernel.routing.agent import interpret_then_decide
+from budget_kernel.routing.agent import interpret_then_decide, stored_replay
 from budget_kernel.routing.interpret import interpret as run_interpret
 from budget_kernel.config import Settings
 from budget_kernel.db.connection import make_pool
@@ -228,6 +228,11 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         reserved); unresolved interpretation never reaches the kernel at all."""
         gid = _uuid(body.grant_id, "grant")
         g = _grant_context(request, gid, me)
+        if me.id != g["holder_principal_id"]:        # before any lookup or model call: a non-holder learns nothing
+            raise kernel.Forbidden("only the grant holder may authorize spends", code="NOT_GRANT_HOLDER")
+        replay = stored_replay(P(request), grant_id=gid, idempotency_key=body.idempotency_key, text=body.text)
+        if replay is not None:                       # BK-305: a retry returns the stored decision, zero model calls
+            return _jsonable(replay)
         if injection_suspected(body.text) and me.id == g["holder_principal_id"]:
             kernel.record_signal(P(request), grant_id=gid, actor=me.id, kind="INJECTION", reason="INJECTION_SUSPECTED")
         return _jsonable(interpret_then_decide(
