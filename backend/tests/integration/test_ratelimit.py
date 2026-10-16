@@ -92,3 +92,13 @@ def test_x_forwarded_for_is_ignored_unless_trusted(pool):
     with client:
         codes = [client.get("/me", headers={"X-Forwarded-For": f"10.0.0.{i}"}).status_code for i in range(3)]
         assert codes == [401, 401, 401]                              # behind a trusted proxy each client has its own bucket
+
+
+def test_retry_after_is_readable_by_the_browser(pool):
+    client, _ = client_with(pool, default=1)
+    with client:
+        h = {"Origin": "http://localhost:3000"}
+        client.get("/me", headers=h)
+        r = client.get("/me", headers=h)
+        assert r.status_code == 429 and r.headers["access-control-expose-headers"] == "Retry-After"
+        assert r.headers["access-control-allow-origin"] == "http://localhost:3000"
