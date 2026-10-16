@@ -24,11 +24,11 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 
 ### Member 2 (RTX 2070 Super) — daniel
 - **Status:** ACTIVE
-- **Task ID:** BK-090..327 done and in PRs; next BK-305 (claim api/ + routing/ first)
-- **Branch:** daniel/BK-321-pwa (stack: PRs #1-#6)
-- **Claimed areas (paths):** frontend/
-- **Started / last update (UTC):** 2026-10-15
-- **Notes / blockers:** BK-305 (api/, routing/) and docs/submission/ will be claimed when I start them.
+- **Task ID:** Phase 3: BK-305 replay, BK-411 rate limit, BK-412 key lifecycle, BK-413 dashboard (ADR-0009)
+- **Branch:** daniel/BK-305-replay (one branch per task)
+- **Claimed areas (paths):** frontend/, backend/src/budget_kernel/api/ (ratelimit.py, auth.py, agent/request route; small edits to app.py), backend/src/budget_kernel/routing/, backend/tests/integration/test_replay*.py, test_ratelimit*.py, test_key_lifecycle*.py, docs/submission/
+- **Started / last update (UTC):** 2026-10-16
+- **Notes / blockers:** PRs #1-#6 (BK-090..327) still stacked. app.py is shared with Afnan: small changes, rebase often.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
 - **Status:** ACTIVE
