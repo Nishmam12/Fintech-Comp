@@ -1,6 +1,6 @@
 "use client";
 // The API key lives in React state only: never localStorage, never a cookie, gone on reload.
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { describeError, ApiError, setAuthLostHandler } from "@/lib/api";
 
 type Session = { key: string; mandateId: string; principalId: string; kind?: string };
@@ -19,10 +19,13 @@ const SessionCtx = createContext<Ctx | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const live = useRef(false);   // a notice is only for a session that was dropped, not for a failed sign-in attempt
+  useEffect(() => { live.current = session !== null; }, [session]);
 
   const signOut = useCallback(() => setSession(null), []);
   useEffect(() => {
     setAuthLostHandler((code) => {
+      if (!live.current) return;
       setNotice(describeError(new ApiError(401, code, ""), "Signed out"));
       setSession(null);
     });
