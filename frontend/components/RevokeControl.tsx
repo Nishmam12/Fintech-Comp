@@ -3,7 +3,7 @@
 // The result is shown exactly as the API returns it. In-flight transfers cannot be recalled, so they are
 // reported separately and never described as reclaimed.
 import { useState } from "react";
-import { api, ApiError, money, type Grant } from "@/lib/api";
+import { api, describeError, money, type Grant } from "@/lib/api";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
@@ -36,7 +36,7 @@ export default function RevokeControl({ g, currency }: { g: Grant; currency: str
       setConfirming(false);
       refresh();
     } catch (e) {
-      setErr(e instanceof ApiError ? `${e.code}: ${e.message}` : "Revoke failed");
+      setErr(describeError(e, "Revoke failed"));
     } finally {
       setBusy(false);
     }

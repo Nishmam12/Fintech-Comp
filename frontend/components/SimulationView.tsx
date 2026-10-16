@@ -2,7 +2,7 @@
 // Screen 6: the attack panel. Runs a named attack against the unsafe baseline and the real kernel and shows the
 // measured result exactly as the API returns it. Nothing here is computed in the browser.
 import { useEffect, useState } from "react";
-import { ApiError, listScenarios, runScenario, type SimResult, type SimSide } from "@/lib/api";
+import { ApiError, describeError, listScenarios, runScenario, type SimResult, type SimSide } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 const label = (s: string) => s.replace(/_/g, " ");
@@ -32,7 +32,7 @@ export default function SimulationView() {
     let live = true;
     listScenarios(key)
       .then((r) => { if (live) setScenarios(r.scenarios); })
-      .catch((e) => { if (live) setErr(e instanceof ApiError ? `${e.code}: ${e.message}` : "Could not load scenarios"); });
+      .catch((e) => { if (live) setErr(describeError(e, "Could not load scenarios")); });
     return () => { live = false; };
   }, [key, humanOnly]);
 
@@ -49,7 +49,7 @@ export default function SimulationView() {
       setResults((prev) => ({ ...prev, [name]: r }));
     } catch (e) {
       if (e instanceof ApiError && e.code === "SIMULATION_RUNNING") setErr("Another simulation is already running. Try again in a moment.");
-      else setErr(e instanceof ApiError ? `${e.code}: ${e.message}` : "Simulation failed");
+      else setErr(describeError(e, "Simulation failed"));
     } finally {
       setRunning(null);
     }

@@ -2,7 +2,7 @@
 // Screen 3: free text -> POST /agent/request. Left: what the (untrusted) interpreter proposed.
 // Right: what the deterministic kernel decided. Everything rendered here is plain text.
 import { useState } from "react";
-import { api, ApiError, money, type AgentResponse, type Interpretation, type Decision } from "@/lib/api";
+import { api, describeError, money, reasonText, type AgentResponse, type Interpretation, type Decision } from "@/lib/api";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
@@ -79,8 +79,9 @@ function DecisionCard({ d, interp }: { d: Decision | null; interp: Interpretatio
         <>
           <p className={`mt-2 text-xl font-semibold uppercase ${STATE_TONE[d.state] ?? ""}`}>{d.state}</p>
           <dl className="mt-2 flex flex-col gap-1">
-            <Row k="Reason" v={d.reason} />
+            <Row k="Reason" v={d.reason ? reasonText(d.reason) : null} />
             <Row k="Review reason" v={d.review_reason} />
+            {d.suspended && <Row k="Circuit breaker" v="this refusal suspended the grant" />}
             <Row k="Replayed" v={d.replayed ? "yes (no second reservation)" : "no"} />
             <Row k="Transaction" v={d.transaction_id} />
           </dl>
@@ -124,7 +125,7 @@ export default function AskView() {
       refresh();
     } catch (e) {
       setResult(null);
-      setErr(e instanceof ApiError ? `${e.code}: ${e.message}` : "Request failed");
+      setErr(describeError(e, "Request failed"));
     } finally {
       setBusy(false);
     }

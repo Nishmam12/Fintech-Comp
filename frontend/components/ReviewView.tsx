@@ -2,7 +2,7 @@
 // Screen 4 / BK-322: the owner's approval inbox. Held ("proposed") transactions hold no funds until approved.
 // Approving re-runs every kernel check, so an approval can still come back refused; that result is shown as-is.
 import { useEffect, useState } from "react";
-import { api, ApiError, money, type Transaction } from "@/lib/api";
+import { api, describeError, money, type Transaction } from "@/lib/api";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
@@ -33,7 +33,7 @@ export default function ReviewView() {
       });
       setNotice({ ok: true, text: `${approve ? "Approve" : "Deny"} → ${r.state}${r.reason ? ` (${r.reason})` : ""}` });
     } catch (e) {
-      setNotice({ ok: false, text: e instanceof ApiError ? `${e.code}: ${e.message}` : "Review failed" });
+      setNotice({ ok: false, text: describeError(e, "Review failed") });
     } finally {
       setBusyId(null);
       refresh();

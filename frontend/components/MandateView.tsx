@@ -1,6 +1,9 @@
 "use client";
-import { money, type Grant, type Transaction } from "@/lib/api";
+import { money, reasonText, type Grant, type Transaction } from "@/lib/api";
+import IntegrityBadge from "@/components/IntegrityBadge";
 import RevokeControl from "@/components/RevokeControl";
+import SuspendControl from "@/components/SuspendControl";
+import { useSession } from "@/lib/session";
 import { useMandate } from "@/lib/mandate";
 
 function childrenOf(grants: Grant[], parent: string | null) {
@@ -42,9 +45,28 @@ function TxLink({ t }: { t: Transaction }) {
   );
 }
 
-function GrantNode({ g, all, cur }: { g: Grant; all: Grant[]; cur: string }) {
+// Owner, or the holder of a grant above this one (the server applies the same rule).
+function canManage(g: Grant, all: Grant[], me: string, owner: string): boolean {
+  if (me === owner) return true;
+  const byId = new Map(all.map((x) => [x.id, x]));
+  for (let p = g.parent_id ? byId.get(g.parent_id) : undefined; p; p = p.parent_id ? byId.get(p.parent_id) : undefined) {
+    if (p.holder_principal_id === me) return true;
+  }
+  return false;
+}
+
+function frozenByAncestor(g: Grant, all: Grant[]): boolean {
+  const byId = new Map(all.map((x) => [x.id, x]));
+  for (let p = g.parent_id ? byId.get(g.parent_id) : undefined; p; p = p.parent_id ? byId.get(p.parent_id) : undefined) {
+    if (p.status === "suspended") return true;
+  }
+  return false;
+}
+
+function GrantNode({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: string; me: string; owner: string }) {
   const kids = childrenOf(all, g.id);
-  const tone = g.status === "active" ? "text-ok" : "text-bad";
+  const tone = g.status === "active" ? "text-ok" : g.status === "suspended" ? "text-accent" : "text-bad";
+  const frozen = g.status === "active" && frozenByAncestor(g, all);
   return (
     <li>
       <div className="rounded-lg border border-line bg-card p-3">
@@ -61,11 +83,26 @@ function GrantNode({ g, all, cur }: { g: Grant; all: Grant[]; cur: string }) {
           Expires {new Date(g.expires_at).toLocaleString()} · per-tx limit {money(g.scope.per_tx_limit, cur)}
         </p>
         <Velocity g={g} cur={cur} />
+        {g.status === "suspended" && (
+          <p role="status" className="mt-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm">
+            Suspended{g.suspend_reason === "STRIKES" ? " by the circuit breaker (too many refused requests)" : g.suspend_reason === "MANUAL" ? " by hand" : ""}
+            {g.suspended_at ? ` · ${new Date(g.suspended_at).toLocaleString()}` : ""}. It cannot spend until reinstated.
+          </p>
+        )}
+        {frozen && (
+          <p role="status" className="mt-2 rounded-md border border-line bg-background px-3 py-2 text-sm text-muted">
+            Frozen: a grant above this one is suspended.
+          </p>
+        )}
+        {g.status === "active" && !!g.strikes_in_window && (
+          <p className="mt-2 text-xs text-muted">Strikes in the current window: {g.strikes_in_window}</p>
+        )}
+        {g.parent_id !== null && <SuspendControl g={g} canManage={canManage(g, all, me, owner)} />}
         {g.parent_id !== null && <RevokeControl g={g} currency={cur} />}
       </div>
       {kids.length > 0 && (
         <ul className="ml-3 mt-2 flex flex-col gap-2 border-l border-line pl-3">
-          {kids.map((k) => <GrantNode key={k.id} g={k} all={all} cur={cur} />)}
+          {kids.map((k) => <GrantNode key={k.id} g={k} all={all} cur={cur} me={me} owner={owner} />)}
         </ul>
       )}
     </li>
@@ -74,11 +111,14 @@ function GrantNode({ g, all, cur }: { g: Grant; all: Grant[]; cur: string }) {
 
 export default function MandateView() {
   const { state, error: err, refresh } = useMandate();
+  const { session } = useSession();
 
   if (!state) return <p className="p-4 text-sm text-muted">{err ?? "Loading…"}</p>;
   const cur = state.mandate.currency;
   const inv = state.invariants;
   const roots = childrenOf(state.grants, null);
+  const me = session?.principalId ?? "";
+  const owner = state.mandate.owner_principal_id;
 
   return (
     <section className="flex flex-col gap-4">
@@ -92,6 +132,7 @@ export default function MandateView() {
         <p className="text-xs opacity-80">Checked by the server on this refresh.</p>
         {!inv.ok && <pre className="mt-2 whitespace-pre-wrap text-xs">{JSON.stringify(inv.violations, null, 2)}</pre>}
       </div>
+      <IntegrityBadge />
       <div className="flex items-end justify-between">
         <div>
           <p className="text-xs text-muted">Mandate total · protected reserve</p>
@@ -104,7 +145,7 @@ export default function MandateView() {
       </div>
       {err && <p role="alert" className="text-sm text-bad">{err}</p>}
       <ul className="flex flex-col gap-2">
-        {roots.map((g) => <GrantNode key={g.id} g={g} all={state.grants} cur={cur} />)}
+        {roots.map((g) => <GrantNode key={g.id} g={g} all={state.grants} cur={cur} me={me} owner={owner} />)}
       </ul>
       <div className="rounded-lg border border-line bg-card p-3">
         <h3 className="text-sm font-semibold">Transactions</h3>
@@ -118,7 +159,7 @@ export default function MandateView() {
               </div>
               <p className="wrap-anywhere text-xs text-muted">
                 {t.recipient} · {t.category}
-                {t.reject_reason ? ` · ${t.reject_reason}` : ""}
+                {t.reject_reason ? ` · ${reasonText(t.reject_reason)}` : ""}
               </p>
               <TxLink t={t} />
             </li>

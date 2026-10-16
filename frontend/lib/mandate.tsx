@@ -1,7 +1,7 @@
 "use client";
 // Shared server state for the signed-in mandate. All screens read the same snapshot; `refresh` re-reads it.
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { ApiError, getState, type MandateState } from "@/lib/api";
+import { describeError, getState, type MandateState } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 type Ctx = { state: MandateState | null; error: string | null; refresh: () => void };
@@ -18,7 +18,7 @@ export function MandateProvider({ children }: { children: ReactNode }) {
     let live = true;
     getState(session.key, session.mandateId)
       .then((st) => { if (live) { setState(st); setError(null); } })
-      .catch((e) => { if (live) setError(e instanceof ApiError ? `${e.code}: ${e.message}` : "Could not load the mandate"); });
+      .catch((e) => { if (live) setError(describeError(e, "Could not load the mandate")); });
     return () => { live = false; };
   }, [session, tick]);
 
