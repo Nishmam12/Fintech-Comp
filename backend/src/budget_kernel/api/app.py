@@ -234,16 +234,16 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             raise kernel.Conflict("this grant is suspended", code="GRANT_SUSPENDED")
         return g
 
-    def _interpret(request: Request, g: dict, text: str) -> dict:
+    def _interpret(request: Request, g: dict, text: str, me: Principal) -> dict:
         return run_interpret(P(request), request.app.state.card, text, recipients=g["scope"]["recipients"],
                              categories=g["scope"]["categories"], currency=g["currency"].strip(),
-                             transport=request.app.state.llm_transport)
+                             transport=request.app.state.llm_transport, principal_id=me.id)
 
     @app.post("/interpret")
     def interpret_only(body: schemas.Interpret, request: Request, me: Principal = Caller):
         """Natural language -> UNTRUSTED typed proposal. This endpoint never reserves or authorizes."""
         g = _grant_context(request, _uuid(body.grant_id, "grant"), me)
-        return _jsonable(_interpret(request, g, body.text))
+        return _jsonable(_interpret(request, g, body.text, me))
 
     @app.post("/agent/request")
     def agent_request(body: schemas.AgentRequest, request: Request, me: Principal = Caller):
@@ -260,7 +260,7 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             P(request), request.app.state.card, grant_id=gid, actor=me.id, text=body.text,
             idempotency_key=body.idempotency_key, recipients=g["scope"]["recipients"],
             categories=g["scope"]["categories"], currency=g["currency"].strip(),
-            transport=request.app.state.llm_transport))
+            transport=request.app.state.llm_transport, principal_id=me.id))
 
     # ------------------------------------------------------------- attack demo (baseline vs kernel)
 

@@ -22,6 +22,25 @@ class BudgetExhausted(Exception):
     this is never a reason to approve anything (ADR-0001)."""
 
 
+class AgentBudgetExhausted(BudgetExhausted):
+    """The per-agent monthly cap (ADR-0009 D1) cannot cover the call. Same fail-closed meaning as BudgetExhausted."""
+
+
+AGENT_PREFIX = "principal:"
+AGENT_TAG = "|" + AGENT_PREFIX     # a call's principal bucket is recorded in `purpose` ("interpret|principal:<uuid>")
+
+
+def agent_cap() -> int:
+    return int(os.environ.get("BK_AGENT_MONTHLY_CAP_MICRO_USD", "500000"))
+
+
+def _buckets_of(call: dict) -> list[str]:
+    """Every bucket this call reserved against: global, its route, and the agent bucket when it has one."""
+    p = call["purpose"] or ""
+    extra = [p[p.index(AGENT_TAG) + 1:]] if AGENT_TAG in p else []
+    return ["global", call["route_bucket"]] + extra
+
+
 def default_caps() -> dict[str, int]:
     return {
         "global": int(os.environ.get("BK_GLOBAL_MONTHLY_CAP_MICRO_USD", "9500000")),
@@ -41,9 +60,11 @@ def _lock_buckets(conn, month: date, buckets: set[str]) -> None:
 
 
 def reserve(pool, *, route: str, rate: Rate, est_micro: int, purpose: str = "interpret",
-            month: date | None = None, caps: dict[str, int] | None = None) -> dict:
-    """Atomically reserve `est_micro` on ('global', route). Raises BudgetExhausted if either cap
-    would be exceeded. `month`/`caps` are injectable for tests (ADR-0006 rollover test)."""
+            month: date | None = None, caps: dict[str, int] | None = None, principal_id=None,
+            principal_cap: int | None = None) -> dict:
+    """Atomically reserve `est_micro` on ('global', route) and, when `principal_id` is given, on that agent's
+    monthly bucket too: all of them or none. Raises BudgetExhausted (AgentBudgetExhausted when the agent's own
+    cap is what binds). `month`/`caps` are injectable for tests (ADR-0006 rollover test)."""
     if route not in ROUTES:
         raise ValueError(f"unknown route bucket {route!r}")
     if isinstance(est_micro, bool) or not isinstance(est_micro, int) or est_micro <= 0:
@@ -58,12 +79,23 @@ def reserve(pool, *, route: str, rate: Rate, est_micro: int, purpose: str = "int
             for b in ("global",) + ROUTES:
                 conn.execute("INSERT INTO budget_buckets(month, bucket, cap_micro_usd) VALUES (%s,%s,%s)"
                              " ON CONFLICT DO NOTHING", (m, b, caps[b]))
-            _lock_buckets(conn, m, {"global", route})
+            names = ["global", route]
+            if principal_id is not None:
+                agent = f"{AGENT_PREFIX}{principal_id}"
+                conn.execute("INSERT INTO budget_buckets(month, bucket, cap_micro_usd) VALUES (%s,%s,%s)"
+                             " ON CONFLICT DO NOTHING", (m, agent, agent_cap() if principal_cap is None else principal_cap))
+                names.append(agent)
+                purpose = f"{purpose}|{agent}"
+            _lock_buckets(conn, m, set(names))
+            if principal_id is not None and conn.execute(      # buckets are locked: this check is exact
+                    "SELECT 1 FROM budget_buckets WHERE month = %s AND bucket = %s AND"
+                    " reserved_micro + spent_micro + %s > cap_micro_usd", (m, agent, est_micro)).fetchone():
+                raise AgentBudgetExhausted(f"agent budget for {m} cannot cover {est_micro} micro-USD")
             n = conn.execute(
                 "UPDATE budget_buckets SET reserved_micro = reserved_micro + %s"
                 " WHERE month = %s AND bucket = ANY(%s) AND reserved_micro + spent_micro + %s <= cap_micro_usd",
-                (est_micro, m, ["global", route], est_micro)).rowcount
-            if n != 2:
+                (est_micro, m, names, est_micro)).rowcount
+            if n != len(names):          # raising rolls the whole transaction back, so no bucket keeps a partial reservation
                 raise BudgetExhausted(f"{route} or global budget for {m} cannot cover {est_micro} micro-USD")
             return conn.execute(
                 "INSERT INTO inference_calls(id, month, route_bucket, provider, model_id, rate_card_version,"
@@ -105,10 +137,10 @@ def release(pool, call_id) -> dict:
             call = conn.execute("SELECT * FROM inference_calls WHERE id = %s FOR UPDATE", (call_id,)).fetchone()
             if call is None or call["status"] not in ("reserved", "dispatched"):
                 return call
-            _lock_buckets(conn, call["month"], {"global", call["route_bucket"]})
+            names = _buckets_of(call)
+            _lock_buckets(conn, call["month"], set(names))
             conn.execute("UPDATE budget_buckets SET reserved_micro = reserved_micro - %s"
-                         " WHERE month = %s AND bucket = ANY(%s)",
-                         (call["est_micro"], call["month"], ["global", call["route_bucket"]]))
+                         " WHERE month = %s AND bucket = ANY(%s)", (call["est_micro"], call["month"], names))
             return conn.execute("UPDATE inference_calls SET status = 'released', reconciled_at = clock_timestamp()"
                                 " WHERE id = %s RETURNING *", (call_id,)).fetchone()
 
@@ -116,14 +148,15 @@ def release(pool, call_id) -> dict:
 def _charge(conn, call: dict, actual: int | None, usage: dict | None) -> dict:
     est, route, m = call["est_micro"], call["route_bucket"], call["month"]
     overrun = max(0, actual - est) if actual is not None else 0
-    _lock_buckets(conn, m, {"global", route} | ({"retries"} if overrun else set()))
+    names = _buckets_of(call)
+    _lock_buckets(conn, m, set(names) | ({"retries"} if overrun else set()))
     conn.execute("UPDATE budget_buckets SET reserved_micro = reserved_micro - %s, spent_micro = spent_micro + %s"
                  " WHERE month = %s AND bucket = ANY(%s)",
-                 (est, est if actual is None else min(actual, est), m, ["global", route]))
+                 (est, est if actual is None else min(actual, est), m, names))
     if overrun:
         # Overruns are charged to global and the retries/overrun bucket (once each, whatever the route).
         conn.execute("UPDATE budget_buckets SET spent_micro = spent_micro + %s WHERE month = %s AND bucket = ANY(%s)",
-                     (overrun, m, ["global", "retries"]))
+                     (overrun, m, ["global", "retries"] + names[2:]))
         conn.execute("INSERT INTO audit_events(mandate_id, kind, subject_id, detail) VALUES (NULL, 'COST_OVERRUN', %s, %s)",
                      (call["id"], Jsonb({"est_micro": est, "actual_micro": actual, "overrun_micro": overrun,
                                          "model_id": call["model_id"]})))
