@@ -41,6 +41,8 @@ class Ctx:
     # grant id -> scope, filled by the path check. Scope is immutable after insert (DB trigger), so this
     # cache cannot go stale within the operation; status/expiry are NOT cached and are always re-read.
     scopes: dict = field(default_factory=dict)
+    # what the sweep did at the start of this operation (counts), for the background worker's tick
+    swept: dict = field(default_factory=dict)
 
     @property
     def mandate_id(self) -> uuid.UUID:
@@ -102,7 +104,7 @@ def kernel_tx(pool, mandate_id) -> Iterator[Ctx]:
                 # after the lock so a grant that expired while we waited is seen as expired.
                 now = conn.execute("SELECT clock_timestamp() AS t").fetchone()["t"]
                 ctx = Ctx(conn, mandate, now)
-                sweep(ctx)
+                ctx.swept = sweep(ctx)
                 # The operation runs in a savepoint: a business refusal (Conflict, Forbidden, ...) undoes
                 # only the operation's own writes, while the sweep's clean-up still commits. An internal
                 # invariant failure is NOT caught here and rolls back everything.

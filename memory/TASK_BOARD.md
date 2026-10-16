@@ -25,9 +25,18 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 | BK-301 | Velocity limits (window_limit/window_seconds, subtree sum, attenuation) | DONE | Opus-reviewed 2026-10-15; **Lead.** Plan: docs/plans/PHASE2_PLAN.md. Closes R1; tests + Opus review. |
 | BK-302 | Approval threshold (review_above -> proposed, stricter only) | DONE | Opus-reviewed 2026-10-15; **Lead.** Schema pushed first (API contract freeze, target Oct 16). |
 | BK-303 | Mandate-bound settlement services | REVIEW | **Member 3** (kernel exception: lead + Opus review before merge). Closes R2. Implemented on afnan/BK-303-mandate-settlers; review-gate tests added; Opus review pending. |
-| BK-304 | Per-principal daily inference budget | BACKLOG | **Member 3, stretch** (costledger exception: lead + Opus review). Closes R7. Cut 4th if late. |
-| BK-305 | /agent/request replays by idempotency key before interpreting | READY | **Member 2** (api/ + routing/). Closes R9. |
+| BK-304 | Per-principal daily inference budget | BACKLOG | **Member 3, stretch** (costledger exception: lead + Opus review). Closes R7. ADR-0009 D1; handover docs/handover/AFNAN_PHASE3.md. Cut 2nd if late. |
+| BK-305 | /agent/request replays by idempotency key before interpreting | READY | **Member 2** (api/ + routing/). Closes R9. Handover docs/handover/DANIEL_PHASE3.md. |
 | BK-306 | Signed grant receipts (Ed25519) | BACKLOG | **Lead, stretch.** Cut 1st if late. |
+| BK-401 | Anchor chain heads on Base Sepolia (migration 007, `settlement/anchor.py`, `POST /admin/anchor`) | READY | **Member 3.** ADR-0009 A5. Shares the payment nonce allocator. Needs one real anchor tx hash in evidence/. Never cut. |
+| BK-402 | Settler unbind (`kernel.unbind_settler`, DELETE /mandates/{id}/settlers/{principal_id}) | READY | **Member 3** (kernel exception: lead + Opus review). Finishes R2. |
+| BK-403 | Background worker (`worker.py`, `BK_WORKER=1`): reconcile, `sweep_stale`, `kernel.tick` | READY | **Member 3.** Cut 3rd if late (demo uses manual reconcile). |
+| BK-411 | HTTP rate limiting (`api/ratelimit.py`, 429 `RATE_LIMITED`) | READY | **Member 2.** ADR-0009 C1. Closes half of R8. Never cut. |
+| BK-412 | API key lifecycle: expiry, disable, `POST /me/rotate-key` | READY | **Member 2.** ADR-0009 C2. Closes the rest of R8. Cut rotation first if late. |
+| BK-413 | Dashboard: integrity badge, suspended grants + reinstate, new error codes, rotate key | READY | **Member 2.** Builds on the frozen shapes in ADR-0009; 390 px check; live click-through. |
+| BK-421 | Hash-chained audit and ledger + `GET /mandates/{id}/integrity` | IN PROGRESS | **Lead.** Migration 006 + stubs DONE; verifier next (ADR-0009 part A). Never cut. |
+| BK-422 | Agent circuit breaker: strikes, suspend, reinstate, `limit_probing` scenario | READY | **Lead.** ADR-0009 part B. Never cut. |
+| BK-423 | Grounding coverage: number words, operator alias file; config B re-run (Run 5) | READY | **Lead.** ADR-0009 D2. Cut 1st if late. |
 | BK-311..315 | Settlement hardening: confirmations, gas ceiling, verified settle_fail, recipient registry, explorer links | READY | **Member 3**, after BK-075 core. |
 | BK-321..326 | Dashboard: mobile-first PWA, approval inbox, kill switch, velocity meter, explorer links, Playwright smoke | READY | **Member 2**, with BK-090. |
 | BK-120 | Deck (deliverable 2, 10 min or less) | READY | **Member 2.** Lead supplies outline + measured numbers. |

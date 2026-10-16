@@ -13,11 +13,12 @@
   - ADR-0006: cost ledger
   - ADR-0007: settlement adapter and nonce allocator
   - ADR-0008: scope fields and review cap
-- **Risks addressed:**
-  - **R7 (history edit):** an operator with database access can rewrite history without detection.
-  - **R8 (probing agent):** an agent can probe its limits with no consequence.
-  - **R9 (unlimited calls):** the API has no rate limits.
-  - **R20 (keys never expire):** API keys never expire and cannot be rotated or disabled.
+- **Risks addressed** (numbers as in `docs/SECURITY_SELF_ASSESSMENT.md` section 8):
+  - **R20 (direct database access bypasses the kernel):** the hash chain and on-chain anchor make edits to history *detectable*. They do not prevent them.
+  - **R8 (no HTTP rate limiting; keys never expire):** part C.
+  - **R7 (shared inference budget):** D1, a per-agent budget.
+  - **R9 (`/agent/request` re-runs interpretation on retry):** BK-305, Daniel, no schema change.
+  - **R22 (new): a probing agent suffers no consequence for repeated refusals.** Part B, the circuit breaker. R14 (audit noise from refused requests) is also reduced.
 
 ## Purpose of this ADR
 This ADR **freezes the contract** for Phase 3. It fixes three things:

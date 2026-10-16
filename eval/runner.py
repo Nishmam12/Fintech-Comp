@@ -64,7 +64,7 @@ class Env:
         self.pool = make_pool(self.settings, self.schema, max_size=10)
         with self.pool.connection() as c:
             c.execute("TRUNCATE principals, mandates, grants, transactions, ledger_movements, audit_events,"
-                      " budget_buckets, inference_calls CASCADE")
+                      " budget_buckets, inference_calls, chain_heads, grant_strikes CASCADE")
         self.owner, self.alice, self.bob, self.svc = (self._principal(n, k) for n, k in (
             ("owner", "human"), ("alice", "agent"), ("bob", "agent"), ("svc", "service")))
         self.card = RateCard.load()

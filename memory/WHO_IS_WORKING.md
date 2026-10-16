@@ -16,11 +16,11 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 
 ### Nishmam (RTX 4070 Ti Super)
 - **Status:** ACTIVE
-- **Task ID:** BK-110 (security self-assessment) + BK-080 (eval configs B/C when keys arrive); next: Opus review of afnan/BK-303 once rebased
+- **Task ID:** Phase 3 lead: BK-421 hash chain + integrity, BK-422 circuit breaker, BK-423 grounding coverage (ADR-0009)
 - **Branch:** main
 - **Claimed areas (paths):** backend/src/budget_kernel/{kernel,db,simulation}, backend/migrations, backend/tests, docs/SECURITY_SELF_ASSESSMENT.md, memory/
 - **Started / last update (UTC):** 2026-10-15 17:50
-- **Notes / blockers:** Supabase DB reachable via DATABASE_URL (psycopg). Project-scoped Supabase MCP not loaded in this session.
+- **Notes / blockers:** Production `bk` still needs migrations 003 and 006 (lead runs `uv run python -m budget_kernel.db.migrate`).
 
 ### Member 2 (RTX 2070 Super) — daniel
 - **Status:** ACTIVE
