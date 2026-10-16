@@ -89,7 +89,8 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
     # The dashboard (Next.js dev server) calls this API from the browser. Origins are an explicit allowlist.
     origins = [o.strip() for o in os.environ.get("BK_CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"],
-                       allow_headers=["Authorization", "Content-Type", "X-Admin-Token"])
+                       allow_headers=["Authorization", "Content-Type", "X-Admin-Token"],
+                       expose_headers=["Retry-After"])    # the dashboard reads it on a 429 (BK-411)
 
     @app.exception_handler(kernel.KernelError)
     async def kernel_error(_: Request, exc: kernel.KernelError):
