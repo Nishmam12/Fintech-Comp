@@ -5,15 +5,17 @@ The API never decides anything about money; every decision comes from budget_ker
 """
 from __future__ import annotations
 
+import hmac
 import os
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from budget_kernel import kernel, simulation
+from budget_kernel.kernel import integrity
 from budget_kernel.costledger import ledger as cost_ledger
 from budget_kernel.costledger.rate_card import RateCard
 from budget_kernel.routing.agent import interpret_then_decide
@@ -22,7 +24,7 @@ from budget_kernel.config import Settings
 from budget_kernel.db.connection import make_pool
 
 from . import schemas
-from .auth import Caller, Principal, hash_key, new_key, require_admin
+from .auth import Caller, Principal, current_principal, hash_key, new_key, require_admin
 
 
 EXPLORER = os.environ.get("BK_EXPLORER_URL") or "https://sepolia-explorer.base.org/tx/"   # tx-page prefix; one source for state + adapter
@@ -300,6 +302,25 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         violations = kernel.check_invariants(P(request), mid)
         return _jsonable({"mandate": m, "grants": grants, "transactions": txs,
                           "invariants": {"ok": not violations, "violations": violations}})
+
+    @app.get("/mandates/{mandate_id}/integrity")
+    def integrity_check(mandate_id: str, request: Request, authorization: str = Header(default=""),
+                        x_admin_token: str = Header(default="")):
+        """Recompute the mandate's hash chain (ADR-0009 A4). Mandate owner or admin token only."""
+        mid = _uuid(mandate_id, "mandate")
+        expected = os.environ.get("BK_ADMIN_TOKEN", "")
+        if not (expected and hmac.compare_digest(x_admin_token, expected)):
+            me = current_principal(request, authorization)
+            with P(request).connection() as c:
+                m = c.execute("SELECT owner_principal_id FROM mandates WHERE id = %s", (mid,)).fetchone()
+            if m is None:
+                raise kernel.NotFound("mandate not found", code="MANDATE_NOT_FOUND")
+            if m["owner_principal_id"] != me.id:
+                raise kernel.Forbidden("only the mandate owner may verify its history", code="NOT_OWNER")
+        out = integrity.verify(P(request), mid)
+        if out["last_anchor"] and out["last_anchor"]["tx_hash"]:
+            out["last_anchor"]["explorer_url"] = EXPLORER + out["last_anchor"]["tx_hash"]
+        return _jsonable(out)
 
     @app.get("/mandates/{mandate_id}/audit")
     def audit(mandate_id: str, request: Request, me: Principal = Caller, after_id: int = 0, limit: int = 200):
