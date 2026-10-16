@@ -78,6 +78,7 @@ class Fixture:
         m = kernel.create_mandate(pool, owner_principal_id=self.owner, currency="USD", total=100_000,
                                   protected_reserve=10_000, expires_at=FUTURE(), scope=OWNER_SCOPE)
         self.mandate, self.root, self.tag = m["mandate_id"], m["root_grant_id"], tag
+        kernel.bind_settler(pool, mandate_id=self.mandate, actor=self.owner, principal_id=self.svc)
 
     def delegate(self, parent, holder, amount, actor=None):
         # A child may not outlive its parent: inherit the parent's own expiry.

@@ -34,6 +34,7 @@ class KernelMachine(RuleBasedStateMachine):
         m = kernel.create_mandate(p, owner_principal_id=self.owner, currency="USD", total=100_000,
                                   protected_reserve=10_000, expires_at=future(30), scope=scope(per_tx_limit=60_000))
         self.mandate_id = m["mandate_id"]
+        kernel.bind_settler(p, mandate_id=self.mandate_id, actor=self.owner, principal_id=self.svc)
         self.holder = {m["root_grant_id"]: self.owner}
         self.root = m["root_grant_id"]
 

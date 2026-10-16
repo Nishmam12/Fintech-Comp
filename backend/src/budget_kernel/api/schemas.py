@@ -28,6 +28,10 @@ class CreatePrincipal(Strict):
     kind: Literal["human", "agent", "service"]
 
 
+class BindSettler(Strict):
+    principal_id: str
+
+
 class CreateMandate(Strict):
     currency: str = Field(min_length=3, max_length=3)
     total: StrictInt = Field(gt=0)

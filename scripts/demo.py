@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -19,6 +20,7 @@ from pathlib import Path
 import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
+PAY = os.environ.get("DEMO_PAY_USD", "50")   # whole USD paid in beat 6; a real testnet run sets this tiny (wallet holds ~20 test USDC)
 
 
 def _admin_token() -> str:
@@ -63,7 +65,7 @@ class Demo:
         self.say("== 2. People: a human owner, an AI agent, a settlement service")
         owner_id, owner = self.principal(f"demo-owner-{tag}", "human")
         agent_id, agent = self.principal(f"demo-agent-{tag}", "agent")
-        _, svc = self.principal(f"demo-settler-{tag}", "service")
+        svc_id, svc = self.principal(f"demo-settler-{tag}", "service")
 
         self.say("== 3. Owner creates a mandate: 1000.00 USD, 100.00 protected (never spendable)")
         expires = (datetime.now(timezone.utc) + timedelta(days=7)).replace(microsecond=0)
@@ -97,7 +99,7 @@ class Demo:
             return self.post("/agent/request", agent, {"grant_id": gid or grant, "text": text, "idempotency_key": key}).json()
 
         self.say("== 6. The agent asks in plain language; the kernel decides")
-        d = ask("pay 50 USD to aws for cloud", f"r1-{tag}")
+        d = ask(f"pay {PAY} USD to aws for cloud", f"r1-{tag}")
         decision = d["decision"] or {}
         self.expect("in-scope request reserved", decision.get("state") == "reserved",
                     f"route={[t['step'] for t in d['interpretation']['trail']]}")
@@ -108,14 +110,27 @@ class Demo:
                                                           "recipient": "github", "category": "cloud",
                                                           "idempotency_key": f"r3-{tag}"})
         self.expect("recipient outside the grant rejected", r.json().get("reason") == "RECIPIENT_NOT_ALLOWED")
-        again = ask("pay 50 USD to aws for cloud", f"r1-{tag}")
+        again = ask(f"pay {PAY} USD to aws for cloud", f"r1-{tag}")
         self.expect("retry with the same key replays, no double reservation",
                     (again["decision"] or {}).get("replayed") is True
                     and again["decision"]["transaction_id"] == tx)
 
-        self.say("== 7. Settlement (simulated here; the testnet adapter replaces this step)")
+        self.say("== 7. Settlement (simulated; real Base Sepolia transfer when the API runs with BK_SETTLEMENT_MODE=testnet)")
+        self.post(f"/mandates/{mandate}/settlers", owner, {"principal_id": svc_id})     # BK-303: owner binds the service
         r = self.post(f"/transactions/{tx}/settle", svc)
-        self.expect("settlement service settles the reservation", r.json().get("state") == "settled")
+        j = r.json()
+        if "tx_hash" in j:                                    # BK_SETTLEMENT_MODE=testnet: a real Base Sepolia transfer
+            self.say(f"  broadcast {j['tx_hash']}\n  explorer  {j['explorer_url']}")
+            for _ in range(40):                               # reconcile until 2 confirmations (~2 s blocks)
+                time.sleep(3)
+                res = self.http.post("/settlement/reconcile", headers={**svc, **self.admin}).json().get("results", [])
+                if any(x["tx_hash"] == j["tx_hash"] and x["status"] in ("confirmed", "failed") for x in res):
+                    break
+            st = next(t for t in self.http.get(f"/mandates/{mandate}/state", headers=owner).json()["transactions"] if t["id"] == tx)
+            self.expect("real testnet transfer confirmed and settled", st["chain_status"] == "confirmed" and st["state"] == "settled",
+                        f"block {st['block_number']}")
+        else:
+            self.expect("settlement service settles the reservation", j.get("state") == "settled")
         r = self.post(f"/transactions/{tx}/settle-fail", owner, {"proof": "owner-claims-failure"})
         self.expect("owner cannot declare a settled transfer failed", r.status_code >= 400, r.json().get("code", ""))
 

@@ -6,6 +6,7 @@ from datetime import timedelta
 import pytest
 
 from budget_kernel import kernel
+from budget_kernel.kernel import Forbidden, ValidationFailed
 from budget_kernel.kernel import tx as txmod
 from tests.conftest import future, new_principal, scope
 
@@ -160,3 +161,23 @@ def test_mandate_expiry_freezes_and_strands_funds(pool):
         status = c.execute("SELECT status FROM mandates WHERE id = %s", (m["mandate_id"],)).fetchone()["status"]
     assert status == "frozen"
     assert kernel.check_invariants(pool, m["mandate_id"]) == []
+
+
+def test_service_must_be_bound_to_the_mandate_to_settle(world):
+    """BK-303 (R2): a service principal bound to another mandate cannot settle this one."""
+    other_owner = new_principal(world.pool, "owner2", "human")
+    m2 = kernel.create_mandate(world.pool, owner_principal_id=other_owner, currency="USD", total=100_000,
+                               protected_reserve=0, expires_at=future(30), scope=scope(per_tx_limit=100_000))
+    stranger = new_principal(world.pool, "settler2", "service")
+    kernel.bind_settler(world.pool, mandate_id=m2["mandate_id"], actor=other_owner, principal_id=stranger)
+    tid = world.authorize(world.root, world.owner, 1_000)["transaction_id"]
+    with pytest.raises(Forbidden):
+        kernel.settle_start(world.pool, transaction_id=tid, actor=stranger)
+    with pytest.raises(Forbidden):  # only the owner binds; an agent or the bound service cannot add settlers
+        kernel.bind_settler(world.pool, mandate_id=world.mandate_id, actor=world.alice, principal_id=stranger)
+    with pytest.raises(Forbidden):
+        kernel.bind_settler(world.pool, mandate_id=world.mandate_id, actor=world.svc, principal_id=stranger)
+    with pytest.raises(ValidationFailed):  # settlers must be service principals
+        kernel.bind_settler(world.pool, mandate_id=world.mandate_id, actor=world.owner, principal_id=world.alice)
+    assert kernel.settle_start(world.pool, transaction_id=tid, actor=world.svc)["state"] == "submitted"
+    assert kernel.bind_settler(world.pool, mandate_id=world.mandate_id, actor=world.owner, principal_id=world.svc)["already"]

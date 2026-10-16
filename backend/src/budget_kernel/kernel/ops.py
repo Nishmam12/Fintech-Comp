@@ -386,11 +386,28 @@ def _require_settler(ctx: Ctx, actor, *, owner_allowed: bool) -> None:
     """Settlement steps belong to the settlement service. The mandate owner may run the simulated
     path (start/confirm) but can never declare a transfer failed (that would return spent funds)."""
     row = ctx.conn.execute("SELECT kind FROM principals WHERE id = %s", (actor,)).fetchone()
-    if row is not None and row["kind"] == "service":
+    if row is not None and row["kind"] == "service" and ctx.conn.execute(
+            "SELECT 1 FROM mandate_settlers WHERE mandate_id = %s AND principal_id = %s",
+            (ctx.mandate["id"], actor)).fetchone():
         return
     if owner_allowed and ctx.mandate["owner_principal_id"] == actor:
         return
     raise Forbidden("not permitted to perform settlement steps", code="NOT_SETTLER")
+
+
+def bind_settler(pool, *, mandate_id, actor, principal_id) -> dict:
+    """Owner-only: authorize a service principal to run settlement steps on THIS mandate (BK-303)."""
+    with kernel_tx(pool, mandate_id) as ctx:
+        if ctx.mandate["owner_principal_id"] != actor:
+            raise Forbidden("only the mandate owner can bind a settler", code="NOT_OWNER")
+        row = ctx.conn.execute("SELECT kind FROM principals WHERE id = %s", (principal_id,)).fetchone()
+        if row is None or row["kind"] != "service":
+            raise ValidationFailed("settler must be a service principal", code="NOT_A_SERVICE")
+        n = ctx.conn.execute("INSERT INTO mandate_settlers(mandate_id, principal_id, bound_by) VALUES (%s,%s,%s)"
+                             " ON CONFLICT DO NOTHING", (mandate_id, principal_id, actor)).rowcount
+        if n:
+            audit(ctx.conn, mandate_id, "SETTLER_BOUND", actor, principal_id)
+        return {"mandate_id": mandate_id, "principal_id": principal_id, "already": n == 0}
 
 
 def settle_start(pool, *, transaction_id, actor, on_submit: Callable[[Ctx, dict], None] | None = None) -> dict:
