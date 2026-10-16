@@ -106,6 +106,30 @@ class KernelMachine(RuleBasedStateMachine):
         except EXPECTED:
             pass
 
+    @rule(grant=grants)
+    def suspend(self, grant):
+        """ADR-0009: a suspended grant freezes new spending but never moves or loses money."""
+        if grant == self.root:
+            return
+        try:
+            kernel.suspend(self.pool, grant_id=grant, actor=self.owner)
+        except EXPECTED:
+            pass           # already revoked or expired
+
+    @rule(grant=grants)
+    def reinstate(self, grant):
+        try:
+            kernel.reinstate(self.pool, grant_id=grant, actor=self.owner)
+        except EXPECTED:
+            pass           # not suspended
+
+    @rule(grant=grants, agent=st.integers(0, 2))
+    def signal(self, grant, agent):
+        """A suspected prompt injection from the grant's own holder (strike weight 3)."""
+        if self.holder[grant] == self.owner:
+            return
+        kernel.record_signal(self.pool, grant_id=grant, actor=self.holder[grant], kind="INJECTION", reason="x")
+
     @rule(grant=consumes(grants))
     def revoke(self, grant):
         if grant == self.root:

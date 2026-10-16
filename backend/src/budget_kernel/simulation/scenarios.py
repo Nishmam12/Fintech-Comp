@@ -267,6 +267,52 @@ def split_purchases(pool, per_tx: int = 10_000, grant_funds: int = 50_000, windo
                    kernel_out, informational=True)
 
 
+def limit_probing(pool, extra_probes: int = 7, amount: int = 100) -> dict:
+    """An agent that keeps testing what its grant forbids. The baseline answers every probe and then serves the
+    agent's next request as if nothing happened; the kernel (ADR-0009) suspends the grant after STRIKE_LIMIT
+    refusals, refuses even a valid request while suspended, and serves it again only after the owner reinstates."""
+    from budget_kernel.kernel import breaker
+    n = breaker.STRIKE_LIMIT + extra_probes
+    run = naive.new_run()
+    w = naive.create_wallet(pool, run, 1_000)
+    refused = sum(1 for _ in range(n) if naive.spend(pool, run, w, 1_000_000) is False)
+    after = naive.spend(pool, run, w, amount)
+    naive_out = {"violated": after is True,
+                 "metrics": {"probes_sent": n, "probes_refused": refused, "contained": not after,
+                             "valid_request_after_probing": "processed" if after else "refused"},
+                 "summary": f"{refused} of {n} probes refused one by one; the agent's next request was "
+                            f"{'processed normally' if after else 'refused'} (no consequence for probing)"}
+    fx = Fixture(pool)
+    g = fx.delegate(fx.root, fx.agent, 30_000)
+    reasons, suspended_after = {}, None
+    for i in range(1, n + 1):
+        d = kernel.authorize(pool, grant_id=g, actor=fx.agent, amount=amount, currency="USD", recipient="aws",
+                             category="gambling", idempotency_key=uuid.uuid4().hex)
+        reasons[d["reason"]] = reasons.get(d["reason"], 0) + 1
+        if d.get("suspended") and suspended_after is None:
+            suspended_after = i
+    while_suspended = fx.authorize(g, fx.agent, amount)
+    status = fx.grant(g)["status"]
+    kernel.reinstate(pool, grant_id=g, actor=fx.owner)
+    after_reinstate = fx.authorize(g, fx.agent, amount)
+    with pool.connection() as c:
+        strikes = c.execute("SELECT coalesce(sum(weight), 0)::int AS n FROM grant_strikes WHERE grant_id = %s",
+                            (g,)).fetchone()["n"]
+    inv = fx.invariants()
+    contained = status == "suspended" and while_suspended["state"] == "rejected"
+    kernel_out = {"violated": not contained or while_suspended["state"] == "reserved" or bool(inv),
+                  "metrics": {"probes_sent": n, "suspended_after_probe": suspended_after, "strikes": strikes,
+                              "refusals_by_reason": reasons, "contained": contained, "grant_status_before_reinstate": status,
+                              "valid_request_while_suspended": while_suspended["reason"],
+                              "valid_request_after_reinstate": after_reinstate["state"], "invariant_violations": inv},
+                  "summary": f"suspended after probe {suspended_after} of {n}; a valid request while suspended: "
+                             f"{while_suspended['reason']}; after the owner reinstated it: {after_reinstate['state']}; "
+                             f"invariants hold: {not inv}"}
+    return _result("limit_probing", "Probing agent (circuit breaker)",
+                   "An agent that repeatedly tests its limits is suspended; only the owner can restore it",
+                   naive_out, kernel_out)
+
+
 SCENARIOS = {
     "concurrency_overspend": concurrency_overspend,
     "delegation_amplification": delegation_amplification,
@@ -274,6 +320,7 @@ SCENARIOS = {
     "revocation_race": revocation_race,
     "replay_duplicate": replay_duplicate,
     "split_purchases": split_purchases,
+    "limit_probing": limit_probing,
 }
 
 

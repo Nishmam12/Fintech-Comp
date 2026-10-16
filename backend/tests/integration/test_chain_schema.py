@@ -278,15 +278,6 @@ def test_phase3_kernel_api_is_exported_with_frozen_signatures():
         assert list(inspect.signature(fn).parameters) == params, name
 
 
-def test_unimplemented_breaker_operations_fail_closed(world):
-    with pytest.raises(NotImplementedError):
-        kernel.suspend(world.pool, grant_id=world.root, actor=world.owner)
-    with pytest.raises(NotImplementedError):
-        kernel.reinstate(world.pool, grant_id=world.root, actor=world.owner)
-    with pytest.raises(NotImplementedError):
-        kernel.record_signal(world.pool, grant_id=world.root, actor=world.owner, kind="INJECTION", reason="x")
-
-
 def test_tick_runs_the_sweep_and_reports_what_it_did(world):
     r = kernel.tick(world.pool, world.mandate_id)
     assert r == {"mandate_id": str(world.mandate_id), "expired_grants": 0, "released": 0, "review_expired": 0}

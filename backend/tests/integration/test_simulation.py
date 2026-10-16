@@ -52,6 +52,18 @@ def test_split_purchase_limitation_is_reported_honestly(pool):
     assert m["windowed_refusal"] == "VELOCITY_LIMIT_EXCEEDED" and r["kernel"]["violated"] is False
 
 
+def test_a_probing_agent_is_contained_by_the_kernel_only(pool):
+    r = simulation.run(pool, "limit_probing")
+    n, m = r["naive"]["metrics"], r["kernel"]["metrics"]
+    assert r["naive"]["violated"] is True and n["probes_refused"] == n["probes_sent"] and n["contained"] is False
+    assert n["valid_request_after_probing"] == "processed"
+    assert r["kernel"]["violated"] is False and m["contained"] is True
+    assert m["suspended_after_probe"] == 5 and m["strikes"] == 5
+    assert m["refusals_by_reason"] == {"CATEGORY_NOT_ALLOWED": 5, "GRANT_SUSPENDED": m["probes_sent"] - 5}
+    assert m["valid_request_while_suspended"] == "GRANT_SUSPENDED" and m["valid_request_after_reinstate"] == "reserved"
+    assert m["invariant_violations"] == []
+
+
 def test_only_one_simulation_runs_at_a_time():
     from budget_kernel import kernel
     from budget_kernel.simulation import scenarios

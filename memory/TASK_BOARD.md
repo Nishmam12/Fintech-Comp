@@ -35,7 +35,7 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 | BK-412 | API key lifecycle: expiry, disable, `POST /me/rotate-key` | READY | **Member 2.** ADR-0009 C2. Closes the rest of R8. Cut rotation first if late. |
 | BK-413 | Dashboard: integrity badge, suspended grants + reinstate, new error codes, rotate key | READY | **Member 2.** Builds on the frozen shapes in ADR-0009; 390 px check; live click-through. |
 | BK-421 | Hash-chained audit and ledger + `GET /mandates/{id}/integrity` | DONE | **Lead.** Migration 006, verifier and endpoint merged; Opus review pending (step 7). Anchor side is BK-401 (Afnan). |
-| BK-422 | Agent circuit breaker: strikes, suspend, reinstate, `limit_probing` scenario | READY | **Lead.** ADR-0009 part B. Never cut. |
+| BK-422 | Agent circuit breaker: strikes, suspend, reinstate, `limit_probing` scenario | REVIEW | **Lead.** ADR-0009 part B. Built and tested (274 passed + slow state machine); Opus review (step 7) pending. Never cut. |
 | BK-423 | Grounding coverage: number words, operator alias file; config B re-run (Run 5) | READY | **Lead.** ADR-0009 D2. Cut 1st if late. |
 | BK-311..315 | Settlement hardening: confirmations, gas ceiling, verified settle_fail, recipient registry, explorer links | READY | **Member 3**, after BK-075 core. |
 | BK-321..326 | Dashboard: mobile-first PWA, approval inbox, kill switch, velocity meter, explorer links, Playwright smoke | READY | **Member 2**, with BK-090. |

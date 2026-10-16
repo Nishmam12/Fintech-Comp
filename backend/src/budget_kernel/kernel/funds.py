@@ -12,7 +12,7 @@ from .tx import Ctx, audit, movement
 def release_target(ctx: Ctx, grant: dict):
     """Nearest active, unexpired grant on grant.path (self if active); else the root (stranded)."""
     rows = ctx.conn.execute(
-        "SELECT id, (status = 'active' AND expires_at > %s) AS live FROM grants WHERE id = ANY(%s)",
+        "SELECT id, (status IN ('active', 'suspended') AND expires_at > %s) AS live FROM grants WHERE id = ANY(%s)",
         (ctx.now, grant["path"]),
     ).fetchall()
     live = {r["id"]: r["live"] for r in rows}
@@ -51,7 +51,8 @@ def reclaim_subtree(ctx: Ctx, grant: dict, new_status: str, *, actor=None) -> di
     sub = c.execute("SELECT * FROM grants WHERE mandate_id = %s AND %s = ANY(path)", (mid, grant["id"])).fetchall()
     sub_ids = [g["id"] for g in sub]
     c.execute(
-        "UPDATE grants SET status = %s, revoked_at = %s WHERE id = ANY(%s) AND status = 'active'",
+        "UPDATE grants SET status = %s, revoked_at = %s, suspended_at = NULL, suspend_reason = NULL"
+        " WHERE id = ANY(%s) AND status IN ('active', 'suspended')",
         (new_status, ctx.now, sub_ids),
     )
     # Strict ancestors, nearest first; the first live one receives the funds.
@@ -59,7 +60,8 @@ def reclaim_subtree(ctx: Ctx, grant: dict, new_status: str, *, actor=None) -> di
     target = None
     if anc:
         live = {r["id"] for r in c.execute(
-            "SELECT id FROM grants WHERE id = ANY(%s) AND status = 'active' AND expires_at > %s", (anc, ctx.now))}
+            "SELECT id FROM grants WHERE id = ANY(%s) AND status IN ('active', 'suspended') AND expires_at > %s",
+            (anc, ctx.now))}
         target = next((a for a in reversed(anc) if a in live), None)
     stranded = target is None
     if stranded:

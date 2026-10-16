@@ -15,7 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from budget_kernel import kernel, simulation
-from budget_kernel.kernel import integrity
+from budget_kernel.kernel import breaker, integrity
+from budget_kernel.proposals.validate import injection_suspected
 from budget_kernel.costledger import ledger as cost_ledger
 from budget_kernel.costledger.rate_card import RateCard
 from budget_kernel.routing.agent import interpret_then_decide
@@ -180,6 +181,14 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         return _jsonable(kernel.review(P(request), transaction_id=_uuid(tx_id, "transaction"), actor=me.id,
                                        approve=body.approve))
 
+    @app.post("/grants/{grant_id}/suspend")
+    def suspend_grant(grant_id: str, request: Request, me: Principal = Caller):
+        return _jsonable(kernel.suspend(P(request), grant_id=_uuid(grant_id, "grant"), actor=me.id))
+
+    @app.post("/grants/{grant_id}/reinstate")
+    def reinstate_grant(grant_id: str, request: Request, me: Principal = Caller):
+        return _jsonable(kernel.reinstate(P(request), grant_id=_uuid(grant_id, "grant"), actor=me.id))
+
     @app.post("/grants/{grant_id}/revoke")
     def revoke(grant_id: str, request: Request, me: Principal = Caller):
         return _jsonable(kernel.revoke(P(request), grant_id=_uuid(grant_id, "grant"), actor=me.id))
@@ -188,12 +197,15 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
 
     def _grant_context(request: Request, grant_id: uuid.UUID, me: Principal) -> dict:
         with P(request).connection() as c:
-            g = c.execute("SELECT g.holder_principal_id, g.scope, m.owner_principal_id, m.currency FROM grants g"
-                          " JOIN mandates m ON m.id = g.mandate_id WHERE g.id = %s", (grant_id,)).fetchone()
+            g = c.execute("SELECT g.holder_principal_id, g.scope, m.owner_principal_id, m.currency,"
+                          " EXISTS (SELECT 1 FROM grants a WHERE a.id = ANY(g.path) AND a.status = 'suspended') AS suspended"
+                          " FROM grants g JOIN mandates m ON m.id = g.mandate_id WHERE g.id = %s", (grant_id,)).fetchone()
         if g is None:
             raise kernel.NotFound("grant not found", code="GRANT_NOT_FOUND")
         if me.id not in (g["holder_principal_id"], g["owner_principal_id"]):
             raise kernel.Forbidden("not the holder or owner of this grant", code="NOT_PERMITTED")
+        if g["suspended"]:      # circuit breaker (ADR-0009): a suspended grant costs no inference either
+            raise kernel.Conflict("this grant is suspended", code="GRANT_SUSPENDED")
         return g
 
     def _interpret(request: Request, g: dict, text: str) -> dict:
@@ -216,6 +228,8 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         reserved); unresolved interpretation never reaches the kernel at all."""
         gid = _uuid(body.grant_id, "grant")
         g = _grant_context(request, gid, me)
+        if injection_suspected(body.text) and me.id == g["holder_principal_id"]:
+            kernel.record_signal(P(request), grant_id=gid, actor=me.id, kind="INJECTION", reason="INJECTION_SUSPECTED")
         return _jsonable(interpret_then_decide(
             P(request), request.app.state.card, grant_id=gid, actor=me.id, text=body.text,
             idempotency_key=body.idempotency_key, recipients=g["scope"]["recipients"],
@@ -279,8 +293,15 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         with P(request).connection() as c:
             m = _require_viewer(c, mid, me)
             grants = c.execute("SELECT id, parent_id, depth, holder_principal_id, available, reserved, settled, status,"
-                               " expires_at, scope FROM grants WHERE mandate_id = %s ORDER BY depth, created_at",
-                               (mid,)).fetchall()
+                               " expires_at, scope, suspended_at, suspend_reason FROM grants WHERE mandate_id = %s"
+                               " ORDER BY depth, created_at", (mid,)).fetchall()
+            strikes = {r["grant_id"]: r["n"] for r in c.execute(      # ADR-0009 B4: the count the breaker would use
+                "SELECT s.grant_id, sum(s.weight)::int AS n FROM grant_strikes s JOIN grants g ON g.id = s.grant_id"
+                " WHERE s.mandate_id = %s AND s.created_at > clock_timestamp() - make_interval(secs => %s)"
+                " AND (g.reinstated_at IS NULL OR s.created_at > g.reinstated_at) GROUP BY s.grant_id",
+                (mid, breaker.STRIKE_WINDOW_SECONDS))}
+            for g in grants:
+                g["strikes_in_window"] = strikes.get(g["id"], 0)
             txs = c.execute("SELECT t.id, t.grant_id, t.amount, t.currency, t.recipient, t.category, t.state,"
                             " t.reject_reason, t.review_reason, t.proposal, t.reserve_expires_at, t.created_at, s.tx_hash,"
                             " s.status AS chain_status, s.block_number FROM transactions t"

@@ -18,11 +18,11 @@ def sweep(ctx: Ctx) -> dict:
     c, mid, now = ctx.conn, ctx.mandate_id, ctx.now
     done = {"expired_grants": 0, "released": 0, "review_expired": 0}
     due = c.execute(
-        "SELECT * FROM grants WHERE mandate_id = %s AND status = 'active' AND expires_at <= %s ORDER BY depth",
+        "SELECT * FROM grants WHERE mandate_id = %s AND status IN ('active', 'suspended') AND expires_at <= %s ORDER BY depth",
         (mid, now)).fetchall()
     for g in due:
         cur = c.execute("SELECT status FROM grants WHERE id = %s", (g["id"],)).fetchone()
-        if cur["status"] == "active":  # may already have been covered as a descendant
+        if cur["status"] in ("active", "suspended"):  # may already have been covered as a descendant
             reclaim_subtree(ctx, g, "expired")
             done["expired_grants"] += 1
     stale = c.execute(

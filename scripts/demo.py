@@ -156,6 +156,32 @@ class Demo:
         used = next(x for x in st["grants"] if x["id"] == g2).get("window_used")
         self.expect("the server reports window use (120.00 of 150.00)", used == 12_000, f"window_used={used}")
 
+        self.say("== 7c. Circuit breaker: an agent that keeps probing its limits is suspended (a third 100.00 grant)")
+        r = self.post("/grants", owner, {"parent_grant_id": root, "holder_principal_id": agent_id, "amount": 10_000,
+                                         "expires_at": expires.isoformat(), "scope": child_scope,
+                                         "idempotency_key": f"d4-{tag}"})
+        g3 = r.json()["grant_id"]
+        last = {}
+        for i in range(5):
+            last = self.post("/transactions/authorize", agent, {"grant_id": g3, "amount": 1_000, "currency": "USD",
+                                                                "recipient": "aws", "category": "gambling",
+                                                                "idempotency_key": f"p{i}-{tag}"}).json()
+        self.expect("five probes outside the grant's categories are each refused",
+                    last.get("reason") == "CATEGORY_NOT_ALLOWED")
+        self.expect("the fifth refusal suspends the grant", last.get("suspended") is True)
+        r = self.post("/transactions/authorize", agent, {"grant_id": g3, "amount": 1_000, "currency": "USD",
+                                                          "recipient": "aws", "category": "cloud",
+                                                          "idempotency_key": f"p6-{tag}"})
+        self.expect("even a valid request is now refused", r.json().get("reason") == "GRANT_SUSPENDED")
+        r = self.post(f"/grants/{g3}/reinstate", agent)
+        self.expect("the agent cannot reinstate itself", r.status_code == 403, r.json().get("code", ""))
+        r = self.post(f"/grants/{g3}/reinstate", owner)
+        self.expect("the owner reinstates it", r.json().get("status") == "active")
+        r = self.post("/transactions/authorize", agent, {"grant_id": g3, "amount": 1_000, "currency": "USD",
+                                                          "recipient": "aws", "category": "cloud",
+                                                          "idempotency_key": f"p7-{tag}"})
+        self.expect("a valid request is served again", r.json().get("state") == "reserved")
+
         self.say("== 8. Owner revokes the agent's grant; the agent is cut off immediately")
         r = self.post(f"/grants/{grant}/revoke", owner)
         self.expect("revoked", r.json().get("status") == "revoked")
@@ -165,6 +191,9 @@ class Demo:
         self.say("== 9. Ledger invariants")
         st = self.http.get(f"/mandates/{mandate}/state", headers=owner).json()
         self.expect("conservation and backing invariants hold", st["invariants"]["ok"], str(st["invariants"]["violations"]))
+        ig = self.http.get(f"/mandates/{mandate}/integrity", headers=owner).json()
+        self.expect("the hash-chained history verifies", ig.get("ok") is True,
+                    f"{ig.get('length')} rows, head {str(ig.get('head_hash'))[:12]}")
         ev = self.http.get(f"/mandates/{mandate}/audit", headers=owner).json()["events"]
         self.say(f"  audit trail: {len(ev)} events, e.g. {', '.join(sorted({e['kind'] for e in ev})[:6])}")
 

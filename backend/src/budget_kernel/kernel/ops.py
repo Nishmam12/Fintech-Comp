@@ -16,6 +16,7 @@ from psycopg.types.json import Jsonb
 
 from .errors import (Conflict, DelegationRejected, Forbidden, IdempotencyConflict, NotFound,
                      ValidationFailed, ensure)
+from .breaker import PROBING_REASONS, REFUSAL_WEIGHT, add_strike
 from .funds import reclaim_subtree, release_tx
 from .scope import MAX_BIGINT, is_subset, validate_scope
 from .tx import RESERVE_TTL_SECONDS, Ctx, audit, kernel_tx, mandate_of_grant, mandate_of_tx, movement
@@ -182,6 +183,8 @@ def _path_problem(ctx: Ctx, grant) -> str | None:
     for r in rows:
         if r["status"] == "revoked":
             return "GRANT_REVOKED"
+        if r["status"] == "suspended":
+            return "GRANT_SUSPENDED"      # circuit breaker (ADR-0009): the whole subtree is frozen
         if r["status"] == "expired" or r["expired"]:
             return "GRANT_EXPIRED"
     return None
@@ -220,7 +223,7 @@ def authorize(pool, *, grant_id, actor, amount: int, currency: str, recipient: s
                 tx = _insert_tx(ctx, g, amount, currency, recipient, category, "rejected", key, phash,
                                 reason=reason, proposal=proposal)
                 audit(c, mid, "TX_REJECTED", actor, tx["id"], reason=reason, amount=amount)
-                return _decision(tx)
+                return _refusal(ctx, g, actor, tx, reason)
             held = _hold_reason(ctx, g, actor, amount, needs_review)
             if held and c.execute("SELECT count(*) AS n FROM transactions WHERE grant_id = %s AND state = 'proposed'",
                                   (grant_id,)).fetchone()["n"] >= MAX_PENDING_REVIEWS:
@@ -230,7 +233,7 @@ def authorize(pool, *, grant_id, actor, amount: int, currency: str, recipient: s
                 tx = _insert_tx(ctx, g, amount, currency, recipient, category, "rejected", key, phash,
                                 reason=reason, proposal=proposal)
                 audit(c, mid, "TX_REJECTED", actor, tx["id"], reason=reason, amount=amount)
-                return _decision(tx)
+                return _refusal(ctx, g, actor, tx, reason)
             if held:
                 tx = _insert_tx(ctx, g, amount, currency, recipient, category, "proposed", key, phash,
                                 proposal=proposal, review_reason=held)
@@ -246,6 +249,17 @@ def authorize(pool, *, grant_id, actor, amount: int, currency: str, recipient: s
     except (IdempotencyConflict, Forbidden) as exc:
         _audit_outside(pool, mid, getattr(exc, "code", "REFUSED"), actor, grant_id, error=str(exc))
         raise
+
+
+def _refusal(ctx: Ctx, g, actor, tx: dict, reason: str) -> dict:
+    """The decision for a refused request. A probing refusal from the holder is a circuit-breaker strike (ADR-0009);
+    if it trips the breaker the decision says so. Strikes never loosen anything."""
+    out = _decision(tx)
+    if reason in PROBING_REASONS:
+        _, tripped = add_strike(ctx, g, actor, "REFUSAL", reason, REFUSAL_WEIGHT)
+        if tripped:
+            out["suspended"] = True
+    return out
 
 
 def _reserve(ctx: Ctx, grant_id, amount: int) -> None:
@@ -490,7 +504,7 @@ def revoke(pool, *, grant_id, actor) -> dict:
     with kernel_tx(pool, mid) as ctx:
         g = ctx.conn.execute("SELECT * FROM grants WHERE id = %s FOR UPDATE", (grant_id,)).fetchone()
         _require_manager(ctx, grant_id, actor, allow_self=False)
-        if g["status"] != "active":
+        if g["status"] not in ("active", "suspended"):
             return {"grant_id": g["id"], "status": g["status"], "already": True}
         return {**reclaim_subtree(ctx, g, "revoked", actor=actor), "already": False}
 
