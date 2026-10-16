@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 
 from budget_kernel import kernel, simulation
 from budget_kernel.kernel import breaker, integrity
+from budget_kernel.kernel.tx import audit as write_audit
 from budget_kernel.proposals.validate import injection_suspected
 from budget_kernel.costledger import ledger as cost_ledger
 from budget_kernel.costledger.rate_card import RateCard
@@ -104,9 +105,39 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
     def create_principal(body: schemas.CreatePrincipal, request: Request):
         raw = new_key()
         with P(request).connection() as c:
-            row = c.execute("INSERT INTO principals(name, kind, api_key_hash) VALUES (%s,%s,%s) RETURNING id",
-                            (body.name, body.kind, hash_key(raw))).fetchone()
-        return {"principal_id": str(row["id"]), "api_key": raw, "note": "store this key now; it is not shown again"}
+            row = c.execute("INSERT INTO principals(name, kind, api_key_hash, key_expires_at)"
+                            " VALUES (%s,%s,%s, CASE WHEN %s::int IS NULL THEN NULL"
+                            "   ELSE clock_timestamp() + make_interval(days => %s::int) END)"
+                            " RETURNING id, key_expires_at",
+                            (body.name, body.kind, hash_key(raw), body.expires_in_days, body.expires_in_days)).fetchone()
+        return _jsonable({"principal_id": str(row["id"]), "api_key": raw, "key_expires_at": row["key_expires_at"],
+                          "note": "store this key now; it is not shown again"})
+
+    @app.post("/admin/principals/{principal_id}/disable", dependencies=[Depends(require_admin)])
+    def disable_principal(principal_id: str, request: Request):
+        """Stop a principal from authenticating. Idempotent. It does NOT revoke grants: the owner does that through
+        the kernel, so money operations stay in one place (ADR-0009 C2)."""
+        pid = _uuid(principal_id, "principal")
+        with P(request).connection() as c:
+            row = c.execute("SELECT disabled_at FROM principals WHERE id = %s FOR UPDATE", (pid,)).fetchone()
+            if row is None:
+                raise kernel.NotFound("principal not found", code="PRINCIPAL_NOT_FOUND")
+            already = row["disabled_at"] is not None
+            if not already:
+                c.execute("UPDATE principals SET disabled_at = clock_timestamp() WHERE id = %s", (pid,))
+                write_audit(c, None, "PRINCIPAL_DISABLED", None, pid)
+        return {"principal_id": str(pid), "disabled": True, "already": already}
+
+    @app.post("/me/rotate-key")
+    def rotate_key(request: Request, me: Principal = Caller):
+        """Issue a new key. The hash is replaced by ONE UPDATE, so the old key stops working at once. The raw key is
+        returned once; the audit row carries no key material."""
+        raw = new_key()
+        with P(request).connection() as c:
+            row = c.execute("UPDATE principals SET api_key_hash = %s, key_rotated_at = clock_timestamp()"
+                            " WHERE id = %s RETURNING key_expires_at", (hash_key(raw), me.id)).fetchone()
+            write_audit(c, None, "KEY_ROTATED", me.id, me.id)
+        return _jsonable({"api_key": raw, "key_expires_at": row["key_expires_at"]})
 
     @app.get("/health")
     def health(request: Request):
