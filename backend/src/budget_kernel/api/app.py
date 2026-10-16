@@ -84,7 +84,7 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
     app = FastAPI(title="Budget Kernel", version="0.1.0", lifespan=lifespan)
     # The dashboard (Next.js dev server) calls this API from the browser. Origins are an explicit allowlist.
     origins = [o.strip() for o in os.environ.get("BK_CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
-    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"],
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "DELETE"],
                        allow_headers=["Authorization", "Content-Type", "X-Admin-Token"])
 
     @app.exception_handler(kernel.KernelError)
@@ -123,6 +123,11 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
     def bind_settler(mandate_id: str, body: schemas.BindSettler, request: Request, me: Principal = Caller):
         return _jsonable(kernel.bind_settler(P(request), mandate_id=_uuid(mandate_id, "mandate"), actor=me.id,
                                              principal_id=_uuid(body.principal_id, "principal")))
+
+    @app.delete("/mandates/{mandate_id}/settlers/{principal_id}")
+    def unbind_settler(mandate_id: str, principal_id: str, request: Request, me: Principal = Caller):
+        return _jsonable(kernel.unbind_settler(P(request), mandate_id=_uuid(mandate_id, "mandate"), actor=me.id,
+                                               principal_id=_uuid(principal_id, "principal")))
 
     @app.post("/grants", status_code=201)
     def delegate(body: schemas.Delegate, request: Request, me: Principal = Caller):
