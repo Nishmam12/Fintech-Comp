@@ -17,7 +17,7 @@ AWS = "0x00000000000000000000000000000000000A5300"
 def env(world, pool):
     pool_ = pool
     with pool_.connection() as c:
-        c.execute("TRUNCATE chain_settlements, settlement_accounts")
+        c.execute("TRUNCATE anchors, anchor_heads, chain_settlements, settlement_accounts")
     cfg = SettlementConfig(recipients={"aws": AWS})
     return world, FakeChain(), Signer("0x" + "22" * 32), cfg
 

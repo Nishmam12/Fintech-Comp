@@ -138,7 +138,7 @@ def test_testnet_mode_settles_via_adapter(pool, monkeypatch):
     from budget_kernel.settlement.signer import Signer
     monkeypatch.setenv("BK_ADMIN_TOKEN", "test-admin-token")
     with pool.connection() as c:
-        c.execute("TRUNCATE chain_settlements, settlement_accounts")
+        c.execute("TRUNCATE anchors, anchor_heads, chain_settlements, settlement_accounts")
     chain = FakeChain()
     cfg = SettlementConfig(recipients={"aws": "0x00000000000000000000000000000000000A5300"})
     admin = {"X-Admin-Token": "test-admin-token"}

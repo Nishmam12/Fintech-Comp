@@ -82,10 +82,14 @@ def settle(pool, *, transaction_id, actor, chain, signer: Signer, cfg: Settlemen
     return advance(pool, transaction_id=transaction_id, actor=actor, chain=chain, cfg=cfg, now=now)
 
 
-def _update(pool, tx_id, **cols) -> None:
+def _update_row(pool, table: str, key: str, row_id, **cols) -> None:
     sets = ", ".join(f"{k} = %s" for k in cols)
     with pool.connection() as c:
-        c.execute(f"UPDATE chain_settlements SET {sets}, updated_at = now() WHERE transaction_id = %s", (*cols.values(), tx_id))
+        c.execute(f"UPDATE {table} SET {sets}, updated_at = now() WHERE {key} = %s", (*cols.values(), row_id))
+
+
+def _update(pool, tx_id, **cols) -> None:
+    _update_row(pool, "chain_settlements", "transaction_id", tx_id, **cols)
 
 
 def advance(pool, *, transaction_id, actor, chain, cfg: SettlementConfig, now=None) -> dict:
@@ -97,51 +101,62 @@ def advance(pool, *, transaction_id, actor, chain, cfg: SettlementConfig, now=No
         raise SettlementRefused("no signed transfer for this transaction")
     out = {"transaction_id": transaction_id, "tx_hash": row["tx_hash"], "status": row["status"],
            "explorer_url": cfg.explorer_url(row["tx_hash"])}
+    return drive(pool, "chain_settlements", "transaction_id", row, out, chain=chain, cfg=cfg, now=now,
+                 confirm=lambda: kernel.settle_confirm(pool, transaction_id=transaction_id, actor=actor),
+                 fail=lambda proof: kernel.settle_fail(pool, transaction_id=transaction_id, actor=actor, proof=proof),
+                 done_cols={"confirmed_at": now})
+
+
+def drive(pool, table: str, key: str, row, out: dict, *, chain, cfg: SettlementConfig, now, confirm, fail,
+          done_cols: dict) -> dict:
+    """The persist-then-broadcast state machine shared by payments and anchors (BK-401). `confirm()` / `fail(proof)`
+    run the table's own side effect (kernel calls for a payment, nothing for an anchor) before the row is marked."""
+    rid = row[key]
+    upd = lambda **cols: _update_row(pool, table, key, rid, **cols)
     if row["status"] in ("confirmed", "failed"):
         return out
     try:
         just_sent = row["status"] == "signed"
         if just_sent:
             chain.send_raw(bytes(row["raw_tx"]))
-            _update(pool, transaction_id, status="broadcast", broadcast_attempts=row["broadcast_attempts"] + 1, last_error=None)
+            upd(status="broadcast", broadcast_attempts=row["broadcast_attempts"] + 1, last_error=None)
             out["status"] = "broadcast"
         receipt = chain.get_receipt(row["tx_hash"])
         if receipt is None:
             if not just_sent:
                 chain.send_raw(bytes(row["raw_tx"]))     # idempotent re-broadcast of identical bytes
-            return _no_receipt(pool, row, out, actor=actor, chain=chain, cfg=cfg, now=now)
+            return _no_receipt(row, out, upd=upd, chain=chain, cfg=cfg, now=now, fail=fail)
         if chain.block_number() - receipt["block"] + 1 < cfg.confirmations:
-            _update(pool, transaction_id, block_number=receipt["block"])
+            upd(block_number=receipt["block"])
             return out                                # not final yet, succeeded or reverted: a re-org may flip it
         if receipt["status"] == 0:                   # reverted and deep: no token moved, proven failure
-            kernel.settle_fail(pool, transaction_id=transaction_id, actor=actor, proof=f"reverted receipt {row['tx_hash']}")
-            _update(pool, transaction_id, status="failed", block_number=receipt["block"])
+            fail(f"reverted receipt {row['tx_hash']}")
+            upd(status="failed", block_number=receipt["block"])
             return {**out, "status": "failed"}
-        kernel.settle_confirm(pool, transaction_id=transaction_id, actor=actor)
-        _update(pool, transaction_id, status="confirmed", block_number=receipt["block"], confirmed_at=now)
+        confirm()
+        upd(status="confirmed", block_number=receipt["block"], **done_cols)
         return {**out, "status": "confirmed", "block_number": receipt["block"]}
     except ChainError as e:
-        _update(pool, transaction_id, last_error=str(e)[:200])
+        upd(last_error=str(e)[:200])
         return {**out, "error": str(e)[:200]}
 
 
-def _no_receipt(pool, row, out, *, actor, chain, cfg, now) -> dict:
-    """No receipt yet. Fail the kernel tx ONLY on proof: our nonce was consumed by something else,
+def _no_receipt(row, out, *, upd, chain, cfg, now, fail) -> dict:
+    """No receipt yet. Fail ONLY on proof: our nonce was consumed by something else,
     seen twice at least `nonce_gone_wait` apart. A timeout alone only marks the transfer 'stuck' (funds stay reserved)."""
-    tid = row["transaction_id"]
     if chain.nonce(row["from_address"], "latest") > row["nonce"]:
         since = row["nonce_gone_since"]
         if since is None:
-            _update(pool, tid, nonce_gone_since=now)
+            upd(nonce_gone_since=now)
         elif now - since >= cfg.nonce_gone_wait:
-            kernel.settle_fail(pool, transaction_id=tid, actor=actor, proof=f"nonce {row['nonce']} consumed, no receipt for {row['tx_hash']}")
-            _update(pool, tid, status="failed")
+            fail(f"nonce {row['nonce']} consumed, no receipt for {row['tx_hash']}")
+            upd(status="failed")
             out["status"] = "failed"
     else:
         if row["nonce_gone_since"] is not None:
-            _update(pool, tid, nonce_gone_since=None)
+            upd(nonce_gone_since=None)
         if now - row["created_at"] >= cfg.stuck_after and row["status"] != "stuck":
-            _update(pool, tid, status="stuck")
+            upd(status="stuck")
             out["status"] = "stuck"
     return out
 

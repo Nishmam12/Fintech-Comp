@@ -167,8 +167,23 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         st = request.app.state.settlement
         if st is None:
             raise HTTPException(409, {"code": "NOT_TESTNET_MODE", "message": "BK_SETTLEMENT_MODE is not testnet"})
+        from budget_kernel.settlement import anchor
         from budget_kernel.settlement.adapter import reconcile
-        return _jsonable({"results": reconcile(P(request), actor=me.id, chain=st[0], cfg=st[2])})
+        return _jsonable({"results": reconcile(P(request), actor=me.id, chain=st[0], cfg=st[2]),
+                          "anchors": anchor.reconcile(P(request), chain=st[0], cfg=st[2])})
+
+    @app.post("/admin/anchor", dependencies=[Depends(require_admin)])
+    def admin_anchor(request: Request):
+        """Anchor the current hash-chain heads on Base Sepolia (ADR-0009 A5). Evidence only."""
+        st = request.app.state.settlement
+        if st is None:
+            raise HTTPException(409, {"code": "ANCHOR_NEEDS_TESTNET", "message": "BK_SETTLEMENT_MODE is not testnet"})
+        from budget_kernel.settlement import anchor
+        from budget_kernel.settlement.adapter import SettlementRefused
+        try:
+            return _jsonable(anchor.create(P(request), chain=st[0], signer=st[1], cfg=st[2]))
+        except SettlementRefused as e:
+            raise HTTPException(409, {"code": "ANCHOR_REFUSED", "message": str(e)}) from None
 
     @app.post("/transactions/{tx_id}/settle-fail")
     def settle_fail(tx_id: str, body: schemas.SettleFail, request: Request, me: Principal = Caller):
