@@ -5,6 +5,7 @@ import AskView from "@/components/AskView";
 import ReviewView from "@/components/ReviewView";
 import MandateView from "@/components/MandateView";
 import SimulationView from "@/components/SimulationView";
+import SettingsView from "@/components/SettingsView";
 import SignIn from "@/components/SignIn";
 import { MandateProvider } from "@/lib/mandate";
 import { SessionProvider, useSession } from "@/lib/session";
@@ -15,6 +16,7 @@ const TABS = [
   { id: "review", label: "Review" },
   { id: "activity", label: "Activity" },
   { id: "attack", label: "Attack" },
+  { id: "settings", label: "Settings" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
@@ -34,6 +36,7 @@ function Shell() {
         {tab === "review" && <ReviewView />}
         {tab === "activity" && <ActivityView />}
         {tab === "attack" && <SimulationView />}
+        {tab === "settings" && <SettingsView />}
       </div>
       <nav className="fixed inset-x-0 bottom-0 border-t border-line bg-card">
         <ul className="mx-auto flex max-w-3xl">

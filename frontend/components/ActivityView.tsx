@@ -2,7 +2,7 @@
 // Screen 5: inference budget meter (GET /budget) and the live audit feed (GET /mandates/{id}/audit).
 // Audit details can contain model- or user-derived text, so they are shown as plain text only.
 import { useEffect, useRef, useState } from "react";
-import { api, ApiError, microUsd, type AuditEvent, type BudgetSnapshot } from "@/lib/api";
+import { api, describeError, microUsd, type AuditEvent, type BudgetSnapshot } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 const POLL_MS = 3000;
@@ -67,7 +67,7 @@ export default function ActivityView() {
         if (fresh.length) setEvents((old) => [...[...fresh].reverse(), ...old].slice(0, MAX_SHOWN));
         setErr(null);
       } catch (e) {
-        if (live) setErr(e instanceof ApiError ? `${e.code}: ${e.message}` : "Could not load activity");
+        if (live) setErr(describeError(e, "Could not load activity"));
       }
     }
     void poll();

@@ -1,10 +1,10 @@
 "use client";
 import { useState } from "react";
-import { ApiError, getMe, listMandates, money, type Me, type MandateSummary } from "@/lib/api";
+import { describeError, getMe, listMandates, money, type Me, type MandateSummary } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
 export default function SignIn() {
-  const { signIn } = useSession();
+  const { signIn, notice } = useSession();
   const [key, setKey] = useState("");
   const [me, setMe] = useState<Me | null>(null);
   const [mandates, setMandates] = useState<MandateSummary[] | null>(null);
@@ -21,10 +21,10 @@ export default function SignIn() {
       const who = await getMe(k);
       const { mandates: list } = await listMandates(k);
       setMe(who);
-      if (list.length === 1) signIn({ key: k, mandateId: list[0].id, kind: who.kind });
+      if (list.length === 1) signIn({ key: k, mandateId: list[0].id, principalId: who.principal_id, kind: who.kind });
       else setMandates(list);
     } catch (e) {
-      setErr(e instanceof ApiError ? `${e.code}: ${e.message}` : "Sign-in failed");
+      setErr(describeError(e, "Sign-in failed"));
     } finally {
       setBusy(false);
     }
@@ -42,6 +42,9 @@ export default function SignIn() {
         <h1 className="text-2xl font-semibold">Budget Kernel</h1>
         <p className="mt-1 text-sm text-muted">Models propose. The kernel decides.</p>
       </div>
+      {notice && (
+        <p role="alert" className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{notice}</p>
+      )}
       {mandates ? (
         <div className="flex flex-col gap-3">
           <p className="text-sm">
@@ -52,7 +55,7 @@ export default function SignIn() {
             {mandates.map((m) => (
               <li key={m.id}>
                 <button
-                  onClick={() => signIn({ key: key.trim(), mandateId: m.id, kind: me?.kind })}
+                  onClick={() => signIn({ key: key.trim(), mandateId: m.id, principalId: me?.principal_id ?? "", kind: me?.kind })}
                   className="min-h-14 w-full rounded-lg border border-line bg-card p-3 text-left"
                 >
                   <span className="block font-semibold">{money(m.total, m.currency)}</span>
