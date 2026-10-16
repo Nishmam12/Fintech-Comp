@@ -64,8 +64,9 @@ Results are written to `eval/results/<date>/`. See [`eval/README.md`](eval/READM
 1. **Database.** Create a Supabase project (or any Postgres 15+). Put the **session pooler** URL (port 5432) in `DATABASE_URL`. Do not use the transaction pooler (port 6543). The kernel relies on `SET LOCAL` and row locks inside one transaction.
 2. **Schema.** Run `uv run python -m budget_kernel.db.migrate`. It is forward-only and idempotent. Do not expose the schema through Supabase's REST API. The `anon` and `authenticated` roles must have no access, and the tables have row-level security enabled with no policies.
 3. **Secrets.** Set these on the server only, never in the browser or the repository: `DATABASE_URL`, `BK_ADMIN_TOKEN`, optional model keys (`DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY`) and, for settlement, `SETTLEMENT_PRIVATE_KEY` (a testnet-only wallet).
-4. **Run.** `uv run uvicorn budget_kernel.api.app:app --host 0.0.0.0 --port 8000`, behind a TLS proxy that rate-limits requests (see known risk R8). Set `BK_CORS_ORIGINS` to the dashboard's origin.
-5. **Bootstrap.** Create principals with `POST /admin/principals` and the `X-Admin-Token` header. Each API key is shown once and stored only as a SHA-256 hash.
+4. **Run.** `uv run uvicorn budget_kernel.api.app:app --host 0.0.0.0 --port 8000`, behind a TLS proxy. Set `BK_CORS_ORIGINS` to the dashboard's origin.
+5. **Rate limiting.** The API limits requests itself (`api/ratelimit.py`): 120 per minute per principal (per client IP when not authenticated), plus a separate 30 per minute bucket for `POST /agent/request` and `POST /interpret`, which cost real money. `/health` is exempt. A limited call gets HTTP 429, code `RATE_LIMITED` and a `Retry-After` header. Tune with `BK_RATE_DEFAULT_PER_MIN` and `BK_RATE_MODEL_PER_MIN` (0 turns a bucket off). **The limiter is per process:** with several replicas the effective limit is multiplied by the replica count (a shared store is future work). `X-Forwarded-For` is ignored unless `BK_TRUST_PROXY=1`; set that only behind a proxy that appends the real client address, because the last entry is then used as the client IP.
+6. **Bootstrap.** Create principals with `POST /admin/principals` and the `X-Admin-Token` header. Each API key is shown once and stored only as a SHA-256 hash.
 
 ## Repository layout
 ```

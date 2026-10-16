@@ -26,6 +26,7 @@ from budget_kernel.db.connection import make_pool
 
 from . import schemas
 from .auth import Caller, Principal, current_principal, hash_key, new_key, require_admin
+from .ratelimit import RateLimiter
 
 
 EXPLORER = os.environ.get("BK_EXPLORER_URL") or "https://sepolia-explorer.base.org/tx/"   # tx-page prefix; one source for state + adapter
@@ -64,7 +65,7 @@ def _settlement_from_env():
 
 
 def create_app(pool=None, schema: str | None = None, card: RateCard | None = None, llm_transport=None,
-               settlement=None) -> FastAPI:
+               settlement=None, ratelimit: RateLimiter | None = None) -> FastAPI:
     """settlement: (chain, signer, cfg) injected by tests; otherwise built from env when BK_SETTLEMENT_MODE=testnet."""
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -82,6 +83,9 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             app.state.pool.close()
 
     app = FastAPI(title="Budget Kernel", version="0.1.0", lifespan=lifespan)
+    limiter = RateLimiter() if ratelimit is None else ratelimit             # per process (ADR-0009 C1); added first so CORS wraps its 429s
+    app.state.ratelimit = limiter
+    app.middleware("http")(limiter.middleware)
     # The dashboard (Next.js dev server) calls this API from the browser. Origins are an explicit allowlist.
     origins = [o.strip() for o in os.environ.get("BK_CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"],
