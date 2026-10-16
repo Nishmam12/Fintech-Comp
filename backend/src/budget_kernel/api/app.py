@@ -77,7 +77,13 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         app.state.card = card or RateCard.load()
         app.state.llm_transport = llm_transport      # tests inject a mock HTTP transport; None in production
         app.state.settlement = settlement or _settlement_from_env()
+        worker = None
+        if os.environ.get("BK_WORKER") == "1":       # BK-403: housekeeping thread, see worker.py
+            from budget_kernel.worker import Worker
+            worker = Worker(app.state.pool, settlement=app.state.settlement).start()
         yield
+        if worker:
+            worker.stop()
         if owned:
             app.state.pool.close()
 
