@@ -51,6 +51,14 @@ def main() -> None:
     rows = collect(pool)
     anchors = collect_anchors(pool)
     OUT.mkdir(exist_ok=True)
+    # Transfers made in earlier schemas/runs (e.g. the first real transfer, 2026-10-15) are kept in
+    # evidence/earlier_transfers.json, because this export only sees the schema it reads. Nothing is invented:
+    # every entry carries its own tx hash and explorer link, and a hash already read from the database wins.
+    earlier = OUT / "earlier_transfers.json"
+    if earlier.exists():
+        seen = {r["tx_hash"] for r in rows}
+        kept = [e for e in json.loads(earlier.read_text(encoding="utf-8")) if e["tx_hash"] not in seen]
+        rows = sorted([*kept, *rows], key=lambda r: str(r["confirmed_at"]))
     (OUT / "settlements.json").write_text(json.dumps(rows, indent=2, default=str), encoding="utf-8")
     md = [f"# Execution evidence: Base Sepolia settlements\n",
           f"Generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M UTC}. {len(rows)} confirmed transfer(s). Testnet only.\n"]
