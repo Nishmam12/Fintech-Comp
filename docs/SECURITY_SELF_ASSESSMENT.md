@@ -1,8 +1,8 @@
 # Security Self-Assessment: Budget Kernel (Agent Wallet, Topic F)
 
-**Version:** 2026-10-15 (draft 1, independent review pass)
-**Scope:** `backend/` (kernel, API, interpretation, cost ledger, simulation) and the settlement hand-off contract (ADR-0007)
-**Not yet covered:** the testnet settlement adapter (BK-075) and the dashboard (BK-090). Both are in progress, and section 6 lists the requirements they must meet.
+**Version:** 2026-10-17 (draft 2; independent review passes on 2026-10-14, 15 and 17, see section 9)
+**Scope:** `backend/` (kernel, API, interpretation, cost ledger, simulation, settlement adapter, hash-chained history and anchor, circuit breaker, rate limiting and key lifecycle, background worker) and the dashboard in `frontend/`
+**Not covered:** the dashboard was reviewed for the controls in section 6 (plain-text rendering, key held in memory only, no HTML sinks: checked in the code on 2026-10-17) and click-tested at 390 px, but not audited line by line. Nothing here has had an external audit.
 
 ---
 
@@ -18,11 +18,15 @@ The Budget Kernel lets AI agents spend from a human's budget without the AI ever
 **Measured evidence** (details in section 5):
 - **Kernel script evaluation:** 134 of 134 steps correct, 0 unauthorized approvals, 0 invariant violations.
 - **Interpretation, rules-only configuration A:** 0 unauthorized approvals and 0 wrong-value approvals across 131 text cases.
+- **Interpretation, live model (configuration B, Qwen, Run 5):** 106/131 correct on dataset v1 and 107/131 on a fresh dataset v2, with 0 unauthorized and 0 wrong-value approvals (synthetic data, one run per setting; configuration C was not run).
+- **Test suite:** 327 tests passed (non-slow) plus the slow property-based state machine, which checks the accounting invariants after every step.
+- **On-chain evidence:** two kernel-approved payments and one anchor of the audit history on Base Sepolia, each checked over the public RPC (`evidence/`).
 - **Five attack scenarios against an intentionally unsafe baseline:** four broke the baseline, and the kernel held in all five.
 
 **Known limits:**
-- Per-transaction limits can be split into several smaller purchases. There is no velocity limit.
-- The settlement service is a powerful, cross-mandate principal.
+- Per-transaction limits can be split into several smaller purchases. Velocity limits exist but are opt-in per grant (R1).
+- The settlement service is a powerful principal: it is now bound per mandate by the owner (R2), but within a bound mandate it can confirm any transfer, and there is one operator hot wallet (R5).
+- A database superuser can rewrite an un-anchored history (R20); the hash chain makes edits detectable, not impossible.
 - Throughput is serialized per mandate.
 
 Section 7 lists all known risks.
@@ -124,7 +128,9 @@ All numbers come from runs against the hosted Postgres database and are recorded
 
 ---
 
-## 6. Requirements on components still being built
+## 6. Requirements on settlement and the dashboard (built; kept as the acceptance checklist)
+
+**Status 2026-10-17:** BK-075 and BK-090 are built. The settlement items below are covered by tests (`test_settlement.py`, `test_anchor.py`, the F1 to F3 review fixes). The dashboard items were verified in the code review (no `dangerouslySetInnerHTML` or other HTML sink anywhere in `frontend/`; the API key lives in React state only, never in `localStorage` or a cookie).
 
 **BK-075, testnet settlement adapter (must hold before its merge):**
 1. **Failure proof.** `settle_fail` releases funds back to the grant. The adapter may call it only with on-chain proof that the transfer cannot land: a mined receipt with `status = 0`, or the pre-assigned nonce consumed by a different transaction. A timeout or a dropped-from-mempool signal is **not** proof; those cases stay `submitted` and are re-broadcast. Calling `settle_fail` on a transfer that actually landed would double-spend.
@@ -161,7 +167,7 @@ Severity is rated for a production deployment. Status is one of: **Mitigated** (
 | R12 | **In-flight (`submitted`) transfers cannot be recalled by revocation** | Low | Accepted | Reported in the revocation result (`in_flight_count`, `in_flight_amount`) |
 | R13 | **Service principals can read every mandate; `/budget` is visible to every principal** | Low | Accepted | Read-only. Future work: scope reads per mandate |
 | R14 | **Refused requests write audit rows.** Anyone who knows a grant ID can add audit noise | Low | Accepted | IDs are random UUIDs. Mitigated further by R8's rate limiting |
-| R15 | **Model text is shown in the UI** (XSS if rendered as HTML) | Medium | Open | Requirement for BK-090 |
+| R15 | **Model text is shown in the UI** (XSS if rendered as HTML) | Medium | Mitigated | The dashboard renders proposal fields, evidence quotes, audit details and reasons as plain text; `frontend/` contains no `dangerouslySetInnerHTML`, `innerHTML` or `insertAdjacentHTML` (searched 2026-10-17); explorer links are used only as the API returns them and only when they start with `https://`. Limit: checked by search and review, not by an automated test |
 | R16 | **Simulations run in the live schema** (keyless identities, separate `naive_*` tables) | Low | Mitigated | Human-only endpoint; one run at a time (`SIMULATION_RUNNING` 409); the baseline module is isolated by boundary tests |
 | R17 | **A development DB credential was exposed in a session log** | Medium | Mitigated | Password rotated 2026-10-15. The replacement appeared in a chat transcript, so rotate once more just before submission |
 | R18 | **Provider drift.** Model IDs, prices and the "thinking disabled" parameters | Low | Partly mitigated | Qwen verified live on 2026-10-16 (call accepted, 0 reasoning tokens billed, cost within the reservation). DeepSeek `thinking: disabled` is still unverified (no key yet). Prices are frozen per call from a versioned rate card; overruns are charged and audited |
@@ -176,7 +182,7 @@ Severity is rated for a production deployment. Status is one of: **Mitigated** (
 
 - This is a hackathon prototype on testnet. It has not been externally audited and must not hold real funds.
 - Velocity limits are opt-in per grant (R1); a grant without a window can still be split up to its balance. We do not authenticate real banks or merchants.
-- Live-model accuracy (configs B and C) is not yet measured. Until it is, the only interpretation numbers we report are the rules-only and recorded-output results above.
+- Live-model accuracy is measured for configuration B only (Runs 4 and 5: 106/131 and 107/131, synthetic data, one run per setting, the second dataset shares the first's generator). Configuration C (the escalation model) was **not run**, so we make no claim about it.
 - The revocation-race baseline failure depends on timing and did not reproduce in the recorded run. The revoked-ancestor scenario is the deterministic demonstration of that failure class.
 
 ---
