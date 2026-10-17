@@ -23,12 +23,12 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Notes / blockers:** Production `bk` still needs migrations 003 and 006 (lead runs `uv run python -m budget_kernel.db.migrate`).
 
 ### Member 2 (RTX 2070 Super) — daniel
-- **Status:** REVIEW
-- **Task ID:** Phase 3: BK-305 replay, BK-411 rate limit, BK-412 key lifecycle, BK-413 dashboard (ADR-0009)
-- **Branch:** daniel/BK-305-replay, BK-411-ratelimit, BK-412-keys, BK-413-dashboard (stacked PRs)
-- **Claimed areas (paths):** frontend/, backend/src/budget_kernel/api/ (ratelimit.py, auth.py, agent/request route; small edits to app.py), backend/src/budget_kernel/routing/, backend/tests/integration/test_replay*.py, test_ratelimit*.py, test_key_lifecycle*.py, docs/submission/
-- **Started / last update (UTC):** 2026-10-16
-- **Notes / blockers:** BK-305, 411, 412, 413 done and pushed, PRs open. Next: deck + tech doc drafts (docs/submission/), live click-through re-run after merge. app.py is shared with Afnan: small changes, rebase often.
+- **Status:** ACTIVE
+- **Task ID:** BK-413-final-check (re-verify merged dashboard at 390 px, NOT_OWNER + KEY_ALREADY_ROTATED messages), then BK-120 deck + BK-160 technical document
+- **Branch:** daniel/BK-413-final-check
+- **Claimed areas (paths):** frontend/, docs/submission/
+- **Started / last update (UTC):** 2026-10-17
+- **Notes / blockers:** Using my own local API on my own schema until the lead gives a shared URL.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
 - **Status:** REVIEW
