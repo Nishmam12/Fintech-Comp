@@ -151,6 +151,8 @@ def _delegation_problem(ctx: Ctx, parent, amount, expires_at, scope, holder) -> 
     problem = _path_problem(ctx, parent)
     if problem:
         return problem
+    if holder == parent["holder_principal_id"]:
+        return "SELF_DELEGATION"      # adds no authority; it was the only way to multiply probe targets (ADR-0009 K1)
     if not parent["scope"]["can_delegate"]:
         return "PARENT_CANNOT_DELEGATE"
     if parent["depth"] >= MAX_DEPTH:

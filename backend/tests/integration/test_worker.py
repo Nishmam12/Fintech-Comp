@@ -28,6 +28,21 @@ def test_one_pass_settles_mined_transfer_and_releases_expired_reservation(world,
     world.check()
 
 
+def test_one_failing_tick_does_not_skip_the_other_mandates(pool, monkeypatch):
+    ticked = []
+
+    def tick(_pool, m):
+        if m == "bad":
+            raise worker.kernel.KernelBusy("busy")
+        ticked.append(m)
+
+    monkeypatch.setattr(worker.kernel, "due_mandates", lambda _pool: ["bad", "good1", "good2"])
+    monkeypatch.setattr(worker.kernel, "tick", tick)
+    out = worker.run_once(pool)
+    assert ticked == ["good1", "good2"]
+    assert out["ticks"] == 2 and out["tick_failures"] == 1
+
+
 def test_failing_step_is_isolated_and_loop_survives(pool, monkeypatch):
     def boom(_pool):
         raise RuntimeError("0xdeadbeef raw tx")

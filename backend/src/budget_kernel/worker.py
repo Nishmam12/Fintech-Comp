@@ -36,7 +36,23 @@ def run_once(pool, *, settlement=None, actor=None) -> dict:
             step("reconcile", lambda: len(reconcile(pool, actor=actor, chain=chain, cfg=cfg)))
         step("anchors", lambda: len(anchor.reconcile(pool, chain=chain, cfg=cfg)))
     step("cost_sweep", lambda: cost_ledger.sweep_stale(pool))
-    step("ticks", lambda: len([kernel.tick(pool, m) for m in kernel.due_mandates(pool)]))
+    failures = 0
+
+    def ticks():
+        nonlocal failures
+        done = 0
+        for m in kernel.due_mandates(pool):
+            try:                                  # one busy or failing mandate must not make the rest wait a full interval
+                kernel.tick(pool, m)
+                done += 1
+            except Exception as e:  # noqa: BLE001
+                failures += 1
+                log.warning("worker tick failed: %s", type(e).__name__)
+        return done
+
+    step("ticks", ticks)
+    if failures:
+        out["tick_failures"] = failures
     return out
 
 

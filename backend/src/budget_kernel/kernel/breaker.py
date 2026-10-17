@@ -91,13 +91,14 @@ def suspend(pool, *, grant_id, actor) -> dict:
 
 
 def reinstate(pool, *, grant_id, actor) -> dict:
-    """suspended -> active (owner or strict-ancestor holder). Strikes before `reinstated_at` no longer count,
-    so the grant starts again with a clean slate. Returns {grant_id, status}."""
-    from .ops import _require_manager
+    """suspended -> active, MANDATE OWNER ONLY (ADR-0009 amendment K1): reinstating loosens, so an agent (or a
+    colluding ancestor holder) must never be able to undo a suspension it earned. Strikes before `reinstated_at`
+    no longer count, so the grant starts again with a clean slate. Returns {grant_id, status}."""
     mid = mandate_of_grant(pool, grant_id)
     with kernel_tx(pool, mid) as ctx:
         g = ctx.conn.execute("SELECT * FROM grants WHERE id = %s FOR UPDATE", (grant_id,)).fetchone()
-        _require_manager(ctx, grant_id, actor, allow_self=False)
+        if ctx.mandate["owner_principal_id"] != actor:
+            raise Forbidden("only the mandate owner may reinstate a suspended grant", code="NOT_OWNER")
         if g["status"] != "suspended":
             raise Conflict("the grant is not suspended", code="NOT_SUSPENDED")
         ctx.conn.execute("UPDATE grants SET status = 'active', suspended_at = NULL, suspend_reason = NULL,"

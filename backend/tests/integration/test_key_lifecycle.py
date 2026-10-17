@@ -86,6 +86,24 @@ def test_rotation_kills_the_old_key_and_the_new_one_works(client):
     assert client.get("/me", headers=new).status_code == 200
 
 
+def test_two_rotations_racing_on_the_same_old_key_cannot_both_win(pool):
+    """Both requests authenticated before either UPDATE (simulated by pinning the principal). The second must
+    not hand out a key that never worked: the UPDATE only applies if the stored hash is still the presented one."""
+    from budget_kernel.api.auth import Principal, current_principal
+    with TestClient(create_app(pool=pool, ratelimit=RateLimiter(0, 0))) as c:
+        pid, old = person(c, "race")
+        import uuid as _u
+        c.app.dependency_overrides[current_principal] = lambda: Principal(_u.UUID(pid), "race", "agent")
+        first = c.post("/me/rotate-key", headers=old)
+        second = c.post("/me/rotate-key", headers=old)
+        c.app.dependency_overrides.clear()
+        assert first.status_code == 200
+        assert second.status_code == 409 and second.json()["detail"]["code"] == "KEY_ALREADY_ROTATED"
+        assert "api_key" not in second.text
+        winner = {"Authorization": f"Bearer {first.json()['api_key']}"}
+        assert c.get("/me", headers=winner).status_code == 200
+
+
 def test_rotating_twice_leaves_exactly_one_valid_key(pool, client):
     pid, k0 = person(client, "twice")
     k1 = {"Authorization": f"Bearer {client.post('/me/rotate-key', headers=k0).json()['api_key']}"}

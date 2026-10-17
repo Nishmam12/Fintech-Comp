@@ -136,13 +136,18 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         return {"principal_id": str(pid), "disabled": True, "already": already}
 
     @app.post("/me/rotate-key")
-    def rotate_key(request: Request, me: Principal = Caller):
+    def rotate_key(request: Request, authorization: str = Header(default=""), me: Principal = Caller):
         """Issue a new key. The hash is replaced by ONE UPDATE, so the old key stops working at once. The raw key is
-        returned once; the audit row carries no key material."""
+        returned once; the audit row carries no key material. The UPDATE applies only while the stored hash is still
+        the presented key's, so two rotations racing on the same old key cannot both win (the loser gets 409 and no key)."""
         raw = new_key()
+        presented = hash_key(authorization.partition(" ")[2])
         with P(request).connection() as c:
             row = c.execute("UPDATE principals SET api_key_hash = %s, key_rotated_at = clock_timestamp()"
-                            " WHERE id = %s RETURNING key_expires_at", (hash_key(raw), me.id)).fetchone()
+                            " WHERE id = %s AND api_key_hash = %s RETURNING key_expires_at",
+                            (hash_key(raw), me.id, presented)).fetchone()
+            if row is None:
+                raise HTTPException(409, {"code": "KEY_ALREADY_ROTATED", "message": "this key was already rotated; sign in with the new key"})
             write_audit(c, None, "KEY_ROTATED", me.id, me.id)
         return _jsonable({"api_key": raw, "key_expires_at": row["key_expires_at"]})
 

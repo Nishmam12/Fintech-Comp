@@ -244,12 +244,31 @@ def test_reinstating_a_grant_that_is_not_suspended_is_refused(world, alice_grant
     assert e.value.code == "NOT_SUSPENDED"
 
 
-def test_an_ancestor_holder_may_reinstate_a_descendant(world, alice_grant):
+def test_an_ancestor_holder_may_suspend_a_descendant_but_only_the_owner_reinstates(world, alice_grant):
+    """ADR-0009 amendment K1: otherwise an agent could reinstate grants it earned a suspension on."""
     child = kernel.delegate(world.pool, parent_grant_id=alice_grant, actor=world.alice, holder_principal_id=world.bob,
                             amount=5_000, expires_at=world.grant(alice_grant)["expires_at"], scope=scope(),
                             idempotency_key="c2")["grant_id"]
-    kernel.suspend(world.pool, grant_id=child, actor=world.alice)
-    assert kernel.reinstate(world.pool, grant_id=child, actor=world.alice)["status"] == "active"
+    kernel.suspend(world.pool, grant_id=child, actor=world.alice)            # stricter: allowed
+    assert world.grant(child)["status"] == "suspended"
+    with pytest.raises(kernel.Forbidden) as e:
+        kernel.reinstate(world.pool, grant_id=child, actor=world.alice)       # looser: owner only
+    assert e.value.code == "NOT_OWNER"
+    assert world.grant(child)["status"] == "suspended"
+    assert kernel.reinstate(world.pool, grant_id=child, actor=world.owner)["status"] == "active"
+
+
+def test_self_delegation_is_refused_so_an_agent_cannot_multiply_probe_targets(world, alice_grant):
+    with pytest.raises(kernel.DelegationRejected) as e:
+        kernel.delegate(world.pool, parent_grant_id=alice_grant, actor=world.alice, holder_principal_id=world.alice,
+                        amount=1_000, expires_at=world.grant(alice_grant)["expires_at"], scope=scope(),
+                        idempotency_key="self")
+    assert e.value.code == "SELF_DELEGATION"
+    with pytest.raises(kernel.DelegationRejected):                            # the owner delegating to themselves is just as pointless
+        kernel.delegate(world.pool, parent_grant_id=world.root, actor=world.owner, holder_principal_id=world.owner,
+                        amount=1_000, expires_at=world.grant(world.root)["expires_at"], scope=scope(),
+                        idempotency_key="self-owner")
+    world.check()
 
 
 # ---------------------------------------------------------------- concurrency
