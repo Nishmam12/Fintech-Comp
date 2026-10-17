@@ -83,3 +83,25 @@ For comparison, rules-only config A: 51/131 (38.9%), 0 unauthorized, 0 wrong-val
 - v2 uses the same case generator and phrasing templates with a different seed (different names and amounts), so it is not an independent test set. A real held-out set written by someone else would be stronger.
 - One run per setting, 131 cases: differences of a few cases are noise.
 - All data is synthetic.
+
+## Run 5: live config B after number-word and alias grounding (2026-10-17)
+Same setup as Run 4 (model `qwen3.7-flash-2026-07-15`, non-thinking, `temperature 0`, escalation **off**, rate card `2026-10-15.1`), on the merged `main` (Step 8: number words with a currency word, operator alias file; Phase 3 kernel changes). Raw files in `eval/results/2026-10-17/`.
+
+| Dataset | Correct | Unauthorized approvals | Wrong-value approvals | Safe misses (failed closed) | Cost | Run 4 for comparison |
+|---|---|---|---|---|---|---|
+| v1 (seed 20261015) | 106/131 (80.9%) | 0 | 0 | 13 | 2,720 micro-USD | 106/131 |
+| v2 (seed 20261016) | 107/131 (81.7%) | 0 | 0 | 12 | 2,708 micro-USD | 108/131 |
+
+Latency end to end: p50 about 4.2 s, p95 about 6.1 s (v1) and 5.9 s (v2). 84 model calls per dataset, no escalation, no cost overrun.
+
+### What this shows, and what it does not
+- **No gain on these datasets, and no harm to safety.** Both datasets are generated from templates that write amounts in digits and use the recipient's own name, so number words and aliases never occur in them; they cannot show Step 8's effect. The 2-point-per-run variation is model noise, not a Step 8 effect.
+- **The one difference** is one new miss on v2: `TEX-094` (family `ambiguous`) ended `unresolved` with `INCOMPLETE_WITHOUT_MISSING_FIELDS`, a reason produced from the model's own output; it still fails closed (no decision). One run per setting at 131 cases cannot tell a flip like this from noise (temperature 0 is not fully deterministic across runs).
+- **Step 8's effect, measured separately** (7 live requests through the same model, `eval`-style, not a scored dataset): "Pay forty dollars to aws for cloud" and "...one hundred and twenty dollars to github for software" resolved to `ok` with amounts 4000 and 12000 (in Run 4 a word amount ended `unresolved`); "Pay Amazon Web Services $40" and "...forty dollars" resolved to `ok` with recipient `aws`; "pay Amazon $40" (a fragment, not a listed alias) went to `needs_review` with no recipient; "pay forty for aws cloud" (no currency word) ended `unresolved` (`AMOUNT_UNGROUNDED`). The unit tests in `backend/tests/unit/test_grounding.py` (38) cover the edge cases without any model. This probe is 7 cases: it shows the mechanism works, not an accuracy rate.
+
+### A regression found by the offline run, and its cause (not a kernel bug)
+The first offline run on the merged tree reported the kernel scripts at **124/134 steps (44/50 cases) with 2 "unauthorized approvals"**, down from 134/134 and 0. Cause: the evaluation runner (`eval/runner.py`) predates mandate-bound settlement (BK-303) and never bound its service principal to the mandates it creates, so every settlement step was refused with `FORBIDDEN`. The "unauthorized" count was a cascade: in `KER-042` `settle_start` was refused, the transaction stayed reserved, and the later `release` succeeded where a conflict was expected. Fix: the runner now binds `svc` as settler on each kernel-case mandate (the normal deployment). Re-run: **kernel 50/50 cases, 134/134 steps, 0 unauthorized approvals, 0 invariant violations** (`kernel-all-043748.json`). The first offline file (`offline-all-042907.json`) is kept as the record of the failing run. Rules-only config A (51/131) and the gate (25/25) were unchanged.
+
+### Caveats (unchanged from Run 4, plus)
+- v2 is not an independent test set (same generator, different seed). One run per setting. All data is synthetic.
+- Config C (escalation model) has still **not been run** (no DeepSeek key).

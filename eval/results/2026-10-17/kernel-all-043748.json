@@ -1,0 +1,31 @@
+{
+  "dataset": {
+    "version": "v1",
+    "seed": 20261015,
+    "sha256": "eacf79821e5d14839e341a47ae0b06756677b82109a379e331033126176a0104",
+    "total": 206,
+    "by_kind": {
+      "text": 131,
+      "gate": 25,
+      "kernel": 50
+    },
+    "heldout": 66,
+    "note": "synthetic data only; held-out split must not be used to tune routing thresholds"
+  },
+  "started_at": "2026-10-17T04:36:42.180231+00:00",
+  "split": "all",
+  "sections": {
+    "kernel": {
+      "cases": 50,
+      "cases_ok": 50,
+      "steps": 134,
+      "steps_ok": 134,
+      "unauthorized_approvals": 0,
+      "invariant_violations": 0,
+      "note": "invariants I1,I2,I3,I5 checked after every step; a zero result is scoped to these scripts only",
+      "failures": []
+    }
+  },
+  "git_commit": "3bb2fbc",
+  "rate_card_version": "2026-10-15.1"
+}

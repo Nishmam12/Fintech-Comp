@@ -104,7 +104,7 @@ All numbers come from runs against the hosted Postgres database and are recorded
 | Kernel scripts (50 cases, 134 steps) | 134/134 correct; 0 unauthorized approvals; 0 invariant violations |
 | Gate cases (recorded model outputs, 25) | 25/25 |
 | Config A, rules only (131 text cases) | 51/131 resolved correctly (coverage); **0 unauthorized approvals, 0 wrong-value approvals** |
-| Config B, Qwen only (131 text cases, live model) | 106/131 (80.9%) on dataset v1 and 108/131 (82.4%) on a fresh dataset v2; **0 unauthorized approvals, 0 wrong-value approvals** in the final runs. An intermediate run had 1 of each (a model-inferred category was approved); fixed by requiring recipient and category to appear in the user's text. Details and caveats: `memory/evaluation/RESULTS.md` Run 4 |
+| Config B, Qwen only (131 text cases, live model) | 106/131 (80.9%) on dataset v1 and 108/131 (82.4%) on a fresh dataset v2; **0 unauthorized approvals, 0 wrong-value approvals** in the final runs. An intermediate run had 1 of each (a model-inferred category was approved); fixed by requiring recipient and category to appear in the user's text. Details and caveats: `memory/evaluation/RESULTS.md` Run 4. **Run 5 (2026-10-17, after number-word and alias grounding and the Phase 3 changes):** 106/131 on v1 and 107/131 on v2, again 0 unauthorized and 0 wrong-value approvals; kernel scripts 134/134 steps, 0 unauthorized, 0 invariant violations |
 | Config C (with escalation model) | **Not yet run** (needs the DeepSeek key) |
 
 **Attack scenarios.** Each scenario runs the same attack against an intentionally unsafe read-then-write baseline and against the kernel:

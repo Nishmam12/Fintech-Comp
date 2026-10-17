@@ -260,6 +260,9 @@ def run_kernel_case(env, case):
     actors = {"owner": env.owner, "alice": env.alice, "bob": env.bob, "svc": env.svc}
     m = kernel.create_mandate(env.pool, owner_principal_id=env.owner, currency="USD", total=100_000,
                               protected_reserve=10_000, expires_at=future(), scope=SC_ROOT)
+    # BK-303: a service principal may only run settlement steps on mandates it is bound to; the scripts model the
+    # normal deployment, where the owner has bound the settlement service.
+    kernel.bind_settler(env.pool, mandate_id=m["mandate_id"], actor=env.owner, principal_id=env.svc)
     grants, txs = {"root": m["root_grant_id"]}, {}
     expiry = {}
     with env.pool.connection() as c:
