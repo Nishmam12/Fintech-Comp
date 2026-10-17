@@ -16,16 +16,18 @@ from fastapi.responses import JSONResponse
 
 from budget_kernel import kernel, simulation
 from budget_kernel.kernel import breaker, integrity
+from budget_kernel.kernel.tx import audit as write_audit
 from budget_kernel.proposals.validate import injection_suspected
 from budget_kernel.costledger import ledger as cost_ledger
 from budget_kernel.costledger.rate_card import RateCard
-from budget_kernel.routing.agent import interpret_then_decide
+from budget_kernel.routing.agent import interpret_then_decide, stored_replay
 from budget_kernel.routing.interpret import interpret as run_interpret
 from budget_kernel.config import Settings
 from budget_kernel.db.connection import make_pool
 
 from . import schemas
 from .auth import Caller, Principal, current_principal, hash_key, new_key, require_admin
+from .ratelimit import RateLimiter
 
 
 EXPLORER = os.environ.get("BK_EXPLORER_URL") or "https://sepolia-explorer.base.org/tx/"   # tx-page prefix; one source for state + adapter
@@ -64,7 +66,7 @@ def _settlement_from_env():
 
 
 def create_app(pool=None, schema: str | None = None, card: RateCard | None = None, llm_transport=None,
-               settlement=None) -> FastAPI:
+               settlement=None, ratelimit: RateLimiter | None = None) -> FastAPI:
     """settlement: (chain, signer, cfg) injected by tests; otherwise built from env when BK_SETTLEMENT_MODE=testnet."""
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -88,10 +90,14 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             app.state.pool.close()
 
     app = FastAPI(title="Budget Kernel", version="0.1.0", lifespan=lifespan)
+    limiter = RateLimiter() if ratelimit is None else ratelimit             # per process (ADR-0009 C1); added first so CORS wraps its 429s
+    app.state.ratelimit = limiter
+    app.middleware("http")(limiter.middleware)
     # The dashboard (Next.js dev server) calls this API from the browser. Origins are an explicit allowlist.
     origins = [o.strip() for o in os.environ.get("BK_CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "DELETE"],
-                       allow_headers=["Authorization", "Content-Type", "X-Admin-Token"])
+                       allow_headers=["Authorization", "Content-Type", "X-Admin-Token"],
+                       expose_headers=["Retry-After"])    # the dashboard reads it on a 429 (BK-411)
 
     @app.exception_handler(kernel.KernelError)
     async def kernel_error(_: Request, exc: kernel.KernelError):
@@ -106,9 +112,39 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
     def create_principal(body: schemas.CreatePrincipal, request: Request):
         raw = new_key()
         with P(request).connection() as c:
-            row = c.execute("INSERT INTO principals(name, kind, api_key_hash) VALUES (%s,%s,%s) RETURNING id",
-                            (body.name, body.kind, hash_key(raw))).fetchone()
-        return {"principal_id": str(row["id"]), "api_key": raw, "note": "store this key now; it is not shown again"}
+            row = c.execute("INSERT INTO principals(name, kind, api_key_hash, key_expires_at)"
+                            " VALUES (%s,%s,%s, CASE WHEN %s::int IS NULL THEN NULL"
+                            "   ELSE clock_timestamp() + make_interval(days => %s::int) END)"
+                            " RETURNING id, key_expires_at",
+                            (body.name, body.kind, hash_key(raw), body.expires_in_days, body.expires_in_days)).fetchone()
+        return _jsonable({"principal_id": str(row["id"]), "api_key": raw, "key_expires_at": row["key_expires_at"],
+                          "note": "store this key now; it is not shown again"})
+
+    @app.post("/admin/principals/{principal_id}/disable", dependencies=[Depends(require_admin)])
+    def disable_principal(principal_id: str, request: Request):
+        """Stop a principal from authenticating. Idempotent. It does NOT revoke grants: the owner does that through
+        the kernel, so money operations stay in one place (ADR-0009 C2)."""
+        pid = _uuid(principal_id, "principal")
+        with P(request).connection() as c:
+            row = c.execute("SELECT disabled_at FROM principals WHERE id = %s FOR UPDATE", (pid,)).fetchone()
+            if row is None:
+                raise kernel.NotFound("principal not found", code="PRINCIPAL_NOT_FOUND")
+            already = row["disabled_at"] is not None
+            if not already:
+                c.execute("UPDATE principals SET disabled_at = clock_timestamp() WHERE id = %s", (pid,))
+                write_audit(c, None, "PRINCIPAL_DISABLED", None, pid)
+        return {"principal_id": str(pid), "disabled": True, "already": already}
+
+    @app.post("/me/rotate-key")
+    def rotate_key(request: Request, me: Principal = Caller):
+        """Issue a new key. The hash is replaced by ONE UPDATE, so the old key stops working at once. The raw key is
+        returned once; the audit row carries no key material."""
+        raw = new_key()
+        with P(request).connection() as c:
+            row = c.execute("UPDATE principals SET api_key_hash = %s, key_rotated_at = clock_timestamp()"
+                            " WHERE id = %s RETURNING key_expires_at", (hash_key(raw), me.id)).fetchone()
+            write_audit(c, None, "KEY_ROTATED", me.id, me.id)
+        return _jsonable({"api_key": raw, "key_expires_at": row["key_expires_at"]})
 
     @app.get("/health")
     def health(request: Request):
@@ -254,6 +290,11 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         reserved); unresolved interpretation never reaches the kernel at all."""
         gid = _uuid(body.grant_id, "grant")
         g = _grant_context(request, gid, me)
+        if me.id != g["holder_principal_id"]:        # before any lookup or model call: a non-holder learns nothing
+            raise kernel.Forbidden("only the grant holder may authorize spends", code="NOT_GRANT_HOLDER")
+        replay = stored_replay(P(request), grant_id=gid, idempotency_key=body.idempotency_key, text=body.text)
+        if replay is not None:                       # BK-305: a retry returns the stored decision, zero model calls
+            return _jsonable(replay)
         if injection_suspected(body.text) and me.id == g["holder_principal_id"]:
             kernel.record_signal(P(request), grant_id=gid, actor=me.id, kind="INJECTION", reason="INJECTION_SUSPECTED")
         return _jsonable(interpret_then_decide(

@@ -25,6 +25,10 @@ export type Grant = {
   expires_at: string;
   scope: Scope;
   window_used?: number;
+  // ADR-0009 B: circuit breaker. Present on every grant from /mandates/{id}/state.
+  suspended_at?: string | null;
+  suspend_reason?: "STRIKES" | "MANUAL" | null;
+  strikes_in_window?: number;
 };
 
 export type Transaction = {
@@ -98,15 +102,48 @@ export type Decision = {
   reason: string | null;
   review_reason?: string | null;
   replayed: boolean;
+  suspended?: boolean; // true when this refusal tripped the circuit breaker (ADR-0009 B4)
 };
 
 export type AgentResponse = { interpretation: Interpretation; decision: Decision | null };
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  constructor(public status: number, public code: string, message: string, public retryAfter?: number) {
     super(message);
   }
 }
+
+// Codes after which the key can no longer be used: the session is dropped and the user returns to sign-in.
+const AUTH_LOST = new Set(["KEY_EXPIRED", "PRINCIPAL_DISABLED"]);
+let onAuthLost: ((code: string) => void) | null = null;
+export function setAuthLostHandler(fn: ((code: string) => void) | null) {
+  onAuthLost = fn;
+}
+
+// Friendly text for the codes the user can act on; everything else is shown as the server sent it.
+export function describeError(e: unknown, fallback: string): string {
+  if (!(e instanceof ApiError)) return fallback;
+  switch (e.code) {
+    case "RATE_LIMITED":
+      return e.retryAfter !== undefined
+        ? `Too many requests. Wait ${e.retryAfter} s, then try again.`
+        : "Too many requests. Wait a moment, then try again.";
+    case "KEY_EXPIRED":
+      return "Your API key has expired. Get a new key from the administrator, then sign in again.";
+    case "PRINCIPAL_DISABLED":
+      return "This account has been disabled. Contact the administrator.";
+    case "GRANT_SUSPENDED":
+      return "This grant is suspended, so it cannot spend. The mandate owner can reinstate it.";
+    default:
+      return `${e.code}: ${e.message}`;
+  }
+}
+
+// Reasons on a rejected transaction that deserve a plain-language gloss. Unknown codes are shown unchanged.
+const REASON_TEXT: Record<string, string> = {
+  GRANT_SUSPENDED: "GRANT_SUSPENDED · this grant (or one above it) is suspended",
+};
+export const reasonText = (r: string) => REASON_TEXT[r] ?? r;
 
 async function once(key: string, path: string, init?: { method?: "GET" | "POST"; body?: unknown }) {
   try {
@@ -134,8 +171,14 @@ export async function api<T>(
   if (res.status >= 500 && (init?.method ?? "GET") === "GET") res = await once(key, path, init);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    // Errors arrive as {code, message} (kernel) or {detail: {code, message}} / {detail: "text"} (API layer).
+    const d = data?.detail && typeof data.detail === "object" ? data.detail : undefined;
     const detail = typeof data?.detail === "string" ? data.detail : undefined;
-    throw new ApiError(res.status, data?.code ?? "HTTP_" + res.status, data?.message ?? detail ?? res.statusText);
+    const code = data?.code ?? d?.code ?? "HTTP_" + res.status;
+    const ra = Number.parseInt(res.headers.get("Retry-After") ?? "", 10);
+    if (res.status === 401 && AUTH_LOST.has(code)) onAuthLost?.(code);
+    throw new ApiError(res.status, code, data?.message ?? d?.message ?? detail ?? res.statusText,
+      Number.isFinite(ra) ? ra : undefined);
   }
   return data as T;
 }
@@ -176,7 +219,33 @@ export function microUsd(micro: number): string {
   return `${neg ? "-" : ""}$${s.slice(0, -6)}.${s.slice(-6)}`;
 }
 
+// ADR-0009 A4 (frozen). last_anchor is null until a confirmed on-chain anchor exists.
+export type Integrity = {
+  mandate_id: string;
+  chain_key: string;
+  ok: boolean;
+  length: number;
+  head_seq: number;
+  head_hash: string;
+  broken_at: number | null;
+  reason: string | null;
+  verified_at: string;
+  last_anchor: {
+    anchor_id: number;
+    seq: number;
+    head_hash: string;
+    tx_hash: string | null;
+    status: string;
+    explorer_url: string | null;
+    matches: boolean;
+  } | null;
+};
+export const getIntegrity = (key: string, mandateId: string) =>
+  api<Integrity>(key, `/mandates/${encodeURIComponent(mandateId)}/integrity`);
+
 export type Me = { principal_id: string; name: string; kind: string };
+export type RotatedKey = { api_key: string; key_expires_at: string | null };
+export const rotateKey = (key: string) => api<RotatedKey>(key, "/me/rotate-key", { method: "POST", body: {} });
 export type MandateSummary = {
   id: string;
   currency: string;

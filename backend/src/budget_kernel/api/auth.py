@@ -32,9 +32,14 @@ def current_principal(request: Request, authorization: str = Header(default=""))
     if scheme.lower() != "bearer" or not raw:
         raise HTTPException(401, {"code": "UNAUTHENTICATED", "message": "missing bearer API key"})
     with request.app.state.pool.connection() as c:
-        row = c.execute("SELECT id, name, kind FROM principals WHERE api_key_hash = %s", (hash_key(raw),)).fetchone()
+        row = c.execute("SELECT id, name, kind, disabled_at, (key_expires_at <= clock_timestamp()) AS expired"
+                        " FROM principals WHERE api_key_hash = %s", (hash_key(raw),)).fetchone()
     if row is None:
         raise HTTPException(401, {"code": "UNAUTHENTICATED", "message": "unknown API key"})
+    if row["expired"]:        # ADR-0009 C2: a distinct code lets a client send the user to rotate/re-issue
+        raise HTTPException(401, {"code": "KEY_EXPIRED", "message": "API key has expired"})
+    if row["disabled_at"] is not None:
+        raise HTTPException(401, {"code": "PRINCIPAL_DISABLED", "message": "this principal has been disabled"})
     return Principal(row["id"], row["name"], row["kind"])
 
 

@@ -26,6 +26,7 @@ class Scope(Strict):
 class CreatePrincipal(Strict):
     name: str = Field(min_length=1, max_length=100)
     kind: Literal["human", "agent", "service"]
+    expires_in_days: StrictInt | None = Field(default=None, ge=1, le=365)    # BK-412: absent = the key never expires
 
 
 class BindSettler(Strict):
