@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "chain_id": 84532,
+    "from_address": "0x228F0C5Dcdd12b2A9E21d289969FF286ff71a97D",
+    "nonce": 2,
+    "digest": "3b1cc8888b7940d336f8fb4b9f3fcbf32eb3306fb289244ca30a7f04c386d8f5",
+    "tx_hash": "0xcb1ba8f8c64413779274509bb7333e9693123cdc8d5e9229ba927b74f5578e2e",
+    "status": "confirmed",
+    "block_number": 48219690,
+    "updated_at": "2026-10-17 03:28:15.686495+00:00",
+    "explorer_url": "https://sepolia-explorer.base.org/tx/0xcb1ba8f8c64413779274509bb7333e9693123cdc8d5e9229ba927b74f5578e2e"
+  }
+]

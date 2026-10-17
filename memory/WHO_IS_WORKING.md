@@ -31,12 +31,12 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Notes / blockers:** BK-305, 411, 412, 413 done and pushed, PRs open. Next: deck + tech doc drafts (docs/submission/), live click-through re-run after merge. app.py is shared with Afnan: small changes, rebase often.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
-- **Status:** ACTIVE
+- **Status:** REVIEW
 - **Task ID:** BK-401 real anchor + BK-140 video script
 - **Branch:** afnan/BK-401-real-anchor
 - **Claimed areas (paths):** backend/src/budget_kernel/settlement/, backend/migrations/007_anchors.sql, backend/tests/integration/test_anchor*.py, evidence/, scripts/evidence*.py, backend/src/budget_kernel/api/app.py (settlement/anchor/unbind endpoints and the interpret call site only), backend/src/budget_kernel/kernel/ops.py (unbind_settler only), backend/src/budget_kernel/costledger (BK-304 only), backend/src/budget_kernel/worker.py, memory/research/SETTLEMENT.md
 - **Started / last update (UTC):** 2026-10-17 03:30
-- **Notes / blockers:** Phase 3 stack merged. Real anchor BLOCKED until lead confirms prod `bk` has migration 007 (WHO_IS_WORKING still says 003/006 pending); my .env also lacks BK_SETTLEMENT_MODE/RECIPIENTS to check. Doing the video script meanwhile.
+- **Notes / blockers:** Real anchor DONE (tx 0xcb1ba8f8c64413779274509bb7333e9693123cdc8d5e9229ba927b74f5578e2e, confirmed). Branch afnan/BK-401-real-anchor ready to merge. Next: video rehearsal Oct 18.
 
 Status values: `ACTIVE`, `PAUSED` (claim kept), `IDLE` (no claim), `REVIEW` (waiting on review/merge).
 

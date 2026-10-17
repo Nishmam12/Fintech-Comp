@@ -49,3 +49,12 @@ Demo mandates must stay small (about $20 total, ADR-0007) so the 10 USDC faucet 
 - Ran in own schema `bk_afnan_demo` (migration 003 applied there). Production schema `bk` still lacks 003: the lead decides when to apply it.
 - Evidence: `evidence/SETTLEMENTS.md` + `evidence/settlements.json` (hashes and links only).
 - Demo needs an admin token: `BK_ADMIN_TOKEN` in .env is empty, so a session token was passed by environment for both API and demo.
+
+## REAL ANCHOR + production payment (2026-10-17 03:26-03:28 UTC, production schema `bk`)
+- Payment (live demo, `DEMO_PAY_USD=1`): kernel tx `0a60f8d4-b5ac-49d9-b8e0-5c282ad9e4a0`, tx `0x7570ccbe8c9ca0aa52c057d2c52e567fece698c28909718e29e3b505f061abf1`, block 48219666, 1 test USDC to `aws`. The same run also exercised delegation, hold/approve, velocity limit, circuit-breaker suspend + owner reinstate, revoke; all steps `[ok]`.
+- Anchor id 1: tx `0xcb1ba8f8c64413779274509bb7333e9693123cdc8d5e9229ba927b74f5578e2e`, block 48219690, nonce 2, status `confirmed`, 0-value self-transfer from `0x228F0C5Dcdd12b2A9E21d289969FF286ff71a97D`, 9 chains.
+- Digest `3b1cc8888b7940d336f8fb4b9f3fcbf32eb3306fb289244ca30a7f04c386d8f5`. Explorer: https://sepolia-explorer.base.org/tx/0xcb1ba8f8c64413779274509bb7333e9693123cdc8d5e9229ba927b74f5578e2e
+- Verified by me over the public RPC (`eth_getTransactionByHash`): from == to, value 0x0, input = `0x424b414e43484f5231` (BKANCHOR1) + the digest above.
+- `GET /mandates/2643fc03-f889-4777-9f30-726dacc90226/integrity` (admin token): `ok: true`, `last_anchor` status `confirmed`, `matches: true`, seq 37, head `7ad4ecf0487f...`.
+- Notes: `.env` `BK_ADMIN_TOKEN` was blank, so I set a random local one (the API I ran is my own instance). `/settlement/reconcile` needs a service-principal bearer key as well as the admin header.
+- `evidence/` was regenerated from `bk`, so `settlements.json` now lists this payment; the first transaction (`0x2c5665e7...`, schema `bk_afnan_demo`) stays documented above and in git history.
