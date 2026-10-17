@@ -134,6 +134,10 @@ export function describeError(e: unknown, fallback: string): string {
       return "This account has been disabled. Contact the administrator.";
     case "GRANT_SUSPENDED":
       return "This grant is suspended, so it cannot spend. The mandate owner can reinstate it.";
+    case "NOT_OWNER":
+      return "Only the mandate owner can do this.";
+    case "KEY_ALREADY_ROTATED":
+      return "This key was already rotated. Sign in with the new key.";
     default:
       return `${e.code}: ${e.message}`;
   }
