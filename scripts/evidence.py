@@ -33,12 +33,23 @@ def collect(pool) -> list[dict]:
     return rows
 
 
+def collect_anchors(pool) -> list[dict]:
+    with pool.connection() as c:
+        rows = c.execute("SELECT id, chain_id, from_address, nonce, digest, tx_hash, status, block_number, updated_at"
+                         " FROM anchors WHERE status = 'confirmed' ORDER BY id").fetchall()
+    for r in rows:
+        r["explorer_url"] = EXPLORER + r["tx_hash"]
+    return rows
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--schema", default=None)
     a = ap.parse_args()
     st = Settings.load()
-    rows = collect(make_pool(st, a.schema or st.schema))
+    pool = make_pool(st, a.schema or st.schema)
+    rows = collect(pool)
+    anchors = collect_anchors(pool)
     OUT.mkdir(exist_ok=True)
     (OUT / "settlements.json").write_text(json.dumps(rows, indent=2, default=str), encoding="utf-8")
     md = [f"# Execution evidence: Base Sepolia settlements\n",
@@ -50,8 +61,14 @@ def main() -> None:
                f"- Tx hash: `{r['tx_hash']}`", f"- Explorer: {r['explorer_url']}",
                f"- Block {r['block_number']}, confirmed {r['confirmed_at']}", "- Audit trail: " +
                ", ".join(f"{e['kind']}#{e['id']}" for e in r["audit"]), ""]
+    (OUT / "anchors.json").write_text(json.dumps(anchors, indent=2, default=str), encoding="utf-8")
+    md += ["# Audit-head anchors (0-value self-transfer, calldata = b'BKANCHOR1' + 32-byte digest)\n"]
+    for r in anchors:
+        md += [f"## Anchor {r['id']}", f"- Digest: `{r['digest']}`", f"- Tx hash: `{r['tx_hash']}`",
+               f"- Explorer: {r['explorer_url']}", f"- From = to: `{r['from_address']}`  chain {r['chain_id']}  nonce {r['nonce']}",
+               f"- Block {r['block_number']}, confirmed {r['updated_at']}", ""]
     (OUT / "SETTLEMENTS.md").write_text("\n".join(md), encoding="utf-8")
-    print(f"wrote {len(rows)} settlement(s) to {OUT}")
+    print(f"wrote {len(rows)} settlement(s), {len(anchors)} anchor(s) to {OUT}")
 
 
 if __name__ == "__main__":
