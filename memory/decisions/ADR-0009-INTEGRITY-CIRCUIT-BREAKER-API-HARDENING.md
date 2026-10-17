@@ -413,3 +413,16 @@ The migration must be idempotent with respect to the runner, as with the earlier
 - **Suspending on any refusal including path refusals.** Rejected: an owner revoking a parent would cascade into strikes against innocent children.
 - **Counting strikes on non-holder refusals.** Rejected: an outsider could suspend anyone's grant (denial of service).
 - **Rate limiting in the kernel.** Rejected: it is transport policy, not money authority. Kernel strikes are the money-side control.
+
+## Review amendments (Opus, 2026-10-17)
+**K1. Reinstate is owner-only, and self-delegation is refused.** The review found a bypass:
+- An agent holding a delegable grant could delegate a child to itself, probe on the child until it was suspended, then reinstate the child as "holder of a strict ancestor" (B5), and repeat.
+- Two colluding agents on one delegation chain could do the same for each other.
+
+Changes:
+- `kernel.reinstate` is allowed for the **mandate owner only** (403 `NOT_OWNER` otherwise). `kernel.suspend` keeps the owner-or-ancestor rule, because it can only make things stricter.
+- `kernel.delegate` refuses `holder_principal_id == actor` with `DelegationRejected` code `SELF_DELEGATION`. A self-child adds no authority, and it was the only way an agent could multiply probe targets.
+- The dashboard shows Reinstate to the owner only.
+
+**K2. Delegation refusals are not strikes** (stated limit, not a change). Probing through `POST /grants` only describes the holder's own grant, and it is rate-limited (C1).
+
