@@ -8,8 +8,11 @@ percentage -- is flagged AMOUNT_UNGROUNDED and must go to review.
 from __future__ import annotations
 
 import itertools
+import json
+import os
 import re
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
+from pathlib import Path
 
 from .schema import Proposal
 
@@ -21,18 +24,91 @@ _INJECTION = re.compile(
     r"bypass", re.I)
 MAX_TEXT = 2_000
 
+# --- number words (ADR-0009 D2). "forty dollars" is an amount only WITH a currency word after it, so a stray "one"
+# or "a" can never ground an amount. Cardinals up to 999,999; anything malformed is ignored (fail closed).
+_UNITS = {w: i for i, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+    "seventeen eighteen nineteen".split())}
+_TENS = {w: 10 * (i + 2) for i, w in enumerate("twenty thirty forty fifty sixty seventy eighty ninety".split())}
+_SCALES = {"hundred": 100, "thousand": 1000}
+_NUMWORD = "|".join(sorted([*_UNITS, *_TENS, *_SCALES], key=len, reverse=True))
+_WORD_AMOUNT = re.compile(
+    rf"(?<![A-Za-z0-9])((?:a|{_NUMWORD})(?:[\s-]+(?:and|a|{_NUMWORD}))*)\s+(dollars?|usd|bucks?|cents?)(?![A-Za-z])", re.I)
+
+
+def _words_to_int(phrase: str) -> int | None:
+    """Value of an English cardinal phrase, or None if it is not a well-formed one (0 < value <= 999,999)."""
+    toks = [t for t in re.split(r"[\s-]+", phrase.lower()) if t]
+    total, cur, prev, saw_number = 0, 0, None, False
+    for i, t in enumerate(toks):
+        if t == "a":
+            if i != 0 or len(toks) < 2 or toks[1] not in _SCALES:
+                return None
+            cur, prev, saw_number = 1, "a", True
+        elif t == "and":
+            if prev not in ("hundred", "thousand") or i == len(toks) - 1:
+                return None
+            prev = "and"
+        elif t in _UNITS:
+            if prev in ("unit", "a") or (prev == "tens" and not 1 <= _UNITS[t] <= 9) or (prev is None and len(toks) > 1 and _UNITS[t] == 0):
+                return None
+            cur, prev, saw_number = cur + _UNITS[t], ("unit" if prev != "tens" else "unit"), True
+        elif t in _TENS:
+            if prev not in (None, "hundred", "thousand", "and"):
+                return None
+            cur, prev, saw_number = cur + _TENS[t], "tens", True
+        elif t == "hundred":
+            if prev not in ("unit", "a") or cur >= 100 or (prev == "unit" and cur > 19):
+                return None
+            cur, prev = cur * 100, "hundred"
+        elif t == "thousand":
+            if prev not in ("unit", "tens", "hundred", "a") or total != 0 or cur == 0 or cur >= 1000:
+                return None
+            total, cur, prev = cur * 1000, 0, "thousand"
+        else:
+            return None
+    value = total + cur
+    return value if saw_number and 0 < value <= 999_999 else None
+
+# --- recipient aliases (ADR-0009 D2): operator-controlled, loaded from a file, never from the model.
+DEFAULT_ALIASES_PATH = Path(__file__).resolve().parents[3] / "config" / "recipient_aliases.json"
+_ALIAS_CACHE: tuple[tuple[str, int], dict[str, list[str]]] | None = None
+
+
+def _aliases() -> dict[str, list[str]]:
+    """{canonical name (lowercase): [alias phrase, ...]}. Re-read when the file changes. A missing or malformed file
+    means NO aliases (stricter), never an error."""
+    global _ALIAS_CACHE
+    path = Path(os.environ.get("BK_RECIPIENT_ALIASES") or DEFAULT_ALIASES_PATH)
+    try:
+        key = (str(path), path.stat().st_mtime_ns)
+        if _ALIAS_CACHE and _ALIAS_CACHE[0] == key:
+            return _ALIAS_CACHE[1]
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        ok = isinstance(raw, dict) and all(
+            isinstance(k, str) and isinstance(v, list) and all(isinstance(a, str) and a.strip() for a in v) for k, v in raw.items())
+        data = {k.strip().lower(): [" ".join(a.lower().split()) for a in v] for k, v in raw.items()} if ok else {}
+    except (OSError, ValueError):
+        return {}
+    _ALIAS_CACHE = (key, data)
+    return data
+
 
 def amounts_in(text: str) -> list[int]:
     """Every numeric amount mentioned, in minor units (x100), excluding numbers that are percentages."""
     pct_spans = [m.span(1) for m in _PERCENT.finditer(text)]
-    out = []
+    found: list[tuple[int, int]] = []
     for m in _AMOUNT.finditer(text):
         if any(s <= m.start(1) < e for s, e in pct_spans):
             continue
         whole = int(m.group(1).replace(",", ""))
         frac = (m.group(2) or "0").ljust(2, "0")
-        out.append(whole * 100 + int(frac))
-    return out
+        found.append((m.start(1), whole * 100 + int(frac)))
+    for m in _WORD_AMOUNT.finditer(text):          # "forty dollars", "fifty cents" (never without the currency word)
+        value = _words_to_int(m.group(1))
+        if value is not None:
+            found.append((m.start(1), value if m.group(2).lower().startswith("cent") else value * 100))
+    return [v for _, v in sorted(found)]
 
 
 def percents_in(text: str) -> list[Decimal]:
@@ -59,8 +135,12 @@ def name_in_text(name: str | None, text: str) -> bool:
     decide where money goes and what it is for, so they must come from the text, never from the model's guess."""
     if not name or not name.strip():
         return False
-    pattern = r"(?<![A-Za-z0-9])" + re.escape(name.strip()) + r"(?![A-Za-z0-9])"
-    return re.search(pattern, text, re.IGNORECASE) is not None
+    phrases = [" ".join(name.split())] + _aliases().get(name.strip().lower(), [])
+    for phrase in phrases:
+        pattern = r"(?<![A-Za-z0-9])" + r"\s+".join(re.escape(w) for w in phrase.split()) + r"(?![A-Za-z0-9])"
+        if re.search(pattern, text, re.IGNORECASE):
+            return True
+    return False
 
 
 def injection_suspected(text: str) -> bool:
