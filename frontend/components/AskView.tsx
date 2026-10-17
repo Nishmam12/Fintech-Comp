@@ -138,7 +138,7 @@ export default function AskView() {
           No active grant in this mandate, so there is nothing to ask against.
         </p>
       )}
-      <form onSubmit={submit} className="flex flex-col gap-3">
+      <form onSubmit={submit} className="flex max-w-2xl flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm">
           Grant
           <select value={chosen} onChange={(e) => setGrantId(e.target.value)} className="field">
