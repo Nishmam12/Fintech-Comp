@@ -40,10 +40,10 @@ Also checked: no horizontal scroll at 390 px on the mandate and settings screens
 |---|---|---|
 | 01-04 | Owner signs in (integrity badge green), agent asks 70.00 USD (held), owner approves | As before. Badge: "History intact" with a record count and head. |
 | 05, 05a | Five refused requests (`PER_TX_LIMIT_EXCEEDED`), fifth says "this refusal suspended the grant" | Grant shows SUSPENDED by the circuit breaker. |
-| 07 (replaced) | **Agent's own view** of its suspended grant | **No Reinstate button** (0 buttons counted). Suspended banner shown. |
+| 07 (replaced, updated by the follow-up) | **Agent's own view** of its suspended grant | **No Reinstate button** (0 counted). After the follow-up it also shows "Suspended. Only the mandate owner can reinstate this grant." |
 | 18 (new) | **Ancestor holder (manager)** looks at the suspended grant | **No Reinstate button.** Text: "Suspended. Only the mandate owner can reinstate this grant." |
 | 08, 09 (replaced) | **Owner** reinstates, with confirmation | Works: grant active again, strike count reset. |
-| 19 (new) | Manager clicks Approve on a held request | Red message "Only the mandate owner can do this." (server 403 `NOT_OWNER`, now friendly text) |
+| 19 (new, updated by the follow-up) | Manager opens Review with a held request in its subtree | No Approve or Deny buttons; text "Waiting for the mandate owner. Only the owner can approve or deny." Before the follow-up the buttons showed and a click returned 403 `NOT_OWNER`, displayed as "Only the mandate owner can do this." |
 | 20 (new) | Two tabs on one key click "Confirm rotate" at the same moment | The loser shows "This key was already rotated. Sign in with the new key." (server 409 `KEY_ALREADY_ROTATED`). A real race, reproduced on the first attempt, not an intercepted response. |
 | 13 | Integrity after everything | Still intact (21 records), "Not anchored on-chain yet" |
 | 14, 15, 16, 17 | 429, key rotation, expired key, disabled principal | Unchanged and working: "Wait 1 s", new key shown once and old key then 401, expired message shown once, dropped to sign-in with "disabled" |
@@ -55,3 +55,9 @@ No horizontal scroll at 390 px on the owner, agent and manager mandate views or 
 2. **Review tab shows Approve/Deny to a non-owner.** The manager sees held requests in its subtree with working-looking buttons; the server refuses with `NOT_OWNER` (screenshot 19). Safe, but the buttons could be hidden for non-owners. Not changed.
 3. **Not covered: the on-chain anchor link.** The real anchor (tx `0xcb1ba8f8...78e2e`) lives in the production `bk` schema, and my local schema has no anchor, so the badge shows "Not anchored on-chain yet". Re-check against the shared API once the lead gives its URL.
 4. **Gotcha for the next person.** The rules path only accepts recipients and categories that the grant's own scope lists, so "pay 10 USD to github for cloud" on a grant that lists only `aws` goes to the model, not the kernel. A model failure (`PROVIDER_FAILED`) records nothing, so no strike. Use a limit breach ("pay 150 USD to aws for cloud" against a 100.00 limit) to trip the breaker through the Ask screen.
+
+**Follow-up (branch `daniel/BK-413-ui-followups`, stacked on this one).** Findings 1 and 2 above are fixed, and a third found while checking them:
+1. `SuspendControl`: any non-owner viewer of a suspended grant (the holder itself, not only an ancestor) now sees the "only the mandate owner can reinstate" text. Verified live: agent sees 1 explanation and 0 Reinstate buttons.
+2. `ReviewView`: Approve and Deny are shown to the mandate owner only; others see "Waiting for the mandate owner." Verified live: 0 Approve buttons for the manager. `NOT_OWNER` text stays in `describeError` for the case where the UI is stale.
+3. New: the agent's view showed **Revoke this grant** on every grant, including grants above its own. The server refuses (revoke needs the owner or a strict ancestor holder), so it was safe but misleading. `MandateView` now shows the kill switch only where `canManage` is true, the server's own rule; owners and ancestor holders see no change.
+After the follow-up the screenshot-19 NOT_OWNER click is no longer reachable from the UI, which is why 19 changed. `tsc`, lint and build clean; the same live run shows no horizontal scroll at 390 px and the other stages unchanged.
