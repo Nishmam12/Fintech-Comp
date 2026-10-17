@@ -37,6 +37,17 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 | BK-421 | Hash-chained audit and ledger + `GET /mandates/{id}/integrity` | DONE | **Lead.** Migration 006, verifier and endpoint merged; Opus review pending (step 7). Anchor side is BK-401 (Afnan). |
 | BK-422 | Agent circuit breaker: strikes, suspend, reinstate, `limit_probing` scenario | DONE | **Lead.** ADR-0009 part B. Built and tested (274 passed + slow state machine); Opus review (step 7) pending. Never cut. |
 | BK-423 | Grounding coverage: number words, operator alias file; config B re-run (Run 5) | READY | **Lead.** ADR-0009 D2. Cut 1st if late. |
+| BK-501 | Names in the API: `holder_name`, `owner_name`, audit `actor_name`, budget bucket `label` (API layer only) | READY | **Member 3.** Handover docs/handover/AFNAN_UI.md. Opus review. Unblocks 503/512/513/516. |
+| BK-502 | `scripts/demo_seed.py`: named demo mandate, keys to gitignored `frontend/.env.local` | READY | **Member 3.** Keys never printed. Opus review. |
+| BK-503 | Activity screen: plain-language event lines, names, one loading state | READY | **Member 3.** |
+| BK-504 | Attack lab: descriptions before run, Run all, clearer verdict | READY | **Member 3.** Cut Run all first if late. |
+| BK-511 | Demo sign-in buttons (dev only, from `NEXT_PUBLIC_DEMO_KEYS`) + name/role in rail | READY | **Member 2.** Handover docs/handover/DANIEL_UI.md. Opus review. Never cut. |
+| BK-512 | Role-aware navigation + Review count badge | READY | **Member 2.** |
+| BK-513 | Mandate screen: holder names, Manage disclosure, status colours, tx time | READY | **Member 2.** Never cut. |
+| BK-514 | Plain-language reason text for every kernel code | READY | **Member 2.** Never cut. |
+| BK-515 | Ask screen: decision first, example chips, collapsible model trail | READY | **Member 2.** |
+| BK-516 | Review, Settings, Integrity skeleton + explanation, toasts | READY | **Member 2.** Toasts cut first if late. |
+| BK-UIF | **UI freeze Oct 19 14:00 BST** (video take 15:00-18:00) | READY | **Lead.** Click-through with demo buttons before the freeze. |
 | BK-311..315 | Settlement hardening: confirmations, gas ceiling, verified settle_fail, recipient registry, explorer links | READY | **Member 3**, after BK-075 core. |
 | BK-321..326 | Dashboard: mobile-first PWA, approval inbox, kill switch, velocity meter, explorer links, Playwright smoke | READY | **Member 2**, with BK-090. |
 | BK-120 | Deck (deliverable 2, 10 min or less) | READY | **Member 2.** Lead supplies outline + measured numbers. |
