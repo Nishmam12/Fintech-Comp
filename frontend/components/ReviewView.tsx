@@ -22,6 +22,7 @@ export default function ReviewView() {
   if (!state || !session) return <p className="p-4 text-sm text-muted">Loading…</p>;
   const held = state.transactions.filter((t) => t.state === "proposed");
   const cur = state.mandate.currency;
+  const isOwner = state.mandate.owner_principal_id === session.principalId;
 
   async function decide(t: Transaction, approve: boolean) {
     setBusyId(t.id);
@@ -77,10 +78,14 @@ export default function ReviewView() {
                 ))}
               </details>
             )}
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button disabled={busyId === t.id} onClick={() => void decide(t, true)} className="btn-primary">Approve</button>
-              <button disabled={busyId === t.id} onClick={() => void decide(t, false)} className="btn-ghost min-h-12">Deny</button>
-            </div>
+            {isOwner ? (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button disabled={busyId === t.id} onClick={() => void decide(t, true)} className="btn-primary">Approve</button>
+                <button disabled={busyId === t.id} onClick={() => void decide(t, false)} className="btn-ghost min-h-12">Deny</button>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-muted">Waiting for the mandate owner. Only the owner can approve or deny.</p>
+            )}
           </li>
         ))}
       </ul>
