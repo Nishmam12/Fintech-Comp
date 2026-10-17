@@ -16,10 +16,11 @@ export default function SuspendControl({ g, canManage, isOwner }: { g: Grant; ca
   const [err, setErr] = useState<string | null>(null);
   const suspended = g.status === "suspended";
 
-  if (!canManage || (g.status !== "active" && !suspended)) return null;
+  // Anyone who is not the owner (the holder itself or an ancestor holder) is told who can reinstate; only the owner gets the button.
   if (suspended && !isOwner) {
     return <p role="status" className="mt-3 text-sm text-muted">Suspended. Only the mandate owner can reinstate this grant.</p>;
   }
+  if (!canManage || (g.status !== "active" && !suspended)) return null;
 
   async function run() {
     if (!session) return;

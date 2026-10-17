@@ -84,4 +84,4 @@ Rules only: 51/131 (38.9%), 0 unauthorized (Run 1). Cost of a whole 131-case run
 1. `SECURITY_SELF_ASSESSMENT.md` sections 1 and 8 still read as if live-model accuracy was not measured and as if the summary evidence were rules-only (Runs 4 and 5 now exist), and section 1 still lists "no velocity limit" as a known limit although R1 is mitigated (opt-in). I did not copy those lines. Update at the freeze.
 2. Run 3 latency is from before the hash-chain trigger and the breaker. Re-measure before quoting 1.1 s as final.
 3. Config C: if it will not exist by Oct 19, slide 6 keeps the "not run" line.
-4. Two small UI findings (agent sees no "only the owner can reinstate" text; Review tab shows Approve/Deny to non-owners) are in `CLICKTHROUGH_BK413.md`. Say if you want either fixed before the freeze.
+4. The two small UI findings, and a third (the agent saw Revoke buttons it could not use), are fixed in the stacked follow-up PR; slide 7 can now say the agent is told who can reinstate. Screenshots `07` and `19` changed accordingly.
