@@ -37,11 +37,19 @@ export default function SignIn() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-4 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Budget Kernel</h1>
-        <p className="mt-1 text-sm text-muted">Models propose. The kernel decides.</p>
+    <div className="grid min-h-dvh lg:grid-cols-2">
+    <aside className="flex flex-col justify-between bg-ink px-6 py-8 text-ink-text lg:px-14 lg:py-16">
+      <p className="fig text-2xl text-white">Budget Kernel</p>
+      <div className="py-10 lg:py-0">
+        <p className="fig max-w-md text-4xl text-white lg:text-6xl">Models propose. The kernel decides.</p>
+        <p className="mt-4 max-w-md text-base lg:text-lg">
+          Give an AI agent a budget it cannot overspend. Every payment is checked against the owner&apos;s limits before any money moves.
+        </p>
       </div>
+      <p className="hidden text-sm lg:block">Testnet settlement on Base Sepolia.</p>
+    </aside>
+    <main className="flex w-full max-w-md flex-col justify-center gap-6 px-6 py-10 lg:mx-auto">
+      <h1 className="fig text-3xl">Sign in</h1>
       {notice && (
         <p role="alert" className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{notice}</p>
       )}
@@ -71,7 +79,7 @@ export default function SignIn() {
       ) : (
         <form onSubmit={submit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm">
-            API key
+            Paste your API key
             <input
               type="password"
               autoComplete="off"
@@ -93,5 +101,6 @@ export default function SignIn() {
       )}
       <p className="text-xs text-muted">The key is kept in this tab&apos;s memory only and disappears on reload.</p>
     </main>
+    </div>
   );
 }

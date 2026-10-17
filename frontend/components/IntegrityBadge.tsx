@@ -33,7 +33,7 @@ export default function IntegrityBadge() {
     return (
       <div role="status" className="rounded-lg border border-line bg-card px-4 py-3">
         <p className="text-base font-semibold">History check unavailable</p>
-        <p className="text-xs text-muted">{err}</p>
+        <p className="text-sm text-muted">{err}</p>
       </div>
     );
   }
@@ -49,17 +49,17 @@ export default function IntegrityBadge() {
       {data.ok ? (
         <>
           <p className="text-base font-semibold">History intact · {data.length} records</p>
-          <p className="text-xs opacity-80">
+          <p className="text-sm opacity-80">
             Hash chain head <span className="font-mono">{data.head_hash.slice(0, 12)}</span> (record {data.head_seq}). Recomputed by the server.
           </p>
         </>
       ) : (
         <>
           <p className="text-base font-semibold">History BROKEN{data.broken_at !== null ? ` at record ${data.broken_at}` : ""}</p>
-          <p className="text-xs">Reason: <span className="font-mono">{data.reason ?? "unknown"}</span></p>
+          <p className="text-sm">Reason: <span className="font-mono">{data.reason ?? "unknown"}</span></p>
         </>
       )}
-      <p className="mt-1 text-xs opacity-80">
+      <p className="mt-1 text-sm opacity-80">
         {a ? (
           <>
             Last on-chain anchor: record {a.seq}, {a.status}

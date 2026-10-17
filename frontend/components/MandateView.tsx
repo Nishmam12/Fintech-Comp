@@ -63,28 +63,63 @@ function frozenByAncestor(g: Grant, all: Grant[]): boolean {
   return false;
 }
 
+function BudgetBar({ grants, total, reserve, cur }: { grants: Grant[]; total: number; reserve: number; cur: string }) {
+  const sum = (f: (g: Grant) => number) => grants.reduce((a, g) => a + f(g), 0);
+  const parts = [
+    { key: "settled", label: "Spent", value: sum((g) => g.settled), color: "bg-ink" },
+    { key: "reserved", label: "Reserved for pending payments", value: sum((g) => g.reserved), color: "bg-warn" },
+    { key: "available", label: "Free to spend", value: sum((g) => g.available), color: "bg-accent" },
+    { key: "reserve", label: "Protected reserve", value: reserve, color: "bg-ok" },
+  ];
+  const whole = parts.reduce((a, p) => a + p.value, 0) || 1;
+  return (
+    <div className="panel p-5 lg:p-6">
+      <p className="text-sm text-muted">Mandate total</p>
+      <p className="fig text-4xl lg:text-5xl">{money(total, cur)}</p>
+      <div
+        role="img"
+        aria-label={parts.map((p) => `${p.label} ${money(p.value, cur)}`).join(", ")}
+        className="mt-5 flex h-4 w-full gap-0.5 overflow-hidden rounded-full bg-line"
+      >
+        {parts.map((p) => p.value > 0 && <span key={p.key} className={p.color} style={{ width: `${(p.value / whole) * 100}%` }} />)}
+      </div>
+      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+        {parts.map((p) => (
+          <li key={p.key} className="flex items-start gap-2">
+            <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${p.color}`} aria-hidden />
+            <span>
+              <span className="block text-sm text-muted">{p.label}</span>
+              <span className="fig text-lg">{money(p.value, cur)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function GrantNode({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: string; me: string; owner: string }) {
   const kids = childrenOf(all, g.id);
-  const tone = g.status === "active" ? "text-ok" : g.status === "suspended" ? "text-accent" : "text-bad";
+  const tone = g.status === "active" ? "bg-ok/12 text-ok" : g.status === "suspended" ? "bg-warn/15 text-warn" : "bg-bad/12 text-bad";
   const frozen = g.status === "active" && frozenByAncestor(g, all);
   return (
     <li>
-      <div className="rounded-lg border border-line bg-card p-3">
+      <div className="panel p-4">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-mono text-xs text-muted">{g.id.slice(0, 8)}</span>
-          <span className={`text-xs font-medium uppercase ${tone}`}>{g.status}</span>
+          <span className="font-mono text-xs text-muted">Grant {g.id.slice(0, 8)}</span>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${tone}`}>{g.status}</span>
         </div>
-        <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
-          <div><dt className="text-xs text-muted">Available</dt><dd>{money(g.available, cur)}</dd></div>
-          <div><dt className="text-xs text-muted">Reserved</dt><dd>{money(g.reserved, cur)}</dd></div>
-          <div><dt className="text-xs text-muted">Settled</dt><dd>{money(g.settled, cur)}</dd></div>
+        <dl className="mt-3 grid grid-cols-3 gap-2">
+          <div><dt className="text-sm text-muted">Available</dt><dd className="fig whitespace-nowrap text-base sm:text-lg">{money(g.available, cur)}</dd></div>
+          <div><dt className="text-sm text-muted">Reserved</dt><dd className="fig whitespace-nowrap text-base sm:text-lg">{money(g.reserved, cur)}</dd></div>
+          <div><dt className="text-sm text-muted">Settled</dt><dd className="fig whitespace-nowrap text-base sm:text-lg">{money(g.settled, cur)}</dd></div>
         </dl>
         <p className="mt-2 text-xs text-muted">
           Expires {new Date(g.expires_at).toLocaleString()} · per-tx limit {money(g.scope.per_tx_limit, cur)}
         </p>
         <Velocity g={g} cur={cur} />
         {g.status === "suspended" && (
-          <p role="status" className="mt-2 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm">
+          <p role="status" className="mt-2 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm">
             Suspended{g.suspend_reason === "STRIKES" ? " by the circuit breaker (too many refused requests)" : g.suspend_reason === "MANUAL" ? " by hand" : ""}
             {g.suspended_at ? ` · ${new Date(g.suspended_at).toLocaleString()}` : ""}. It cannot spend until reinstated.
           </p>
@@ -101,7 +136,7 @@ function GrantNode({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: st
         {g.parent_id !== null && canManage(g, all, me, owner) && <RevokeControl g={g} currency={cur} />}
       </div>
       {kids.length > 0 && (
-        <ul className="ml-3 mt-2 flex flex-col gap-2 border-l border-line pl-3">
+        <ul className="ml-4 mt-2 flex flex-col gap-2 border-l-2 border-line pl-4">
           {kids.map((k) => <GrantNode key={k.id} g={k} all={all} cur={cur} me={me} owner={owner} />)}
         </ul>
       )}
@@ -122,49 +157,53 @@ export default function MandateView() {
 
   return (
     <section className="flex flex-col gap-4">
-      <div
-        role="status"
-        className={`rounded-lg border px-4 py-3 ${inv.ok ? "border-ok/40 bg-ok/10 text-ok" : "border-bad/40 bg-bad/10 text-bad"}`}
-      >
-        <p className="text-base font-semibold">
-          {inv.ok ? "Ledger invariants hold" : `Invariant VIOLATION (${inv.violations.length})`}
-        </p>
-        <p className="text-xs opacity-80">Checked by the server on this refresh.</p>
-        {!inv.ok && <pre className="mt-2 whitespace-pre-wrap text-xs">{JSON.stringify(inv.violations, null, 2)}</pre>}
-      </div>
-      <IntegrityBadge />
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-xs text-muted">Mandate total · protected reserve</p>
-          <p className="text-lg font-semibold">
-            {money(state.mandate.total, cur)}{" "}
-            <span className="text-sm font-normal text-muted">· {money(state.mandate.protected_reserve, cur)}</span>
-          </p>
-        </div>
-        <button onClick={refresh} className="btn-ghost">Refresh</button>
-      </div>
+      <BudgetBar grants={state.grants} total={state.mandate.total} reserve={state.mandate.protected_reserve} cur={cur} />
       {err && <p role="alert" className="text-sm text-bad">{err}</p>}
-      <ul className="flex flex-col gap-2">
-        {roots.map((g) => <GrantNode key={g.id} g={g} all={state.grants} cur={cur} me={me} owner={owner} />)}
-      </ul>
-      <div className="rounded-lg border border-line bg-card p-3">
-        <h3 className="text-sm font-semibold">Transactions</h3>
-        {state.transactions.length === 0 && <p className="mt-2 text-sm text-muted">No transactions yet.</p>}
-        <ul className="mt-2 flex flex-col gap-2">
-          {state.transactions.slice(0, 30).map((t) => (
-            <li key={t.id} className="rounded border border-line px-2 py-1.5 text-sm">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="font-medium">{money(t.amount, t.currency || cur)}</span>
-                <span className="text-xs uppercase text-muted">{t.state}</span>
-              </div>
-              <p className="wrap-anywhere text-xs text-muted">
-                {t.recipient} · {t.category}
-                {t.reject_reason ? ` · ${reasonText(t.reject_reason)}` : ""}
-              </p>
-              <TxLink t={t} />
-            </li>
-          ))}
-        </ul>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="fig text-xl">Grants</h2>
+            <button onClick={refresh} className="btn-ghost">Refresh</button>
+          </div>
+          <ul className="flex flex-col gap-2">
+            {roots.map((g) => <GrantNode key={g.id} g={g} all={state.grants} cur={cur} me={me} owner={owner} />)}
+          </ul>
+        </div>
+        <div className="flex flex-col gap-4">
+          <div
+            role="status"
+            className={`rounded-lg border px-4 py-3 ${inv.ok ? "border-ok/40 bg-ok/10 text-ok" : "border-bad/40 bg-bad/10 text-bad"}`}
+          >
+            <p className="text-base font-semibold">
+              {inv.ok ? "Ledger invariants hold" : `Invariant VIOLATION (${inv.violations.length})`}
+            </p>
+            <p className="text-sm opacity-80">Checked by the server on this refresh.</p>
+            {!inv.ok && <pre className="mt-2 whitespace-pre-wrap text-xs">{JSON.stringify(inv.violations, null, 2)}</pre>}
+          </div>
+          <IntegrityBadge />
+          <div className="panel p-4">
+            <h2 className="fig text-xl">Transactions</h2>
+            {state.transactions.length === 0 && <p className="mt-2 text-sm text-muted">No transactions yet. Ask for a payment to see the kernel decide.</p>}
+            <ul className="mt-3 flex flex-col divide-y divide-line">
+              {state.transactions.slice(0, 30).map((t) => {
+                const tt = t.state === "rejected" ? "text-bad" : t.state === "held" ? "text-warn" : "text-ok";
+                return (
+                  <li key={t.id} className="py-2.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="fig text-lg">{money(t.amount, t.currency || cur)}</span>
+                      <span className={`text-sm font-semibold capitalize ${tt}`}>{t.state}</span>
+                    </div>
+                    <p className="wrap-anywhere text-sm text-muted">
+                      {t.recipient} · {t.category}
+                      {t.reject_reason ? ` · ${reasonText(t.reject_reason)}` : ""}
+                    </p>
+                    <TxLink t={t} />
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
       </div>
     </section>
   );
