@@ -113,4 +113,3 @@ Review history: an independent Opus review of the kernel (9 findings, all fixed)
 - Serialization per mandate limits throughput to roughly one operation per second per mandate on the hosted database; different mandates run in parallel.
 - The rate limiter is per process.
 - The evaluation is synthetic, one run per setting, and the escalation model has not been evaluated; a held-out set written by someone else would be a stronger test.
-- Two small dashboard gaps (an agent is not told who can reinstate its grant; the Review tab shows buttons to non-owners, which the server refuses) are recorded in `CLICKTHROUGH_BK413.md`.
