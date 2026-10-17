@@ -1,0 +1,9 @@
+{
+  "aws": ["amazon web services", "amazon aws"],
+  "google": ["google cloud", "google cloud platform", "gcp"],
+  "azure": ["microsoft azure"],
+  "github": ["git hub"],
+  "digitalocean": ["digital ocean"],
+  "openai": ["open ai"],
+  "cloudflare": ["cloud flare"]
+}
