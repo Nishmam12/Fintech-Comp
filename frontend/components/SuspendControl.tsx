@@ -1,13 +1,14 @@
 "use client";
 // BK-413 circuit breaker controls (ADR-0009 B). Suspend freezes a grant and everything below it; reinstate lifts it.
-// Shown to the mandate owner and to holders of a grant above this one; the server enforces the same rule.
+// Suspend: the mandate owner and holders of a grant above this one. Reinstate: the MANDATE OWNER ONLY (ADR-0009 K1);
+// an ancestor holder who sees a suspended grant gets an explanation instead of a button. The server enforces both rules.
 // The kill switch (RevokeControl) is separate and unchanged.
 import { useState } from "react";
 import { api, describeError, type Grant } from "@/lib/api";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
-export default function SuspendControl({ g, canManage }: { g: Grant; canManage: boolean }) {
+export default function SuspendControl({ g, canManage, isOwner }: { g: Grant; canManage: boolean; isOwner: boolean }) {
   const { session } = useSession();
   const { refresh } = useMandate();
   const [confirming, setConfirming] = useState(false);
@@ -16,6 +17,9 @@ export default function SuspendControl({ g, canManage }: { g: Grant; canManage: 
   const suspended = g.status === "suspended";
 
   if (!canManage || (g.status !== "active" && !suspended)) return null;
+  if (suspended && !isOwner) {
+    return <p role="status" className="mt-3 text-sm text-muted">Suspended. Only the mandate owner can reinstate this grant.</p>;
+  }
 
   async function run() {
     if (!session) return;

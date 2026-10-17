@@ -97,7 +97,7 @@ function GrantNode({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: st
         {g.status === "active" && !!g.strikes_in_window && (
           <p className="mt-2 text-xs text-muted">Strikes in the current window: {g.strikes_in_window}</p>
         )}
-        {g.parent_id !== null && <SuspendControl g={g} canManage={canManage(g, all, me, owner)} />}
+        {g.parent_id !== null && <SuspendControl g={g} canManage={canManage(g, all, me, owner)} isOwner={me === owner} />}
         {g.parent_id !== null && <RevokeControl g={g} currency={cur} />}
       </div>
       {kids.length > 0 && (
