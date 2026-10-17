@@ -23,12 +23,12 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Notes / blockers:** Production `bk` still needs migrations 003 and 006 (lead runs `uv run python -m budget_kernel.db.migrate`).
 
 ### Member 2 (RTX 2070 Super) — daniel
-- **Status:** ACTIVE
-- **Task ID:** BK-413-final-check (re-verify merged dashboard at 390 px, NOT_OWNER + KEY_ALREADY_ROTATED messages), then BK-120 deck + BK-160 technical document
+- **Status:** REVIEW
+- **Task ID:** BK-413-final-check (PR #11), deck and technical document drafts (BK-120, BK-160)
 - **Branch:** daniel/BK-413-final-check
 - **Claimed areas (paths):** frontend/, docs/submission/
 - **Started / last update (UTC):** 2026-10-17
-- **Notes / blockers:** Using my own local API on my own schema until the lead gives a shared URL.
+- **Notes / blockers:** PR #11 ready for review. Waiting for the shared API URL to re-check the anchor link on the badge. Next: lead feedback on the drafts, then screenshots into the deck.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
 - **Status:** REVIEW
