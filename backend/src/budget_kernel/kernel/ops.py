@@ -424,6 +424,20 @@ def bind_settler(pool, *, mandate_id, actor, principal_id) -> dict:
         return {"mandate_id": mandate_id, "principal_id": principal_id, "already": n == 0}
 
 
+def unbind_settler(pool, *, mandate_id, actor, principal_id) -> dict:
+    """Owner-only, idempotent (BK-402). Only removes the right to run settlement steps from now on: money and
+    transactions are untouched, so an in-flight `submitted` transfer stays recoverable (the owner may confirm it,
+    or re-binding lets the service finish it)."""
+    with kernel_tx(pool, mandate_id) as ctx:
+        if ctx.mandate["owner_principal_id"] != actor:
+            raise Forbidden("only the mandate owner can unbind a settler", code="NOT_OWNER")
+        n = ctx.conn.execute("DELETE FROM mandate_settlers WHERE mandate_id = %s AND principal_id = %s",
+                             (mandate_id, principal_id)).rowcount
+        if n:
+            audit(ctx.conn, mandate_id, "SETTLER_UNBOUND", actor, principal_id)
+        return {"mandate_id": mandate_id, "principal_id": principal_id, "already": n == 0}
+
+
 def settle_start(pool, *, transaction_id, actor, on_submit: Callable[[Ctx, dict], None] | None = None) -> dict:
     """reserved -> submitted. Idempotent on submitted/settled. Fails closed if the grant path is dead.
 

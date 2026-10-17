@@ -64,8 +64,9 @@ Results are written to `eval/results/<date>/`. See [`eval/README.md`](eval/READM
 1. **Database.** Create a Supabase project (or any Postgres 15+). Put the **session pooler** URL (port 5432) in `DATABASE_URL`. Do not use the transaction pooler (port 6543). The kernel relies on `SET LOCAL` and row locks inside one transaction.
 2. **Schema.** Run `uv run python -m budget_kernel.db.migrate`. It is forward-only and idempotent. Do not expose the schema through Supabase's REST API. The `anon` and `authenticated` roles must have no access, and the tables have row-level security enabled with no policies.
 3. **Secrets.** Set these on the server only, never in the browser or the repository: `DATABASE_URL`, `BK_ADMIN_TOKEN`, optional model keys (`DASHSCOPE_API_KEY`, `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY`) and, for settlement, `SETTLEMENT_PRIVATE_KEY` (a testnet-only wallet).
-4. **Run.** `uv run uvicorn budget_kernel.api.app:app --host 0.0.0.0 --port 8000`, behind a TLS proxy that rate-limits requests (see known risk R8). Set `BK_CORS_ORIGINS` to the dashboard's origin.
-5. **Bootstrap.** Create principals with `POST /admin/principals` and the `X-Admin-Token` header. Each API key is shown once and stored only as a SHA-256 hash.
+4. **Worker (optional).** `BK_WORKER=1` starts a housekeeping thread inside the API process every `BK_WORKER_INTERVAL` seconds (default 30): settlement and anchor reconcile (testnet mode), cost-ledger stale sweep, and the kernel sweep for due mandates. It authorizes nothing. For payment reconcile set `BK_WORKER_PRINCIPAL` to a service principal that owners have bound as settler; without it only anchors, the sweeps and ticks run.
+5. **Run.** `uv run uvicorn budget_kernel.api.app:app --host 0.0.0.0 --port 8000`, behind a TLS proxy that rate-limits requests (see known risk R8). Set `BK_CORS_ORIGINS` to the dashboard's origin.
+6. **Bootstrap.** Create principals with `POST /admin/principals` and the `X-Admin-Token` header. Each API key is shown once and stored only as a SHA-256 hash.
 
 ## Repository layout
 ```

@@ -4,6 +4,7 @@ from __future__ import annotations
 from eth_account import Account
 from eth_utils import keccak, to_checksum_address
 
+ANCHOR_GAS_LIMIT = 30_000  # 21000 base + 41 calldata bytes x 16 = 21656 worst case; fixed so signing needs no network
 GAS_LIMIT = 100_000  # ERC-20 transfer is ~65k worst case; fixed so signing needs no network
 _TRANSFER_SELECTOR = bytes.fromhex("a9059cbb")
 
@@ -32,6 +33,15 @@ class Signer:
             "type": 2, "chainId": chain_id, "nonce": nonce, "to": to_checksum_address(token), "value": 0,
             "gas": GAS_LIMIT, "maxFeePerGas": max_fee, "maxPriorityFeePerGas": priority_fee,
             "data": transfer_data(to, amount),
+        })
+        raw = bytes(signed.raw_transaction)
+        return raw, "0x" + keccak(raw).hex()
+
+    def sign_anchor(self, *, chain_id: int, nonce: int, data: bytes, max_fee: int, priority_fee: int) -> tuple[bytes, str]:
+        """0-value self-transfer carrying `data` (BK-401). Pure and offline."""
+        signed = self._acct.sign_transaction({
+            "type": 2, "chainId": chain_id, "nonce": nonce, "to": self.address, "value": 0,
+            "gas": ANCHOR_GAS_LIMIT, "maxFeePerGas": max_fee, "maxPriorityFeePerGas": priority_fee, "data": data,
         })
         raw = bytes(signed.raw_transaction)
         return raw, "0x" + keccak(raw).hex()

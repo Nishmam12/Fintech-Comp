@@ -66,11 +66,12 @@ def _parse(text: str) -> Proposal:
 
 
 def _paid_call(pool, card: RateCard, cfg: ProviderConfig, bucket: str, system: str, user: str,
-               transport: httpx.BaseTransport | None) -> tuple[ChatResult, dict]:
+               transport: httpx.BaseTransport | None, principal_id=None) -> tuple[ChatResult, dict]:
     rate = card.rate(cfg.name, cfg.model_id)                                   # RouteUnavailable
     max_tokens = MAX_TOKENS[bucket]
     est = estimate_worst_case(rate, len((system + user).encode("utf-8")), max_tokens)  # RouteUnavailable
-    call = ledger.reserve(pool, route=bucket, rate=rate, est_micro=est, purpose="interpret")  # BudgetExhausted
+    call = ledger.reserve(pool, route=bucket, rate=rate, est_micro=est, purpose="interpret",
+                         principal_id=principal_id)  # BudgetExhausted
     ledger.mark_dispatched(pool, call["id"])
     try:
         result = chat_json(cfg, system, user, max_tokens=max_tokens, transport=transport)
@@ -90,7 +91,7 @@ def _paid_call(pool, card: RateCard, cfg: ProviderConfig, bucket: str, system: s
 def interpret(pool, card: RateCard, text: str, *, recipients: list[str], categories: list[str], currency: str,
               primary: ProviderConfig | None = None, escalation: ProviderConfig | None = None,
               transport: httpx.BaseTransport | None = None, allow_models: bool = True,
-              allow_escalation: bool = True) -> dict:
+              allow_escalation: bool = True, principal_id=None) -> dict:
     """Return {status, proposal, reasons, trail}. status: ok | needs_review | unresolved | rejected_input.
 
     allow_models=False is evaluation config A (rules only); allow_escalation=False is config B."""
@@ -116,7 +117,10 @@ def interpret(pool, card: RateCard, text: str, *, recipients: list[str], categor
         entry = {"step": bucket, "provider": cfg.name, "model_id": cfg.model_id, "prompt_version": PROMPT_VERSION}
         trail.append(entry)
         try:
-            result, call = _paid_call(pool, card, cfg, bucket, system, user, transport)
+            result, call = _paid_call(pool, card, cfg, bucket, system, user, transport, principal_id)
+        except ledger.AgentBudgetExhausted:           # fail closed: the model is never called, never an approval
+            entry["outcome"] = "agent_budget_exhausted"
+            return _unresolved(trail, ["AGENT_BUDGET_EXHAUSTED"])
         except ledger.BudgetExhausted:
             entry["outcome"] = "budget_exhausted"
             return _unresolved(trail, ["BUDGET_EXHAUSTED"])

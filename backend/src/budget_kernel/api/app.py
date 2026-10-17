@@ -77,14 +77,20 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         app.state.card = card or RateCard.load()
         app.state.llm_transport = llm_transport      # tests inject a mock HTTP transport; None in production
         app.state.settlement = settlement or _settlement_from_env()
+        worker = None
+        if os.environ.get("BK_WORKER") == "1":       # BK-403: housekeeping thread, see worker.py
+            from budget_kernel.worker import Worker
+            worker = Worker(app.state.pool, settlement=app.state.settlement).start()
         yield
+        if worker:
+            worker.stop()
         if owned:
             app.state.pool.close()
 
     app = FastAPI(title="Budget Kernel", version="0.1.0", lifespan=lifespan)
     # The dashboard (Next.js dev server) calls this API from the browser. Origins are an explicit allowlist.
     origins = [o.strip() for o in os.environ.get("BK_CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
-    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"],
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "DELETE"],
                        allow_headers=["Authorization", "Content-Type", "X-Admin-Token"])
 
     @app.exception_handler(kernel.KernelError)
@@ -123,6 +129,11 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
     def bind_settler(mandate_id: str, body: schemas.BindSettler, request: Request, me: Principal = Caller):
         return _jsonable(kernel.bind_settler(P(request), mandate_id=_uuid(mandate_id, "mandate"), actor=me.id,
                                              principal_id=_uuid(body.principal_id, "principal")))
+
+    @app.delete("/mandates/{mandate_id}/settlers/{principal_id}")
+    def unbind_settler(mandate_id: str, principal_id: str, request: Request, me: Principal = Caller):
+        return _jsonable(kernel.unbind_settler(P(request), mandate_id=_uuid(mandate_id, "mandate"), actor=me.id,
+                                               principal_id=_uuid(principal_id, "principal")))
 
     @app.post("/grants", status_code=201)
     def delegate(body: schemas.Delegate, request: Request, me: Principal = Caller):
@@ -167,8 +178,23 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         st = request.app.state.settlement
         if st is None:
             raise HTTPException(409, {"code": "NOT_TESTNET_MODE", "message": "BK_SETTLEMENT_MODE is not testnet"})
+        from budget_kernel.settlement import anchor
         from budget_kernel.settlement.adapter import reconcile
-        return _jsonable({"results": reconcile(P(request), actor=me.id, chain=st[0], cfg=st[2])})
+        return _jsonable({"results": reconcile(P(request), actor=me.id, chain=st[0], cfg=st[2]),
+                          "anchors": anchor.reconcile(P(request), chain=st[0], cfg=st[2])})
+
+    @app.post("/admin/anchor", dependencies=[Depends(require_admin)])
+    def admin_anchor(request: Request):
+        """Anchor the current hash-chain heads on Base Sepolia (ADR-0009 A5). Evidence only."""
+        st = request.app.state.settlement
+        if st is None:
+            raise HTTPException(409, {"code": "ANCHOR_NEEDS_TESTNET", "message": "BK_SETTLEMENT_MODE is not testnet"})
+        from budget_kernel.settlement import anchor
+        from budget_kernel.settlement.adapter import SettlementRefused
+        try:
+            return _jsonable(anchor.create(P(request), chain=st[0], signer=st[1], cfg=st[2]))
+        except SettlementRefused as e:
+            raise HTTPException(409, {"code": "ANCHOR_REFUSED", "message": str(e)}) from None
 
     @app.post("/transactions/{tx_id}/settle-fail")
     def settle_fail(tx_id: str, body: schemas.SettleFail, request: Request, me: Principal = Caller):
@@ -208,16 +234,16 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             raise kernel.Conflict("this grant is suspended", code="GRANT_SUSPENDED")
         return g
 
-    def _interpret(request: Request, g: dict, text: str) -> dict:
+    def _interpret(request: Request, g: dict, text: str, me: Principal) -> dict:
         return run_interpret(P(request), request.app.state.card, text, recipients=g["scope"]["recipients"],
                              categories=g["scope"]["categories"], currency=g["currency"].strip(),
-                             transport=request.app.state.llm_transport)
+                             transport=request.app.state.llm_transport, principal_id=me.id)
 
     @app.post("/interpret")
     def interpret_only(body: schemas.Interpret, request: Request, me: Principal = Caller):
         """Natural language -> UNTRUSTED typed proposal. This endpoint never reserves or authorizes."""
         g = _grant_context(request, _uuid(body.grant_id, "grant"), me)
-        return _jsonable(_interpret(request, g, body.text))
+        return _jsonable(_interpret(request, g, body.text, me))
 
     @app.post("/agent/request")
     def agent_request(body: schemas.AgentRequest, request: Request, me: Principal = Caller):
@@ -234,7 +260,7 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
             P(request), request.app.state.card, grant_id=gid, actor=me.id, text=body.text,
             idempotency_key=body.idempotency_key, recipients=g["scope"]["recipients"],
             categories=g["scope"]["categories"], currency=g["currency"].strip(),
-            transport=request.app.state.llm_transport))
+            transport=request.app.state.llm_transport, principal_id=me.id))
 
     # ------------------------------------------------------------- attack demo (baseline vs kernel)
 
