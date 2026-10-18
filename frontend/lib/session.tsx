@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { describeError, ApiError, setAuthLostHandler } from "@/lib/api";
 
-type Session = { key: string; mandateId: string; principalId: string; kind?: string };
+type Session = { key: string; mandateId: string; principalId: string; kind?: string; name?: string };
 type Ctx = {
   session: Session | null;
   // Shown on the sign-in screen after the session was dropped for a reason (expired key, disabled account).
