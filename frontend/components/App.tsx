@@ -7,7 +7,9 @@ import MandateView from "@/components/MandateView";
 import SimulationView from "@/components/SimulationView";
 import SettingsView from "@/components/SettingsView";
 import SignIn from "@/components/SignIn";
+import { ToastProvider } from "@/components/Toast";
 import { MandateProvider, useMandate } from "@/lib/mandate";
+import { useRole } from "@/lib/role";
 import { SessionProvider, useSession } from "@/lib/session";
 
 const TABS = [
@@ -29,10 +31,7 @@ function Frame() {
   const { session, signOut } = useSession();
   const { state, refresh } = useMandate();
   const [tab, setTab] = useState<TabId>("mandate");
-  const me = session?.principalId ?? "";
-  const isOwner = !!state && state.mandate.owner_principal_id === me;
-  const isManager = !isOwner && !!state?.grants.some((g) => g.holder_principal_id === me && g.scope.can_delegate);
-  const role = isOwner ? "owner" : isManager ? "manager" : "agent";
+  const { role, isOwner } = useRole();
   const visible = TABS.filter((t) => (isOwner ? OWNER_TABS : HOLDER_TABS).includes(t.id));
   const current = visible.find((t) => t.id === tab) ?? visible[0];
   const heldCount = isOwner ? (state?.transactions.filter((t) => t.state === "proposed").length ?? 0) : 0;
@@ -114,7 +113,9 @@ function Shell() {
   if (!session) return <SignIn />;
   return (
     <MandateProvider>
-      <Frame />
+      <ToastProvider>
+        <Frame />
+      </ToastProvider>
     </MandateProvider>
   );
 }

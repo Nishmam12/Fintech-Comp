@@ -76,6 +76,16 @@ function InterpretationCard({ i }: { i: Interpretation }) {
   );
 }
 
+// Why the interpreter could not hand the kernel a request. Unknown codes are shown unchanged.
+const INTERPRETER_TEXT: Record<string, string> = {
+  PROVIDER_FAILED: "the AI model could not be reached",
+  ROUTE_UNAVAILABLE: "no AI model is available",
+  NO_FAST_PATH_MATCH: "the wording did not match a simple pattern",
+  BUDGET_EXHAUSTED: "the AI model budget is used up",
+  AGENT_BUDGET_EXHAUSTED: "this agent's AI model budget is used up",
+  BAD_INPUT_SIZE: "the request is empty or too long",
+};
+
 // The decision in plain words, derived only from the kernel's answer.
 function headline(d: Decision | null): string {
   if (!d) return "Not sent to the kernel";
@@ -108,7 +118,7 @@ function DecisionCard({ d, interp }: { d: Decision | null; interp: Interpretatio
         </>
       ) : (
         <p className="mt-2 text-sm text-muted">
-          {interp.reasons.length > 0 ? `${interp.reasons.join(", ")}. ` : ""}The request could not be read well enough to send. Nothing was reserved.
+          {interp.reasons.length > 0 ? `${interp.reasons.map((r) => INTERPRETER_TEXT[r] ?? r).join(", ")}. ` : ""}The request could not be read well enough to send. Nothing was reserved.
         </p>
       )}
     </div>

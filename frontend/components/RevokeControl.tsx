@@ -4,6 +4,7 @@
 // reported separately and never described as reclaimed.
 import { useState } from "react";
 import { api, describeError, money, type Grant } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
@@ -22,6 +23,7 @@ type RevokeResult = {
 export default function RevokeControl({ g, currency }: { g: Grant; currency: string }) {
   const { session } = useSession();
   const { refresh } = useMandate();
+  const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -34,6 +36,7 @@ export default function RevokeControl({ g, currency }: { g: Grant; currency: str
     try {
       setResult(await api<RevokeResult>(session.key, `/grants/${g.id}/revoke`, { method: "POST", body: {} }));
       setConfirming(false);
+      toast("Grant revoked");
       refresh();
     } catch (e) {
       setErr(describeError(e, "Revoke failed"));
