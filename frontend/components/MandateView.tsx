@@ -1,5 +1,5 @@
 "use client";
-import { money, reasonText, type Grant, type Transaction } from "@/lib/api";
+import { money, reasonText, reasonTitle, type Grant, type Transaction } from "@/lib/api";
 import IntegrityBadge from "@/components/IntegrityBadge";
 import RevokeControl from "@/components/RevokeControl";
 import SuspendControl from "@/components/SuspendControl";
@@ -195,7 +195,7 @@ export default function MandateView() {
                     </div>
                     <p className="wrap-anywhere text-sm text-muted">
                       {t.recipient} · {t.category}
-                      {t.reject_reason ? ` · ${reasonText(t.reject_reason)}` : ""}
+                      {t.reject_reason && <> · <span title={reasonTitle(t.reject_reason)}>{reasonText(t.reject_reason)}</span></>}
                     </p>
                     <TxLink t={t} />
                   </li>

@@ -13,12 +13,12 @@ const STATE_TONE: Record<string, string> = {
   rejected: "text-bad",
 };
 
-function Row({ k, v }: { k: string; v: string | number | null | undefined }) {
+function Row({ k, v, title }: { k: string; v: string | number | null | undefined; title?: string | null }) {
   if (v === null || v === undefined || v === "") return null;
   return (
     <div className="flex justify-between gap-3 text-sm">
       <dt className="text-muted">{k}</dt>
-      <dd className="wrap-anywhere text-right">{String(v)}</dd>
+      <dd className="wrap-anywhere text-right" title={title ?? undefined}>{String(v)}</dd>
     </div>
   );
 }
@@ -79,8 +79,9 @@ function DecisionCard({ d, interp }: { d: Decision | null; interp: Interpretatio
         <>
           <p className={`mt-2 text-xl font-semibold uppercase ${STATE_TONE[d.state] ?? ""}`}>{d.state}</p>
           <dl className="mt-2 flex flex-col gap-1">
-            <Row k="Reason" v={d.reason ? reasonText(d.reason) : null} />
-            <Row k="Review reason" v={d.review_reason} />
+            <Row k="Reason" v={d.reason ? reasonText(d.reason) : null} title={d.reason} />
+
+            <Row k="Review reason" v={d.review_reason ? reasonText(d.review_reason) : null} title={d.review_reason} />
             {d.suspended && <Row k="Circuit breaker" v="this refusal suspended the grant" />}
             <Row k="Replayed" v={d.replayed ? "yes (no second reservation)" : "no"} />
             <Row k="Transaction" v={d.transaction_id} />

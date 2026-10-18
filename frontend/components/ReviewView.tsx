@@ -2,7 +2,7 @@
 // Screen 4 / BK-322: the owner's approval inbox. Held ("proposed") transactions hold no funds until approved.
 // Approving re-runs every kernel check, so an approval can still come back refused; that result is shown as-is.
 import { useEffect, useState } from "react";
-import { api, describeError, money, type Transaction } from "@/lib/api";
+import { api, describeError, money, reasonText, reasonTitle, type Transaction } from "@/lib/api";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
@@ -32,7 +32,7 @@ export default function ReviewView() {
         method: "POST",
         body: { approve },
       });
-      setNotice({ ok: true, text: `${approve ? "Approve" : "Deny"} → ${r.state}${r.reason ? ` (${r.reason})` : ""}` });
+      setNotice({ ok: true, text: `${approve ? "Approve" : "Deny"} → ${r.state}${r.reason ? ` (${reasonText(r.reason)})` : ""}` });
     } catch (e) {
       setNotice({ ok: false, text: describeError(e, "Review failed") });
     } finally {
@@ -57,7 +57,7 @@ export default function ReviewView() {
             <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
               <dt className="text-muted">To</dt><dd className="wrap-anywhere text-right">{t.recipient}</dd>
               <dt className="text-muted">Category</dt><dd className="wrap-anywhere text-right">{t.category}</dd>
-              <dt className="text-muted">Why held</dt><dd className="wrap-anywhere text-right">{t.review_reason ?? "—"}</dd>
+              <dt className="text-muted">Why held</dt><dd className="wrap-anywhere text-right" title={t.review_reason ? reasonTitle(t.review_reason) : undefined}>{t.review_reason ? reasonText(t.review_reason) : "—"}</dd>
               <dt className="text-muted">Grant</dt><dd className="text-right font-mono text-xs">{t.grant_id.slice(0, 8)}</dd>
               <dt className="text-muted">Requested</dt><dd className="text-right">{new Date(t.created_at).toLocaleString()}</dd>
             </dl>

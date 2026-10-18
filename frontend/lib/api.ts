@@ -129,26 +129,67 @@ export function describeError(e: unknown, fallback: string): string {
       return e.retryAfter !== undefined
         ? `Too many requests. Wait ${e.retryAfter} s, then try again.`
         : "Too many requests. Wait a moment, then try again.";
-    case "KEY_EXPIRED":
-      return "Your API key has expired. Get a new key from the administrator, then sign in again.";
-    case "PRINCIPAL_DISABLED":
-      return "This account has been disabled. Contact the administrator.";
-    case "GRANT_SUSPENDED":
-      return "This grant is suspended, so it cannot spend. The mandate owner can reinstate it.";
-    case "NOT_OWNER":
-      return "Only the mandate owner can do this.";
-    case "KEY_ALREADY_ROTATED":
-      return "This key was already rotated. Sign in with the new key.";
     default:
-      return `${e.code}: ${e.message}`;
+      return REASON_TEXT[e.code] ?? `${e.code}: ${e.message}`;
   }
 }
 
-// Reasons on a rejected transaction that deserve a plain-language gloss. Unknown codes are shown unchanged.
+// Plain-language text for every refusal, review and permission code the kernel and API can emit (BK-514).
+// The raw code is never the visible text: reasonTitle() gives it back for a `title` tooltip.
+// `npm run check:reasons` fails when a kernel code is missing here.
 const REASON_TEXT: Record<string, string> = {
-  GRANT_SUSPENDED: "GRANT_SUSPENDED · this grant (or one above it) is suspended",
+  // Why a request was refused
+  MANDATE_FROZEN: "This mandate is frozen, so nothing can be spent.",
+  MANDATE_EXPIRED: "This mandate has expired.",
+  PATH_BROKEN: "The chain of grants behind this one is incomplete, so the request was refused to be safe.",
+  GRANT_REVOKED: "This grant was revoked.",
+  GRANT_SUSPENDED: "This grant is suspended.",
+  GRANT_EXPIRED: "This grant has expired.",
+  CURRENCY_MISMATCH: "The currency does not match the mandate.",
+  CATEGORY_NOT_ALLOWED: "This grant does not allow that category.",
+  RECIPIENT_NOT_ALLOWED: "This grant does not allow paying that recipient.",
+  PER_TX_LIMIT_EXCEEDED: "The amount is over this grant's limit for a single payment.",
+  VELOCITY_LIMIT_EXCEEDED: "Too much has been spent in the current time window.",
+  INSUFFICIENT_FUNDS: "This grant does not have enough money available.",
+  TOO_MANY_PENDING_REVIEWS: "Too many requests are already waiting for the owner's approval.",
+  DENIED_BY_REVIEWER: "The owner denied this request.",
+  REVIEW_EXPIRED: "Nobody approved this request in time, so it lapsed.",
+  RESERVATION_EXPIRED: "The reserved money was released because the payment was not completed in time.",
+  // Why a request was held for the owner
+  ABOVE_THRESHOLD: "The amount is above what this grant may spend without the owner's approval.",
+  CALLER_FLAGGED: "The request was unclear or risky, so it needs the owner's approval.",
+  // Why an action was not allowed
+  NOT_OWNER: "Only the mandate owner can do this.",
+  NOT_GRANT_HOLDER: "Only the holder of this grant can spend from it.",
+  NOT_PERMITTED: "You are not allowed to do this.",
+  NOT_SUSPENDED: "This grant is not suspended.",
+  HUMAN_ONLY: "Only a person can do this, not an agent.",
+  OWNER_MUST_BE_HUMAN: "A mandate owner must be a person.",
+  NOT_A_SERVICE: "Only a service account can do this.",
+  NOT_SETTLER: "Only the settlement service can do this.",
+  PROOF_REQUIRED: "Proof is required before this can go through.",
+  SELF_DELEGATION: "A grant cannot be passed to its own holder.",
+  PARENT_CANNOT_DELEGATE: "The grant above this one does not allow passing money on.",
+  MAX_DEPTH_EXCEEDED: "Grants cannot be nested any deeper.",
+  SCOPE_WIDER_THAN_PARENT: "A grant cannot allow more than the grant it comes from.",
+  EXPIRY_EXCEEDS_PARENT: "A grant cannot last longer than the grant it comes from.",
+  EXPIRY_IN_PAST: "The expiry date is already in the past.",
+  IDEMPOTENCY_CONFLICT: "This request id was already used for a different request.",
+  INJECTION_SUSPECTED: "The request text looks like an attempt to manipulate the system, so it was not processed.",
+  MANDATE_NOT_FOUND: "That mandate was not found.",
+  GRANT_NOT_FOUND: "That grant was not found.",
+  TX_NOT_FOUND: "That transaction was not found.",
+  PRINCIPAL_NOT_FOUND: "That account was not found.",
+  HOLDER_NOT_FOUND: "The person or agent to receive the grant was not found.",
+  UNKNOWN_SCENARIO: "That attack scenario does not exist.",
+  KEY_EXPIRED: "Your API key has expired. Get a new key from the administrator, then sign in again.",
+  PRINCIPAL_DISABLED: "This account has been disabled. Contact the administrator.",
+  KEY_ALREADY_ROTATED: "This key was already rotated. Sign in with the new key.",
+  KERNEL_BUSY: "The kernel is busy. Try again in a moment.",
 };
 export const reasonText = (r: string) => REASON_TEXT[r] ?? r;
+// For a `title` tooltip: the machine code behind the plain sentence.
+export const reasonTitle = (r: string) => r;
 
 async function once(key: string, path: string, init?: { method?: "GET" | "POST"; body?: unknown }) {
   try {
