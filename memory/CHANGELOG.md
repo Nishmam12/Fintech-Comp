@@ -62,3 +62,4 @@ This is a concise record of meaningful project changes. Detailed per-session not
 - 2026-10-18: BK-501 names in the API (afnan/BK-501-names): `holder_name`, `owner_name`, audit `actor_name`, budget `label`, API layer only; test added; suite 364 passed (2 pass only in simulated mode).
 - 2026-10-18: BK-502 `scripts/demo_seed.py` (afnan/BK-502-demo-seed): named demo mandate, one-click keys to gitignored `frontend/.env.local`, keys never printed.
 - 2026-10-18: BK-503 Activity screen (afnan/BK-503-activity): plain-language events (`lib/describe.ts`), Details, labels, one loading state. Needs BK-501 for names.
+- 2026-10-18: BK-504 Attack lab (afnan/BK-504-attack-lab): descriptions, Run all with progress, two-column verdict.
