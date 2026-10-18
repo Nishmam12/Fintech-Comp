@@ -59,3 +59,4 @@ This is a concise record of meaningful project changes. Detailed per-session not
 ## 2026-10-18 — UI usability sprint planned
 - Dashboard visual redesign merged (lead/ui-redesign, d1b403a): ink side rail, budget bar, two-column mandate view, Bricolage Grotesque + Public Sans. Presentation only.
 - UI audit and execution plan: handovers docs/handover/DANIEL_UI.md (BK-511..516, deck) and docs/handover/AFNAN_UI.md (BK-501..504, video). UI freeze Oct 19 14:00 BST.
+- 2026-10-18: BK-140 video script updated for the redesigned UI (afnan/BK-140-video-script).
