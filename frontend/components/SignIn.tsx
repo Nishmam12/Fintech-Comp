@@ -3,6 +3,35 @@ import { useState } from "react";
 import { describeError, getMe, listMandates, money, type Me, type MandateSummary } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
+// Dev-only one-click sign-in (BK-511). scripts/demo_seed.py writes NEXT_PUBLIC_DEMO_KEYS to the gitignored .env.local.
+// Next inlines the value at build time, so a build without it contains no keys and no demo buttons
+// (the only reference is the literal `process.env.NEXT_PUBLIC_DEMO_KEYS` below, which the bundler folds away).
+// The keys stay in this closure: they are never rendered, logged or put in a field.
+function parseDemoKeys(raw: string): Record<string, string> {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.fromEntries(Object.entries(parsed).filter(([, v]) => typeof v === "string" && v));
+  } catch {
+    return {};
+  }
+}
+
+function DemoButtons({ raw, busy, onPick }: { raw: string; busy: boolean; onPick: (key: string) => void }) {
+  const keys = parseDemoKeys(raw);
+  if (Object.keys(keys).length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {Object.entries(keys).map(([label, k]) => (
+        <button key={label} type="button" disabled={busy} onClick={() => onPick(k)} className="btn-primary">
+          Continue as {label}
+        </button>
+      ))}
+      <p className="mt-2 text-sm text-muted">Or paste an API key</p>
+    </div>
+  );
+}
+
 export default function SignIn() {
   const { signIn, notice } = useSession();
   const [key, setKey] = useState("");
@@ -10,17 +39,23 @@ export default function SignIn() {
   const [mandates, setMandates] = useState<MandateSummary[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The key being signed in with (typed or a demo button), kept out of the input so demo keys never reach the DOM.
+  const [activeKey, setActiveKey] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    await attempt(key.trim());
+  }
+
+  async function attempt(k: string) {
     setBusy(true);
     setErr(null);
-    const k = key.trim();
     try {
       // The key alone identifies the caller: /me verifies it, /mandates lists what it may open.
       const who = await getMe(k);
       const { mandates: list } = await listMandates(k);
       setMe(who);
+      setActiveKey(k);
       if (list.length === 1) signIn({ key: k, mandateId: list[0].id, principalId: who.principal_id, kind: who.kind, name: who.name });
       else setMandates(list);
     } catch (e) {
@@ -34,6 +69,7 @@ export default function SignIn() {
     setMe(null);
     setMandates(null);
     setKey("");
+    setActiveKey("");
   }
 
   return (
@@ -63,7 +99,7 @@ export default function SignIn() {
             {mandates.map((m) => (
               <li key={m.id}>
                 <button
-                  onClick={() => signIn({ key: key.trim(), mandateId: m.id, principalId: me?.principal_id ?? "", kind: me?.kind, name: me?.name })}
+                  onClick={() => signIn({ key: activeKey, mandateId: m.id, principalId: me?.principal_id ?? "", kind: me?.kind, name: me?.name })}
                   className="min-h-14 w-full rounded-lg border border-line bg-card p-3 text-left"
                 >
                   <span className="block font-semibold">{money(m.total, m.currency)}</span>
@@ -77,9 +113,13 @@ export default function SignIn() {
           <button onClick={reset} className="btn-ghost">Use a different key</button>
         </div>
       ) : (
+        <>
+        {process.env.NEXT_PUBLIC_DEMO_KEYS ? (
+          <DemoButtons raw={process.env.NEXT_PUBLIC_DEMO_KEYS} busy={busy} onPick={(k) => void attempt(k)} />
+        ) : null}
         <form onSubmit={submit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm">
-            Paste your API key
+            {process.env.NEXT_PUBLIC_DEMO_KEYS ? "API key" : "Paste your API key"}
             <input
               type="password"
               autoComplete="off"
@@ -98,6 +138,7 @@ export default function SignIn() {
             {busy ? "Checking…" : "Sign in"}
           </button>
         </form>
+        </>
       )}
       <p className="text-xs text-muted">The key is kept in this tab&apos;s memory only and disappears on reload.</p>
     </main>
