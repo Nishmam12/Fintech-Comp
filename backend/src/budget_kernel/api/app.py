@@ -327,7 +327,16 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
     @app.get("/budget")
     def budget(request: Request, me: Principal = Caller):
         """Inference budget meter (micro-USD per bucket)."""
-        return _jsonable(cost_ledger.snapshot(P(request)))
+        snap = cost_ledger.snapshot(P(request))
+        ids = [b["bucket"][10:] for b in snap["buckets"] if b["bucket"].startswith("principal:")]
+        names = {}
+        if ids:                                        # BK-501: display names added here, the ledger is untouched
+            with P(request).connection() as c:
+                names = {str(r["id"]): r["name"] for r in c.execute(
+                    "SELECT id, name FROM principals WHERE id::text = ANY(%s)", (ids,))}
+        for b in snap["buckets"]:
+            b["label"] = names.get(b["bucket"][10:], b["bucket"]) if b["bucket"].startswith("principal:") else b["bucket"]
+        return _jsonable(snap)
 
     # ------------------------------------------------------------- read models
 
@@ -364,9 +373,12 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         mid = _uuid(mandate_id, "mandate")
         with P(request).connection() as c:
             m = _require_viewer(c, mid, me)
-            grants = c.execute("SELECT id, parent_id, depth, holder_principal_id, available, reserved, settled, status,"
-                               " expires_at, scope, suspended_at, suspend_reason FROM grants WHERE mandate_id = %s"
-                               " ORDER BY depth, created_at", (mid,)).fetchall()
+            m["owner_name"] = (c.execute("SELECT name FROM principals WHERE id = %s", (m["owner_principal_id"],))
+                               .fetchone() or {}).get("name")
+            grants = c.execute("SELECT g.id, g.parent_id, g.depth, g.holder_principal_id, p.name AS holder_name,"
+                               " g.available, g.reserved, g.settled, g.status, g.expires_at, g.scope, g.suspended_at,"
+                               " g.suspend_reason FROM grants g LEFT JOIN principals p ON p.id = g.holder_principal_id"
+                               " WHERE g.mandate_id = %s ORDER BY g.depth, g.created_at", (mid,)).fetchall()
             strikes = {r["grant_id"]: r["n"] for r in c.execute(      # ADR-0009 B4: the count the breaker would use
                 "SELECT s.grant_id, sum(s.weight)::int AS n FROM grant_strikes s JOIN grants g ON g.id = s.grant_id"
                 " WHERE s.mandate_id = %s AND s.created_at > clock_timestamp() - make_interval(secs => %s)"
@@ -420,8 +432,9 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         mid = _uuid(mandate_id, "mandate")
         with P(request).connection() as c:
             _require_viewer(c, mid, me)
-            rows = c.execute("SELECT id, kind, actor_principal_id, subject_id, detail, created_at FROM audit_events"
-                             " WHERE mandate_id = %s AND id > %s ORDER BY id LIMIT %s",
+            rows = c.execute("SELECT e.id, e.kind, e.actor_principal_id, p.name AS actor_name, e.subject_id, e.detail,"
+                             " e.created_at FROM audit_events e LEFT JOIN principals p ON p.id = e.actor_principal_id"
+                             " WHERE e.mandate_id = %s AND e.id > %s ORDER BY e.id LIMIT %s",
                              (mid, after_id, max(1, min(limit, 500)))).fetchall()
         return _jsonable({"events": rows})
 

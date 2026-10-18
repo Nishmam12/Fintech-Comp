@@ -18,6 +18,7 @@ export type Grant = {
   parent_id: string | null;
   depth: number;
   holder_principal_id: string;
+  holder_name?: string | null;
   available: number;
   reserved: number;
   settled: number;
@@ -204,6 +205,7 @@ export type Bucket = {
   reserved_micro: number;
   spent_micro: number;
   remaining_micro: number;
+  label?: string;
 };
 export type BudgetSnapshot = { month: string; buckets: Bucket[] };
 
@@ -211,6 +213,7 @@ export type AuditEvent = {
   id: number;
   kind: string;
   actor_principal_id: string | null;
+  actor_name?: string | null;
   subject_id: string | null;
   detail: Record<string, unknown> | null;
   created_at: string;
