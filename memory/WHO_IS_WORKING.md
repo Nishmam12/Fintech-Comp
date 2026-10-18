@@ -32,11 +32,11 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
 - **Status:** REVIEW
-- **Task ID:** BK-401 real anchor + BK-140 video script
-- **Branch:** afnan/BK-401-real-anchor
-- **Claimed areas (paths):** backend/src/budget_kernel/settlement/, backend/migrations/007_anchors.sql, backend/tests/integration/test_anchor*.py, evidence/, scripts/evidence*.py, backend/src/budget_kernel/api/app.py (settlement/anchor/unbind endpoints and the interpret call site only), backend/src/budget_kernel/kernel/ops.py (unbind_settler only), backend/src/budget_kernel/costledger (BK-304 only), backend/src/budget_kernel/worker.py, memory/research/SETTLEMENT.md
-- **Started / last update (UTC):** 2026-10-17 03:30
-- **Notes / blockers:** Real anchor DONE (tx 0xcb1ba8f8c64413779274509bb7333e9693123cdc8d5e9229ba927b74f5578e2e, confirmed). Branch afnan/BK-401-real-anchor ready to merge. Next: video rehearsal Oct 18.
+- **Task ID:** UI sprint: BK-501 names in API, BK-502 demo seed, BK-503 Activity, BK-504 Attack lab, BK-140 video script
+- **Branch:** afnan/BK-501-names, afnan/BK-502-demo-seed, afnan/BK-503-activity, afnan/BK-504-attack-lab, afnan/BK-140-video-script
+- **Claimed areas (paths):** backend/src/budget_kernel/api/app.py (read models /state, /audit, /budget only), backend/tests/integration/test_api_read_models.py, scripts/demo_seed.py, frontend/components/{ActivityView,SimulationView}.tsx, frontend/lib/describe.ts, frontend/lib/api.ts (3 type lines only), docs/demo/VIDEO_SCRIPT.md
+- **Started / last update (UTC):** 2026-10-18 05:45
+- **Notes / blockers:** All five branches pushed, PRs pending. BK-501 first (Daniel depends on it); 501 and 502 need the Opus review. Full suite: 364 passed; 2 tests fail only when .env has BK_SETTLEMENT_MODE=testnet (pass in simulated). Next: video rehearsal on merged main, final take after UI freeze.
 
 Status values: `ACTIVE`, `PAUSED` (claim kept), `IDLE` (no claim), `REVIEW` (waiting on review/merge).
 
