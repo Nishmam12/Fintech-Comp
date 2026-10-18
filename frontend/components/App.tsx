@@ -87,7 +87,7 @@ function Frame() {
                 >
                   {t.label}
                   {t.id === "review" && heldCount > 0 && (
-                    <span className="rounded-full bg-warn px-1.5 text-xs font-semibold text-white" aria-label={`${heldCount} waiting`}>
+                    <span className="rounded-full bg-warn px-1.5 text-xs font-semibold text-white dark:text-ink" aria-label={`${heldCount} waiting`}>
                       {heldCount}
                     </span>
                   )}

@@ -32,6 +32,22 @@ export type Grant = {
   strikes_in_window?: number;
 };
 
+// One mapping for transaction states, used by the Mandate list and the Ask decision (BK-513).
+// Pending is amber, settled jade, refused brick; colour marks state only.
+const TX_STATE: Record<string, { label: string; tone: string }> = {
+  proposed: { label: "Held for approval", tone: "text-warn" },
+  reserved: { label: "Reserved", tone: "text-warn" },
+  submitted: { label: "Sending", tone: "text-warn" },
+  settled: { label: "Settled", tone: "text-ok" },
+  rejected: { label: "Rejected", tone: "text-bad" },
+  released: { label: "Released", tone: "text-muted" },
+};
+export const txState = (s: string) => TX_STATE[s] ?? { label: s, tone: "" };
+
+// The name a grant card goes by: its holder, falling back to the short id when the API gives no name.
+export const grantName = (g: Pick<Grant, "id" | "parent_id" | "holder_name">) =>
+  g.parent_id === null ? "Owner's root grant" : (g.holder_name ?? `Grant ${g.id.slice(0, 8)}`);
+
 export type Transaction = {
   id: string;
   grant_id: string;

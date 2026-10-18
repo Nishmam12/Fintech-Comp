@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { describeError, getState, type MandateState } from "@/lib/api";
 import { useSession } from "@/lib/session";
 
-type Ctx = { state: MandateState | null; error: string | null; refresh: () => void };
+type Ctx = { state: MandateState | null; error: string | null; refresh: () => void; updatedAt: Date | null };
 const MandateCtx = createContext<Ctx | null>(null);
 
 export function MandateProvider({ children }: { children: ReactNode }) {
@@ -12,18 +12,19 @@ export function MandateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<MandateState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!session) return;
     let live = true;
     getState(session.key, session.mandateId)
-      .then((st) => { if (live) { setState(st); setError(null); } })
+      .then((st) => { if (live) { setState(st); setError(null); setUpdatedAt(new Date()); } })
       .catch((e) => { if (live) setError(describeError(e, "Could not load the mandate")); });
     return () => { live = false; };
   }, [session, tick]);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
-  return <MandateCtx.Provider value={{ state, error, refresh }}>{children}</MandateCtx.Provider>;
+  return <MandateCtx.Provider value={{ state, error, refresh, updatedAt }}>{children}</MandateCtx.Provider>;
 }
 
 export function useMandate(): Ctx {
