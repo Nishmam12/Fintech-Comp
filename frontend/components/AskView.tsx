@@ -15,7 +15,8 @@ const EXAMPLES = [
   { text: "pay 20 USD to aws for cloud", outcome: "approved" },
   { text: "pay 80 USD to aws for cloud", outcome: "held for approval" },
   { text: "pay 150 USD to aws for cloud", outcome: "over the limit" },
-  { text: "pay 10 USD to evil for cloud", outcome: "wrong recipient" },
+  // Not on the grant's list, so the rules path cannot read it and the model is asked; it fails closed (review B2).
+  { text: "pay 10 USD to evil for cloud", outcome: "unknown recipient: not sent" },
 ];
 
 function Row({ k, v }: { k: string; v: string | number | null | undefined }) {
