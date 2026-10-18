@@ -186,6 +186,13 @@ const REASON_TEXT: Record<string, string> = {
   PRINCIPAL_DISABLED: "This account has been disabled. Contact the administrator.",
   KEY_ALREADY_ROTATED: "This key was already rotated. Sign in with the new key.",
   KERNEL_BUSY: "The kernel is busy. Try again in a moment.",
+  RATE_LIMITED: "Too many requests. Wait a moment, then try again.",
+  UNAUTHENTICATED: "That API key was not recognised. Check it and try again.",
+  ADMIN_ONLY: "Only an administrator can do this.",
+  SETTLEMENT_REFUSED: "The payment could not be sent, so it was not settled.",
+  NOT_TESTNET_MODE: "Real test-network payments are switched off on this server.",
+  ANCHOR_NEEDS_TESTNET: "Anchoring on the test network is switched off on this server.",
+  ANCHOR_REFUSED: "The history could not be anchored on the test network.",
 };
 export const reasonText = (r: string) => REASON_TEXT[r] ?? r;
 // For a `title` tooltip: the machine code behind the plain sentence.
