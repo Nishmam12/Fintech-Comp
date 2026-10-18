@@ -2,7 +2,8 @@
 // Screen 4 / BK-322: the owner's approval inbox. Held ("proposed") transactions hold no funds until approved.
 // Approving re-runs every kernel check, so an approval can still come back refused; that result is shown as-is.
 import { useEffect, useState } from "react";
-import { api, describeError, money, type Transaction } from "@/lib/api";
+import { api, describeError, grantName, money, reasonText, reasonTitle, type Transaction } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
@@ -13,6 +14,7 @@ export default function ReviewView() {
   const { state, refresh } = useMandate();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     const id = setInterval(() => { if (document.visibilityState === "visible") refresh(); }, POLL_MS);
@@ -24,6 +26,11 @@ export default function ReviewView() {
   const cur = state.mandate.currency;
   const isOwner = state.mandate.owner_principal_id === session.principalId;
 
+  const holderOf = (t: Transaction) => {
+    const g = state.grants.find((x) => x.id === t.grant_id);
+    return g ? grantName(g) : `Grant ${t.grant_id.slice(0, 8)}`;
+  };
+
   async function decide(t: Transaction, approve: boolean) {
     setBusyId(t.id);
     setNotice(null);
@@ -32,7 +39,12 @@ export default function ReviewView() {
         method: "POST",
         body: { approve },
       });
-      setNotice({ ok: true, text: `${approve ? "Approve" : "Deny"} → ${r.state}${r.reason ? ` (${r.reason})` : ""}` });
+      if (r.state === "rejected" && approve) {
+        // Approving re-runs every check, so the kernel can still refuse; say so plainly instead of claiming success.
+        setNotice({ ok: false, text: `Not approved. ${r.reason ? reasonText(r.reason) : "The kernel refused it."}` });
+      } else {
+        toast(approve ? "Request approved" : "Request denied");
+      }
     } catch (e) {
       setNotice({ ok: false, text: describeError(e, "Review failed") });
     } finally {
@@ -52,13 +64,17 @@ export default function ReviewView() {
       {held.length === 0 && <p className="rounded-lg border border-line bg-card p-4 text-sm text-muted">Nothing is waiting for review.</p>}
       <ul className="flex flex-col gap-3">
         {held.map((t) => (
-          <li key={t.id} className="rounded-lg border border-line bg-card p-3">
-            <p className="text-xl font-semibold">{money(t.amount, t.currency || cur)}</p>
-            <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+          <li key={t.id} className="panel p-4">
+            <p className="text-sm text-muted wrap-anywhere">
+              {holderOf(t)} asks to pay
+            </p>
+            <p className="fig text-4xl">{money(t.amount, t.currency || cur)}</p>
+            <p className="mt-1 text-sm text-warn" title={t.review_reason ? reasonTitle(t.review_reason) : undefined}>
+              {t.review_reason ? reasonText(t.review_reason) : "Held for your approval."}
+            </p>
+            <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
               <dt className="text-muted">To</dt><dd className="wrap-anywhere text-right">{t.recipient}</dd>
               <dt className="text-muted">Category</dt><dd className="wrap-anywhere text-right">{t.category}</dd>
-              <dt className="text-muted">Why held</dt><dd className="wrap-anywhere text-right">{t.review_reason ?? "—"}</dd>
-              <dt className="text-muted">Grant</dt><dd className="text-right font-mono text-xs">{t.grant_id.slice(0, 8)}</dd>
               <dt className="text-muted">Requested</dt><dd className="text-right">{new Date(t.created_at).toLocaleString()}</dd>
             </dl>
             {t.proposal && (

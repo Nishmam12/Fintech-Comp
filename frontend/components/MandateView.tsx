@@ -1,5 +1,5 @@
 "use client";
-import { money, reasonText, type Grant, type Transaction } from "@/lib/api";
+import { grantName, money, reasonText, reasonTitle, txState, type Grant, type Transaction } from "@/lib/api";
 import IntegrityBadge from "@/components/IntegrityBadge";
 import RevokeControl from "@/components/RevokeControl";
 import SuspendControl from "@/components/SuspendControl";
@@ -98,6 +98,8 @@ function BudgetBar({ grants, total, reserve, cur }: { grants: Grant[]; total: nu
   );
 }
 
+const timeOf = (iso: string) => new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+
 function GrantNode({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: string; me: string; owner: string }) {
   const kids = childrenOf(all, g.id);
   const tone = g.status === "active" ? "bg-ok/12 text-ok" : g.status === "suspended" ? "bg-warn/15 text-warn" : "bg-bad/12 text-bad";
@@ -106,7 +108,10 @@ function GrantNode({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: st
     <li>
       <div className="panel p-4">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-mono text-xs text-muted">Grant {g.id.slice(0, 8)}</span>
+          <div className="min-w-0">
+            <h3 className="fig wrap-anywhere text-lg">{grantName(g)}</h3>
+            <p className="font-mono text-xs text-muted">{g.id.slice(0, 8)}</p>
+          </div>
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${tone}`}>{g.status}</span>
         </div>
         <dl className="mt-3 grid grid-cols-3 gap-2">
@@ -132,8 +137,15 @@ function GrantNode({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: st
         {g.status === "active" && !!g.strikes_in_window && (
           <p className="mt-2 text-xs text-muted">Strikes in the current window: {g.strikes_in_window}</p>
         )}
-        {g.parent_id !== null && <SuspendControl g={g} canManage={canManage(g, all, me, owner)} isOwner={me === owner} />}
-        {g.parent_id !== null && canManage(g, all, me, owner) && <RevokeControl g={g} currency={cur} />}
+        {g.parent_id !== null && (canManage(g, all, me, owner) ? (
+          <details className="mt-3 border-t border-line pt-2">
+            <summary className="cursor-pointer text-sm text-muted">Manage</summary>
+            <SuspendControl g={g} canManage isOwner={me === owner} />
+            <RevokeControl g={g} currency={cur} />
+          </details>
+        ) : (
+          <SuspendControl g={g} canManage={false} isOwner={me === owner} />
+        ))}
       </div>
       {kids.length > 0 && (
         <ul className="ml-4 mt-2 flex flex-col gap-2 border-l-2 border-line pl-4">
@@ -145,7 +157,7 @@ function GrantNode({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: st
 }
 
 export default function MandateView() {
-  const { state, error: err, refresh } = useMandate();
+  const { state, error: err, refresh, updatedAt } = useMandate();
   const { session } = useSession();
 
   if (!state) return <p className="p-4 text-sm text-muted">{err ?? "Loading…"}</p>;
@@ -163,7 +175,10 @@ export default function MandateView() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h2 className="fig text-xl">Grants</h2>
-            <button onClick={refresh} className="btn-ghost">Refresh</button>
+            <div className="flex items-center gap-3">
+              {updatedAt && <span className="text-xs text-muted">Updated {updatedAt.toLocaleTimeString()}</span>}
+              <button onClick={refresh} className="btn-ghost">Refresh</button>
+            </div>
           </div>
           <ul className="flex flex-col gap-2">
             {roots.map((g) => <GrantNode key={g.id} g={g} all={state.grants} cur={cur} me={me} owner={owner} />)}
@@ -186,17 +201,19 @@ export default function MandateView() {
             {state.transactions.length === 0 && <p className="mt-2 text-sm text-muted">No transactions yet. Ask for a payment to see the kernel decide.</p>}
             <ul className="mt-3 flex flex-col divide-y divide-line">
               {state.transactions.slice(0, 30).map((t) => {
-                const tt = t.state === "rejected" ? "text-bad" : t.state === "held" ? "text-warn" : "text-ok";
+                const st = txState(t.state);
+                const holder = state.grants.find((g) => g.id === t.grant_id);
                 return (
                   <li key={t.id} className="py-2.5">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="fig text-lg">{money(t.amount, t.currency || cur)}</span>
-                      <span className={`text-sm font-semibold capitalize ${tt}`}>{t.state}</span>
+                      <span className={`text-sm font-semibold ${st.tone}`}>{st.label}</span>
                     </div>
                     <p className="wrap-anywhere text-sm text-muted">
-                      {t.recipient} · {t.category}
-                      {t.reject_reason ? ` · ${reasonText(t.reject_reason)}` : ""}
+                      {holder ? `${grantName(holder)} · ` : ""}{t.recipient} · {t.category}
+                      {t.reject_reason && <> · <span title={reasonTitle(t.reject_reason)}>{reasonText(t.reject_reason)}</span></>}
                     </p>
+                    <p className="text-xs text-muted">{timeOf(t.created_at)}</p>
                     <TxLink t={t} />
                   </li>
                 );

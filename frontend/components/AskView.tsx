@@ -1,17 +1,22 @@
 "use client";
-// Screen 3: free text -> POST /agent/request. Left: what the (untrusted) interpreter proposed.
-// Right: what the deterministic kernel decided. Everything rendered here is plain text.
+// Screen 3: free text -> POST /agent/request. The kernel's decision comes first, in plain words.
+// What the (untrusted) interpreter proposed sits in a collapsed section below. Everything rendered here is plain text.
 import { useState } from "react";
-import { api, describeError, money, reasonText, type AgentResponse, type Interpretation, type Decision } from "@/lib/api";
+import {
+  api, describeError, grantName, money, reasonText, reasonTitle, txState,
+  type AgentResponse, type Interpretation, type Decision,
+} from "@/lib/api";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
-const STATE_TONE: Record<string, string> = {
-  reserved: "text-ok",
-  settled: "text-ok",
-  proposed: "text-accent",
-  rejected: "text-bad",
-};
+// One-tap requests that fill the text box. The outcomes hold for the demo mandate's Research bot grant
+// (scripts/demo_seed.py: 100.00 per payment, owner approval above 60.00, recipients aws/github/openai).
+const EXAMPLES = [
+  { text: "pay 20 USD to aws for cloud", outcome: "approved" },
+  { text: "pay 80 USD to aws for cloud", outcome: "held for approval" },
+  { text: "pay 150 USD to aws for cloud", outcome: "over the limit" },
+  { text: "pay 10 USD to evil for cloud", outcome: "wrong recipient" },
+];
 
 function Row({ k, v }: { k: string; v: string | number | null | undefined }) {
   if (v === null || v === undefined || v === "") return null;
@@ -54,7 +59,7 @@ function InterpretationCard({ i }: { i: Interpretation }) {
           ))}
         </ul>
       )}
-      <h4 className="mt-3 text-xs font-semibold uppercase text-muted">Route trail</h4>
+      <h4 className="mt-3 text-sm font-semibold text-muted">Route trail</h4>
       <ol className="mt-1 flex flex-col gap-1 text-sm">
         {i.trail.length === 0 && <li className="text-muted">No steps recorded.</li>}
         {i.trail.map((t, n) => (
@@ -71,27 +76,49 @@ function InterpretationCard({ i }: { i: Interpretation }) {
   );
 }
 
+// Why the interpreter could not hand the kernel a request. Unknown codes are shown unchanged.
+const INTERPRETER_TEXT: Record<string, string> = {
+  PROVIDER_FAILED: "the AI model could not be reached",
+  ROUTE_UNAVAILABLE: "no AI model is available",
+  NO_FAST_PATH_MATCH: "the wording did not match a simple pattern",
+  BUDGET_EXHAUSTED: "the AI model budget is used up",
+  AGENT_BUDGET_EXHAUSTED: "this agent's AI model budget is used up",
+  BAD_INPUT_SIZE: "the request is empty or too long",
+};
+
+// The decision in plain words, derived only from the kernel's answer.
+function headline(d: Decision | null): string {
+  if (!d) return "Not sent to the kernel";
+  if (d.state === "proposed") return "Held for the owner's approval";
+  if (d.state === "rejected") return `Refused: ${d.reason ? reasonText(d.reason) : "the kernel said no."}`;
+  if (d.state === "settled") return "Approved and paid";
+  return "Approved and reserved";
+}
+
 function DecisionCard({ d, interp }: { d: Decision | null; interp: Interpretation }) {
+  const st = txState(d?.state ?? "");
   return (
-    <div className="rounded-lg border border-line bg-card p-3">
-      <h3 className="text-sm font-semibold">Kernel decision (authoritative)</h3>
+    <div className="panel p-5 lg:p-6">
+      <p className="text-sm text-muted">Kernel decision</p>
+      <p
+        className={`fig mt-1 text-2xl lg:text-3xl ${st.tone}`}
+        title={d?.reason ? reasonTitle(d.reason) : undefined}
+      >
+        {headline(d)}
+      </p>
       {d ? (
         <>
-          <p className={`mt-2 text-xl font-semibold uppercase ${STATE_TONE[d.state] ?? ""}`}>{d.state}</p>
-          <dl className="mt-2 flex flex-col gap-1">
-            <Row k="Reason" v={d.reason ? reasonText(d.reason) : null} />
-            <Row k="Review reason" v={d.review_reason} />
-            {d.suspended && <Row k="Circuit breaker" v="this refusal suspended the grant" />}
-            <Row k="Replayed" v={d.replayed ? "yes (no second reservation)" : "no"} />
-            <Row k="Transaction" v={d.transaction_id} />
-          </dl>
           {d.state === "proposed" && (
-            <p className="mt-2 text-sm text-muted">Held for the owner. No funds are reserved until approved.</p>
+            <p className="mt-2 text-sm text-muted">
+              {d.review_reason ? `${reasonText(d.review_reason)} ` : ""}No money is reserved until the owner approves.
+            </p>
           )}
+          {d.suspended && <p className="mt-2 text-sm text-warn">This refusal suspended the grant (circuit breaker).</p>}
+          {d.replayed && <p className="mt-2 text-sm text-muted">This exact request was already decided; nothing new was reserved.</p>}
         </>
       ) : (
         <p className="mt-2 text-sm text-muted">
-          The kernel was not called ({interp.status}). Nothing was reserved.
+          {interp.reasons.length > 0 ? `${interp.reasons.map((r) => INTERPRETER_TEXT[r] ?? r).join(", ")}. ` : ""}The request could not be read well enough to send. Nothing was reserved.
         </p>
       )}
     </div>
@@ -101,14 +128,15 @@ function DecisionCard({ d, interp }: { d: Decision | null; interp: Interpretatio
 export default function AskView() {
   const { session } = useSession();
   const { state, refresh } = useMandate();
-  const grants = state?.grants.filter((g) => g.status === "active") ?? [];
+  // Only the holder can spend from a grant (the server enforces it), so only the caller's own active grants are offered.
+  const grants = state?.grants.filter((g) => g.status === "active" && g.holder_principal_id === session?.principalId) ?? [];
   const [grantId, setGrantId] = useState("");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<AgentResponse | null>(null);
 
-  const chosen = grantId || grants[grants.length - 1]?.id || "";
+  const chosen = grants.some((g) => g.id === grantId) ? grantId : (grants[grants.length - 1]?.id ?? "");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -132,19 +160,31 @@ export default function AskView() {
   }
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex max-w-2xl flex-col gap-4">
+      <div aria-live="polite" className="flex flex-col gap-3">
+        {result ? (
+          <DecisionCard d={result.decision} interp={result.interpretation} />
+        ) : (
+          <div className="panel p-5 lg:p-6">
+            <p className="text-sm text-muted">Kernel decision</p>
+            <p className="fig mt-1 text-2xl text-muted lg:text-3xl">{busy ? "Asking the kernel…" : "Nothing asked yet"}</p>
+          </div>
+        )}
+        {err && <p role="alert" className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
+      </div>
+
       {state && grants.length === 0 && (
         <p role="status" className="rounded-md border border-line bg-card px-3 py-2 text-sm text-muted">
-          No active grant in this mandate, so there is nothing to ask against.
+          You do not hold an active grant in this mandate, so there is nothing to ask against.
         </p>
       )}
-      <form onSubmit={submit} className="flex max-w-2xl flex-col gap-3">
+      <form onSubmit={submit} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm">
-          Grant
+          Spend from
           <select value={chosen} onChange={(e) => setGrantId(e.target.value)} className="field">
             {grants.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.id.slice(0, 8)} · available {money(g.available, state?.mandate.currency)}
+                {grantName(g)} · {money(g.available, state?.mandate.currency)} available
               </option>
             ))}
           </select>
@@ -161,14 +201,30 @@ export default function AskView() {
             className="field"
           />
         </label>
+        <div>
+          <p className="text-sm text-muted">Try an example</p>
+          <ul className="mt-1 flex flex-wrap gap-2">
+            {EXAMPLES.map((x) => (
+              <li key={x.text}>
+                <button type="button" onClick={() => setText(x.text)} className="btn-ghost text-left">
+                  {x.text}
+                  <span className="block text-xs font-normal text-muted">{x.outcome}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
         <button disabled={busy || !chosen} className="btn-primary">{busy ? "Asking…" : "Send request"}</button>
       </form>
-      {err && <p role="alert" className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
+
       {result && (
-        <div className="grid gap-3 md:grid-cols-2">
-          <InterpretationCard i={result.interpretation} />
-          <DecisionCard d={result.decision} interp={result.interpretation} />
-        </div>
+        <details className="panel p-4">
+          <summary className="cursor-pointer text-sm font-semibold">How the model read this request</summary>
+          <p className="mt-1 text-xs text-muted">Untrusted: the model only proposes. The kernel decision above is the authority.</p>
+          <div className="mt-3">
+            <InterpretationCard i={result.interpretation} />
+          </div>
+        </details>
       )}
     </section>
   );

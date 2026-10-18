@@ -37,7 +37,15 @@ export default function IntegrityBadge() {
       </div>
     );
   }
-  if (!data) return <p className="rounded-lg border border-line bg-card px-4 py-3 text-sm text-muted">Checking history…</p>;
+  if (!data) {
+    return (
+      <div role="status" aria-label="Checking history" className="panel animate-pulse px-4 py-3">
+        <div className="h-4 w-2/5 rounded bg-line" />
+        <div className="mt-2 h-3 w-full rounded bg-line" />
+        <div className="mt-1.5 h-3 w-3/4 rounded bg-line" />
+      </div>
+    );
+  }
 
   const a = data.last_anchor;
   const link = a?.explorer_url?.startsWith("https://") ? a.explorer_url : null;
@@ -49,8 +57,9 @@ export default function IntegrityBadge() {
       {data.ok ? (
         <>
           <p className="text-base font-semibold">History intact · {data.length} records</p>
-          <p className="text-sm opacity-80">
-            Hash chain head <span className="font-mono">{data.head_hash.slice(0, 12)}</span> (record {data.head_seq}). Recomputed by the server.
+          <p className="text-sm opacity-80">Every record is linked to the one before it, so editing any record breaks the chain.</p>
+          <p className="mt-1 text-xs opacity-80">
+            Latest link <span className="font-mono">{data.head_hash.slice(0, 12)}</span> (record {data.head_seq}), recomputed by the server.
           </p>
         </>
       ) : (
@@ -64,12 +73,21 @@ export default function IntegrityBadge() {
           <>
             Last on-chain anchor: record {a.seq}, {a.status}
             {a.matches ? ", matches" : ", DOES NOT MATCH"}
-            {link && <> · <a href={link} target="_blank" rel="noopener noreferrer" className="underline">View on explorer</a></>}
           </>
         ) : (
           "Not anchored on-chain yet."
         )}
       </p>
+      {link && (
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-ghost mt-3 inline-flex items-center text-foreground"
+        >
+          View anchor on Base Sepolia
+        </a>
+      )}
     </div>
   );
 }
