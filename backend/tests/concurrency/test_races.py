@@ -19,6 +19,10 @@ pytestmark = pytest.mark.concurrency
 def patient_locks(monkeypatch):
     # ~60 ms per round trip means each op holds the lock ~0.6 s; let waiters queue instead of timing out.
     monkeypatch.setattr(kernel_tx_module, "LOCK_TIMEOUT_MS", 120_000)
+    # statement_timeout also counts time spent waiting for the row lock, so at ~100 ms per round trip the last of eight
+    # queued racers would hit the 5 s production limit and get KernelBusy (a designed, retryable refusal, not an
+    # overspend). These tests assert I1-I3 under contention, so let them queue; KernelBusy has its own tests.
+    monkeypatch.setattr(kernel_tx_module, "STATEMENT_TIMEOUT_MS", 120_000)
 
 
 def race(fns):

@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import time
 
+import pytest
+
 from budget_kernel import worker
 from budget_kernel.settlement.adapter import SettlementConfig, settle
 from budget_kernel.settlement.fake import FakeChain
 from budget_kernel.settlement.signer import Signer
 
 
+@pytest.mark.timeout(900)   # one pass ticks up to 50 leftover due mandates from earlier tests, each ~30 round trips
 def test_one_pass_settles_mined_transfer_and_releases_expired_reservation(world, pool):
     with pool.connection() as c:
         c.execute("TRUNCATE anchors, anchor_heads, chain_settlements, settlement_accounts")

@@ -13,6 +13,14 @@ from budget_kernel.db.connection import make_pool
 from budget_kernel.db.migrate import migrate
 
 
+@pytest.fixture(autouse=True)
+def _simulated_settlement_by_default(monkeypatch):
+    """Tests must not depend on the machine's .env: a developer with BK_SETTLEMENT_MODE=testnet would otherwise get
+    real-chain behaviour from `create_app(pool=pool)` (2 tests failed that way). Tests that need testnet mode inject
+    `settlement=` or set the variable themselves, which overrides this default."""
+    monkeypatch.setenv("BK_SETTLEMENT_MODE", "simulated")
+
+
 @pytest.fixture(scope="session")
 def settings():
     return Settings.load()
