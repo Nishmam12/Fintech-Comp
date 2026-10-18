@@ -23,12 +23,12 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Notes / blockers:** Production `bk` still needs migrations 003 and 006 (lead runs `uv run python -m budget_kernel.db.migrate`).
 
 ### Member 2 (RTX 2070 Super) — daniel
-- **Status:** REVIEW
-- **Task ID:** BK-413-final-check (PR #11), deck and technical document drafts (BK-120, BK-160)
-- **Branch:** daniel/BK-413-final-check
-- **Claimed areas (paths):** frontend/, docs/submission/
-- **Started / last update (UTC):** 2026-10-17
-- **Notes / blockers:** PR #11 ready for review. Waiting for the shared API URL to re-check the anchor link on the badge. Next: lead feedback on the drafts, then screenshots into the deck.
+- **Status:** ACTIVE
+- **Task ID:** UI usability sprint: BK-514 reasons, BK-512 role-aware nav, BK-511 demo sign-in, BK-513 Mandate, BK-515 Ask, BK-516 Review/Settings/Integrity/toasts; then BK-120 deck, BK-160 technical doc
+- **Branch:** daniel/BK-514-reasons (then daniel/BK-512-nav, daniel/BK-511-demo-signin, daniel/BK-513-mandate, daniel/BK-515-ask, daniel/BK-516-screens)
+- **Claimed areas (paths):** frontend/ (except ActivityView.tsx, SimulationView.tsx, lib/describe.ts), docs/submission/
+- **Started / last update (UTC):** 2026-10-18
+- **Notes / blockers:** BK-413-final-check (PR #11) still in review. Deck screenshots wait for the Oct 19 14:00 BST freeze.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
 - **Status:** REVIEW
