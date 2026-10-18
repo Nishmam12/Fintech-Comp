@@ -2,11 +2,19 @@
 // BK-413: rotate the API key. The new key is shown once; the old one stops working at once, so the session
 // switches to the new key in memory. Nothing is stored anywhere else.
 import { useState } from "react";
-import { describeError, rotateKey } from "@/lib/api";
+import { describeError, money, rotateKey } from "@/lib/api";
+import { useToast } from "@/components/Toast";
+import { useMandate } from "@/lib/mandate";
+import { useRole } from "@/lib/role";
 import { useSession } from "@/lib/session";
 
 export default function SettingsView() {
   const { session, replaceKey } = useSession();
+  const { state } = useMandate();
+  const { role } = useRole();
+  const toast = useToast();
+  // undefined: the server has not told us; null: the key does not expire.
+  const [expiry, setExpiry] = useState<string | null | undefined>(undefined);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -21,6 +29,8 @@ export default function SettingsView() {
       const r = await rotateKey(session.key);
       replaceKey(r.api_key);
       setFresh(r.api_key);
+      setExpiry(r.key_expires_at);
+      toast("Key rotated");
       setConfirming(false);
     } catch (e) {
       setErr(describeError(e, "Could not rotate the key"));
@@ -40,9 +50,26 @@ export default function SettingsView() {
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="rounded-lg border border-line bg-card p-3">
-        <h3 className="text-sm font-semibold">API key</h3>
+    <section className="flex max-w-2xl flex-col gap-4">
+      <div className="panel p-5">
+        <h2 className="fig text-xl">You</h2>
+        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+          <dt className="text-muted">Name</dt><dd className="wrap-anywhere text-right">{session?.name ?? "Unknown"}</dd>
+          <dt className="text-muted">Role</dt><dd className="text-right capitalize">{role}</dd>
+          {state && (
+            <>
+              <dt className="text-muted">Mandate</dt>
+              <dd className="text-right">
+                {money(state.mandate.total, state.mandate.currency)} <span className="font-mono text-xs text-muted">{state.mandate.id.slice(0, 8)}</span>
+              </dd>
+            </>
+          )}
+          <dt className="text-muted">Key expires</dt>
+          <dd className="text-right">{expiry ? new Date(expiry).toLocaleString() : expiry === null ? "Does not expire" : "Not reported by the server until you rotate the key"}</dd>
+        </dl>
+      </div>
+      <div className="panel p-5">
+        <h2 className="fig text-xl">API key</h2>
         <p className="mt-1 text-sm text-muted">
           Rotating issues a new key and disables the current one immediately. Any other device or script using the old key
           will be signed out.

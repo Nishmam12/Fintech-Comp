@@ -5,12 +5,14 @@
 // The kill switch (RevokeControl) is separate and unchanged.
 import { useState } from "react";
 import { api, describeError, type Grant } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
 export default function SuspendControl({ g, canManage, isOwner }: { g: Grant; canManage: boolean; isOwner: boolean }) {
   const { session } = useSession();
   const { refresh } = useMandate();
+  const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -29,6 +31,7 @@ export default function SuspendControl({ g, canManage, isOwner }: { g: Grant; ca
     try {
       await api(session.key, `/grants/${g.id}/${suspended ? "reinstate" : "suspend"}`, { method: "POST", body: {} });
       setConfirming(false);
+      toast(suspended ? "Grant reinstated" : "Grant suspended");
       refresh();
     } catch (e) {
       setErr(describeError(e, suspended ? "Reinstate failed" : "Suspend failed"));
