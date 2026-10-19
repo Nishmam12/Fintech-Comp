@@ -31,12 +31,12 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Notes / blockers:** BK-511 (#15) needs the Opus review (demo keys). `/me` has no key expiry (Settings shows it only after a rotate); lead to decide on an API field. The wrong-recipient chip needs a live model; no provider keys on this machine, so not verified.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
-- **Status:** REVIEW
-- **Task ID:** UI sprint: BK-501 names in API, BK-502 demo seed, BK-503 Activity, BK-504 Attack lab, BK-140 video script
-- **Branch:** afnan/BK-501-names, afnan/BK-502-demo-seed, afnan/BK-503-activity, afnan/BK-504-attack-lab, afnan/BK-140-video-script
-- **Claimed areas (paths):** backend/src/budget_kernel/api/app.py (read models /state, /audit, /budget only), backend/tests/integration/test_api_read_models.py, scripts/demo_seed.py, frontend/components/{ActivityView,SimulationView}.tsx, frontend/lib/describe.ts, frontend/lib/api.ts (3 type lines only), docs/demo/VIDEO_SCRIPT.md
-- **Started / last update (UTC):** 2026-10-18 05:45
-- **Notes / blockers:** All five branches pushed, PRs pending. BK-501 first (Daniel depends on it); 501 and 502 need the Opus review. Full suite: 364 passed; 2 tests fail only when .env has BK_SETTLEMENT_MODE=testnet (pass in simulated). Next: video rehearsal on merged main, final take after UI freeze.
+- **Status:** ACTIVE
+- **Task ID:** UI R3 (docs/handover/UI_R3.md): Activity (8+4) and Attack lab (ledger) screens
+- **Branch:** afnan/BK-R3-activity-attack
+- **Claimed areas (paths):** frontend/components/{ActivityView,SimulationView}.tsx, frontend/lib/describe.ts
+- **Started / last update (UTC):** 2026-10-19 17:40
+- **Notes / blockers:** Earlier BK-501..504 work is merged.
 
 Status values: `ACTIVE`, `PAUSED` (claim kept), `IDLE` (no claim), `REVIEW` (waiting on review/merge).
 
