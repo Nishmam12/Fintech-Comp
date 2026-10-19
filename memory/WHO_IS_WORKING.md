@@ -31,12 +31,12 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Notes / blockers:** Earlier PRs #13-#18 awaiting review. BK-120 deck and BK-160 technical document still pending.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
-- **Status:** ACTIVE
+- **Status:** DONE (reviewed and merged 140bb79, 2026-10-20 00:00 BST)
 - **Task ID:** UI R3 (docs/handover/UI_R3.md): Activity (8+4) and Attack lab (ledger) screens
 - **Branch:** afnan/BK-R3-activity-attack
 - **Claimed areas (paths):** frontend/components/{ActivityView,SimulationView}.tsx, frontend/lib/describe.ts
 - **Started / last update (UTC):** 2026-10-19 17:40
-- **Notes / blockers:** Earlier BK-501..504 work is merged.
+- **Notes / blockers:** UI R3 Activity and Attack lab merged. Next: final video take once the UI is frozen, then the evidence export (`scripts/evidence.py`) by Oct 20 noon.
 
 Status values: `ACTIVE`, `PAUSED` (claim kept), `IDLE` (no claim), `REVIEW` (waiting on review/merge).
 
