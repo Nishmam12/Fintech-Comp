@@ -49,7 +49,7 @@ Keep this board concise. Each task needs an ID, owner/agent, status, acceptance 
 | BK-516 | Review, Settings and Integrity skeleton and explanation, toasts | DONE | **Member 2.** Merged. Toasts cut first if late; they were not cut. |
 | BK-R3-1 | UI revision 3 foundation: full-bleed shell, shared `components/ui/`, Sign-in, Mandate, Ask, `npm run check:layout` | DONE | **Lead.** a199f5b. check:layout ALL CHECKS PASS at 1366/1920/2560/1024/390; tsc, eslint, build clean. |
 | BK-R3-2 | Activity (8+4) and Attack lab (ledger) as native sections | DONE | **Member 3.** Reviewed and merged 140bb79 (Opus-style review by lead, Sonnet session): frontend-only diff, no api/lib/request-path change; check:layout ALL CHECKS PASS; looked at 1366 screenshots. Nit: attack names lower-case. |
-| BK-R3-3 | Review (8+4) and Settings (6+6, Sign out), Toast, Suspend/Revoke styling | OPEN | **Member 2.** Claimed (6da1a58), in progress as of 2026-10-20 00:00 BST. Ships as the old content inside the new frame if not delivered. |
+| BK-R3-3 | Review (8+4) and Settings (6+6, Sign out), Toast, Suspend/Revoke styling | DONE | **Member 2.** Reviewed and merged (lead): frontend-only diff, no request-path change; tsc, eslint, check:reasons, check:layout all pass; looked at Review, Settings and Manage at 1366. |
 | BK-UIF | **UI freeze Oct 19 14:00 BST** (video take 15:00-18:00) | READY | **Lead.** Click-through with demo buttons before the freeze. |
 | BK-311..315 | Settlement hardening: confirmations, gas ceiling, verified settle_fail, recipient registry, explorer links | READY | **Member 3**, after BK-075 core. |
 | BK-321..326 | Dashboard: mobile-first PWA, approval inbox, kill switch, velocity meter, explorer links, Playwright smoke | READY | **Member 2**, with BK-090. |

@@ -113,7 +113,7 @@ function LedgerRow({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: st
           : <span />}
       </div>
       {open && (
-        <div className="manage">
+        <div className="manage" ref={(el) => el?.scrollIntoView({ block: "nearest" })}>
           <p className="tag" style={{ margin: "0 0 0.5rem" }}>
             Expires {new Date(g.expires_at).toLocaleDateString()}, up to {money(g.scope.per_tx_limit, cur)} a payment
             {g.scope.review_above !== undefined && <>, approval above {money(g.scope.review_above, cur)}</>}
