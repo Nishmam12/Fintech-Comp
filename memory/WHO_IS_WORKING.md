@@ -15,7 +15,7 @@ GPU only matters for local inference or video rendering. All model calls in the 
 One section per member. **Edit only your own section** to avoid merge conflicts. Times are UTC.
 
 ### Nishmam (RTX 4070 Ti Super)
-- **Status:** WORKING
+- **Status:** IDLE (UI frozen, Run 7 and Step 12 done 2026-10-19 20:45 UTC; next: final numbers on Oct 20)
 - **Task ID:** UI revision 3: foundation, Sign-in, Mandate, Ask pushed (a199f5b, 01d4e6a). Teammates build the other four screens from `docs/handover/UI_R3.md`. Freeze 24:00 BST Oct 19.
 - **Branch:** main
 - **Claimed areas (paths):** frontend/app/*, frontend/components/App.tsx, SignIn, MandateView, AskView, IntegrityBadge, components/ui/*

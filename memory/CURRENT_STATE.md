@@ -1,7 +1,17 @@
 # Current State — Budget Kernel
 
-**Last verified:** 2026-10-18, memory sync (Haiku) against `main` at e42a002. Earlier versions of this file (2026-10-15) are superseded.
-**Overall status:** `PHASE 3 AND UI SPRINT MERGED. INTEGRATION DRY RUN, UI FREEZE (Oct 19 14:00 BST), BUILD FREEZE (Oct 19 20:00 BST) AND SUBMISSION (Oct 20) PENDING.`
+**Last verified:** 2026-10-19 20:45 UTC, lead session (Opus), against `main` after the UI freeze and the Run 7 dry run.
+**Overall status:** `BUILD AND UI FROZEN. DRY RUN PASSED (RUN 7). SECURITY SELF-ASSESSMENT DRAFT 3 DONE. REMAINING: VIDEO, EVIDENCE EXPORT, SCREENSHOTS, FINAL DECK AND DOC, SUBMISSION (DEADLINE 2026-10-20 15:59 UTC).`
+
+## Since the 2026-10-18 sync
+- **UI revision 3** (BK-R3-1 to 3): full-bleed, viewport-filling, rem-scaled design; shared `frontend/components/ui/`; all seven screens rebuilt (lead: shell, Sign-in, Mandate, Ask; Afnan: Activity, Attack lab; Daniel: Review, Settings). `npm run check:layout` passes at 1366, 1920, 2560, 1024 and 390 px. Design source: `docs/design/mockup.html`, `docs/design/UI_SPEC.md`.
+- **Config C** (Run 6): escalation through OpenRouter, 113/131 on both datasets, 0 unauthorized. Route is opt-in (`BK_ESCALATION_PROVIDER=openrouter`).
+- **Run 7 dry run**: 366 tests + slow state machine; `demo.py --attacks` 34/34; authorize 2,327 ms median at 114.5 ms RTT.
+- **Test robustness**: tests default to simulated settlement; race tests raise `statement_timeout` for queued racers; worker test has a 900 s timeout.
+- **Self-assessment draft 3**: R23 (demo keys), R24 (names on `/budget`), R6 and R18 updated.
+- **Clock**: the lead machine is on Dhaka time (UTC+6); hook times labelled BST are Dhaka time.
+
+_The sections below are from the 2026-10-18 sync and are still accurate except where the list above supersedes them._
 
 ## One-paragraph project summary
 Budget Kernel is a financial-decision pipeline with (1) selective, cost-aware model routing for interpreting natural-language financial requests into typed proposals, and (2) a deterministic authorization kernel that independently enforces mandates, delegated authority, spending limits, reservations, revocation, idempotency and auditability. LLMs never authorize transactions. Settlement runs on Base Sepolia (chain 84532) with test USDC only.
