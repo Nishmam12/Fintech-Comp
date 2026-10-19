@@ -8,6 +8,9 @@ import { useMandate } from "@/lib/mandate";
 import { useRole } from "@/lib/role";
 import { useSession } from "@/lib/session";
 
+// Flip to true once this view returns its own revision 3 <Section>s (see docs/handover/UI_R3.md); App then stops wrapping it.
+export const native = false;
+
 export default function SettingsView() {
   const { session, replaceKey } = useSession();
   const { state } = useMandate();

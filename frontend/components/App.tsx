@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import ActivityView from "@/components/ActivityView";
+import ActivityView, { native as activityNative } from "@/components/ActivityView";
 import AskView from "@/components/AskView";
-import ReviewView from "@/components/ReviewView";
+import ReviewView, { native as reviewNative } from "@/components/ReviewView";
 import MandateView from "@/components/MandateView";
-import SimulationView from "@/components/SimulationView";
-import SettingsView from "@/components/SettingsView";
+import SimulationView, { native as attackNative } from "@/components/SimulationView";
+import SettingsView, { native as settingsNative } from "@/components/SettingsView";
 import SignIn from "@/components/SignIn";
 import Section from "@/components/ui/Section";
 import { ToastProvider } from "@/components/Toast";
@@ -48,19 +48,15 @@ function Frame() {
     return () => clearInterval(id);
   }, [isOwner, refresh]);
 
-  const body =
-    current.id === "mandate" ? <MandateView /> :
-    current.id === "ask" ? <AskView /> :
-    // Screens not yet rebuilt on the revision 3 sections sit inside one full-width section (heading, scrolling body).
-    // When a view is rebuilt, add its id to NATIVE and let it return its own <Section>s.
-    <Section span={12} title={current.title} meta={current.hint}>
-      <div className="pt-4">
-        {current.id === "review" && <ReviewView />}
-        {current.id === "activity" && <ActivityView />}
-        {current.id === "attack" && <SimulationView />}
-        {current.id === "settings" && <SettingsView />}
-      </div>
-    </Section>;
+  // Rebuilt views return their own <Section>s (exported `native = true`); the rest sit inside one full-width section.
+  const view = {
+    mandate: [<MandateView key="m" />, true], ask: [<AskView key="a" />, true],
+    review: [<ReviewView key="r" />, reviewNative], activity: [<ActivityView key="v" />, activityNative],
+    attack: [<SimulationView key="s" />, attackNative], settings: [<SettingsView key="t" />, settingsNative],
+  }[current.id] as [React.ReactNode, boolean];
+  const body = view[1] ? view[0] : (
+    <Section span={12} title={current.title} meta={current.hint}><div className="pt-4">{view[0]}</div></Section>
+  );
   const badge = (t: TabId) =>
     t === "review" && heldCount > 0 ? <span className="count" aria-label={`${heldCount} waiting`}>{heldCount}</span> : null;
 

@@ -37,6 +37,9 @@ function BudgetMeter({ b }: { b: BudgetSnapshot }) {
   );
 }
 
+// Flip to true once this view returns its own revision 3 <Section>s (see docs/handover/UI_R3.md); App then stops wrapping it.
+export const native = false;
+
 export default function ActivityView() {
   const { session } = useSession();
   const [budget, setBudget] = useState<BudgetSnapshot | null>(null);

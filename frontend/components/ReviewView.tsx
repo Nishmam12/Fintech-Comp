@@ -9,6 +9,9 @@ import { useSession } from "@/lib/session";
 
 const POLL_MS = 3000;
 
+// Flip to true once this view returns its own revision 3 <Section>s (see docs/handover/UI_R3.md); App then stops wrapping it.
+export const native = false;
+
 export default function ReviewView() {
   const { session } = useSession();
   const { state, refresh } = useMandate();

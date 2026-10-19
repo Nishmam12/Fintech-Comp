@@ -39,6 +39,9 @@ function Side({ title, side, kernel }: { title: string; side: SimSide; kernel: b
   );
 }
 
+// Flip to true once this view returns its own revision 3 <Section>s (see docs/handover/UI_R3.md); App then stops wrapping it.
+export const native = false;
+
 export default function SimulationView() {
   const { session } = useSession();
   const [scenarios, setScenarios] = useState<string[]>([]);
