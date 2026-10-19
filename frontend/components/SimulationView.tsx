@@ -6,7 +6,7 @@ import { ApiError, describeError, listScenarios, money, runScenario, type SimRes
 import Section, { Filler } from "@/components/ui/Section";
 import { useSession } from "@/lib/session";
 
-const label = (s: string) => s.replace(/_/g, " ");
+const label = (s: string) => { const t = s.replace(/_/g, " "); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 const DESCRIPTIONS: Record<string, string> = {
   concurrency_overspend: "Many payment requests arrive at the same instant. Can they spend more than the money that exists?",

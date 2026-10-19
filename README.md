@@ -10,11 +10,16 @@ AI agents can propose payments, but **only a deterministic kernel can authorize 
 - **Safe retries.** Idempotency keys are bound to the payload. A replay returns the stored decision.
 - **Natural-language requests.** Deterministic fast path first (free), then a cheap model, then a stronger one only for defined failure classes. Every paid call reserves its worst-case cost in a monthly budget ledger first. Exhausted budget means "unresolved", never "approved".
 - **Attack demo.** The same attacks run against an intentionally unsafe baseline and the real kernel, with measured results.
-- **Testnet settlement (Topic F).** The kernel reserves, then a settlement service sends a Base Sepolia USDC transfer and records the transaction hash (in progress, see ADR-0007).
+- **Testnet settlement (Topic F).** The kernel reserves, then a settlement service sends a Base Sepolia USDC transfer to an operator-allow-listed address and records the transaction hash. Two kernel-approved payments and one anchor of the audit history are on chain (`evidence/SETTLEMENTS.md`). Every audit and movement row is hash-chained; `GET /mandates/{id}/integrity` recomputes the chain.
+- **Dashboard.** A Next.js app (`frontend/`) over the real API: mandate cheque with history seal, who may spend, decisions as proposal beside verdict, Ask, Review, Activity, Attack lab, Settings. Full-bleed, scales with the screen, phone layout included.
 
 ## Documents
 | | |
 |---|---|
+| Submission pack index (the six deliverables and where each lives) | [`docs/submission/PACK.md`](docs/submission/PACK.md) |
+| Technical document | [`docs/submission/TECH_DOC_DRAFT.md`](docs/submission/TECH_DOC_DRAFT.md) |
+| Deck | [`docs/submission/DECK_DRAFT.md`](docs/submission/DECK_DRAFT.md) |
+| Execution evidence (settlements, anchor, hashes) | [`evidence/SETTLEMENTS.md`](evidence/SETTLEMENTS.md) |
 | Security self-assessment (tiers, controls, known risks) | [`docs/SECURITY_SELF_ASSESSMENT.md`](docs/SECURITY_SELF_ASSESSMENT.md) |
 | Measured results (kernel scripts, evaluation, attacks) | [`memory/evaluation/RESULTS.md`](memory/evaluation/RESULTS.md) |
 | Architecture decisions | [`memory/decisions/`](memory/decisions) (ADR-0004 accounting, 0005 concurrency, 0006 cost ledger, 0007 settlement) |
@@ -41,6 +46,15 @@ uv run --project backend python scripts/demo.py --attacks   # plus the baseline-
 ```
 It creates fresh principals and a fresh mandate on every run, so it can be replayed any number of times. It exits 0 only if every expectation held.
 
+### Dashboard
+With the API running (`BK_SETTLEMENT_MODE=simulated` for a local demo):
+```bash
+uv run --project backend python scripts/demo_seed.py   # seeds Nabil (owner), Ops bot (manager), Research bot (agent); writes frontend/.env.local
+cd frontend && npm install && npm run dev               # http://localhost:3000, one-tap sign-in per demo account
+npm run check:layout                                    # layout check at 1366, 1920, 2560, 1024 and 390 px (needs the above running)
+```
+The demo sign-in buttons exist only in development builds; a production build contains no key.
+
 ### Tests
 ```bash
 cd backend
@@ -56,7 +70,7 @@ BK_TEST_SCHEMA=bk_test_<yourname> uv run pytest -q -m "not slow"
 cd eval
 uv run --project ../backend python make_dataset.py              # deterministic dataset (seed 20261015)
 uv run --project ../backend python runner.py --config offline   # kernel scripts + recorded-output gate + rules-only config A
-uv run --project ../backend python runner.py --config B         # live models: needs DASHSCOPE_API_KEY (C also needs DEEPSEEK_API_KEY)
+uv run --project ../backend python runner.py --config B         # live models: needs DASHSCOPE_API_KEY (C also needs DEEPSEEK_API_KEY, or OPENROUTER_API_KEY with BK_ESCALATION_PROVIDER=openrouter)
 ```
 Results are written to `eval/results/<date>/`. See [`eval/README.md`](eval/README.md).
 
@@ -82,7 +96,9 @@ backend/src/budget_kernel/
 backend/migrations/   plain SQL, applied in name order
 backend/tests/        integration, concurrency, boundary (import-graph and secret scans)
 eval/                 labelled dataset, runner, dated results
-scripts/demo.py       clean-start replay
+scripts/demo.py       clean-start replay; demo_seed.py seeds the dashboard demo accounts
+frontend/             Next.js dashboard (components/ui = shared layout parts, scripts/ = layout checks)
+evidence/             on-chain evidence: settlements, anchor, hashes
 memory/, docs/        decisions, plans, results, submission documents
 ```
 The kernel never imports model, routing or provider code, and only `simulation/` may import the unsafe baseline. Both rules are enforced by tests in `backend/tests/boundary/`.

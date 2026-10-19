@@ -1,4 +1,4 @@
-# Budget Kernel: technical document, draft 2 (BK-160)
+# Budget Kernel: technical document, draft 3 (BK-160)
 
 Written for: the lead (review) and then the competition judges (engineers and security reviewers who have not seen the code). Replaces the outline in `TECH_DOC_OUTLINE.md`. Numbers come from the repository; each has a source in brackets. Sections 7 and 8 carry the final figures the lead writes after the freeze, marked **[lead]**. Where a source file is known to be out of date, the text says so rather than copying it.
 
@@ -79,7 +79,7 @@ The adapter has no HTTP route and no authorization logic. The only code path tha
 
 **C. API hardening.** In-process token-bucket rate limiting: 120 requests per minute per principal (per IP if unauthenticated), a separate 30 per minute for the two model-backed endpoints, `/health` exempt, 429 `RATE_LIMITED` with `Retry-After`, bounded memory, `X-Forwarded-For` ignored unless `BK_TRUST_PROXY=1`. **It is per process; several replicas multiply the limit** (accepted). Key lifecycle: keys stored as hashes, optional expiry (`KEY_EXPIRED`), disable (`PRINCIPAL_DISABLED`, grants untouched), rotation in one `UPDATE` that makes the old key stop working immediately; two rotations at the same moment leave one winner and the loser gets `KEY_ALREADY_ROTATED` (409) and no key. No key appears in audit rows. [BK-411, BK-412]
 
-**D. Dashboard.** A mobile-first Next.js app driving only the real API. Demo sign-in buttons (dev builds only) give one tap per role; the tabs match the role (the owner sees Review and Attack, an agent or manager sees Ask), mirroring the server rules that only the owner approves or denies and that simulations are human-only. Screens: Mandate (named grant tree, a collapsed Manage section for suspend and revoke), Ask (the kernel decision first, in plain words), Review, Activity, Attack lab, Settings with key rotation, and the history-integrity badge. Every refusal code has a plain sentence, with the code in a tooltip. Model text is rendered as plain text; the explorer link is used only as the API returns it and only over https. Click-through evidence: `CLICKTHROUGH_BK413.md` (older 390 px shots in `screenshots/bk413/`). **[screenshots]** The final figures are re-shot from the frozen UI after the UI freeze (Oct 20, 00:40 BST) (the same set as the deck: 1280x800 plus one 390x844 phone shot) and replace the old ones.
+**D. Dashboard.** A mobile-first Next.js app driving only the real API. Demo sign-in buttons (dev builds only) give one tap per role; the tabs match the role (the owner sees Review and Attack, an agent or manager sees Ask), mirroring the server rules that only the owner approves or denies and that simulations are human-only. Screens: Mandate (named grant tree, a collapsed Manage section for suspend and revoke), Ask (the kernel decision first, in plain words), Review, Activity, Attack lab, Settings with key rotation, and the history-integrity badge. Every refusal code has a plain sentence, with the code in a tooltip. Model text is rendered as plain text; the explorer link is used only as the API returns it and only over https. Click-through evidence: `CLICKTHROUGH_BK413.md` (older 390 px shots in `screenshots/bk413/`). Figures from the frozen UI (1280x800, one phone shot at 390x844), in `docs/submission/screenshots/r3/`: `02-mandate` (cheque, seal, who may spend, decisions), `04-ask-held` and `05-ask-refused` (proposal beside verdict), `09-owner-reinstate` and `12-manager-owner-only` (only the owner can reinstate), `07-review`, `08-activity`, `10-attack-lab` (seven scenarios, baseline against kernel), `11-settings`, `13-phone-mandate`.
 
 ## 7. Evaluation
 
@@ -97,15 +97,28 @@ All raw files are under `eval/results/`; dataset versions and seeds are in `memo
 | Attacks, unsafe baseline vs kernel | overspend race, delegation amplification, revoked ancestor, replay: baseline violated, kernel held. Revocation race: did not reproduce against the baseline in the recorded run; kernel held. | Run 2. The split-purchase scenario is a disclosed limitation, since closed for grants that set a window (R1). |
 | Authorization latency | 2,327 ms median per `authorize` (25 sequential calls) on the hosted database at a 114.5 ms round trip, about 20 round trips; the window and threshold add 64 ms | Run 7 (2026-10-19, frozen build, includes the hash chain and the breaker). Run 3 measured 1,089 ms at about 60 ms per round trip: the same round-trip count. |
 
-**[lead]** final numbers after the freeze, including a re-measured latency.
+## 7a. Final numbers (frozen build, 2026-10-19 to 20)
+
+| Claim | Figure | Where it comes from |
+|---|---|---|
+| Authorization is deterministic and fail-closed | 0 unauthorized approvals and 0 invariant violations in every run: kernel scripts 134/134 steps; 366 tests plus the property-based state machine | Runs 5 and 7 |
+| Attacks | 7 scenarios against an unsafe baseline and the kernel from a clean start: the kernel held in all 7; the baseline broke in 5 (revocation race: timing-dependent, did not reproduce; split purchases: informational) | Run 7, `eval/results/2026-10-19/demo-attacks-2030utc.txt` |
+| Language interface, rules only | 51/131 correct, 0 unauthorized | Run 1 |
+| Language interface, config B | 106/131 (v1), 107/131 (v2); 0 unauthorized, 0 wrong-value | Run 5 |
+| Language interface, config C (escalation) | 113/131 on both datasets; 0 unauthorized, 0 wrong-value; escalation on about 19 to 20% of model cases | Run 6 |
+| Authorization latency | 2,327 ms median at a 114.5 ms round trip to the hosted database (about 20 round trips); velocity window and approval threshold add 64 ms | Run 7 |
+| On-chain evidence | 2 kernel-approved settlements and 1 history anchor on Base Sepolia (see `evidence/SETTLEMENTS.md`) | BK-130 |
+| Independent reviews | 5 (kernel, harness, ADR-0008, settlement, Phase 3), plus the 2026-10-20 pass over the UI rebuild: 20 findings and fixes across the first five (9, 3, 2, 3 and 3), all with tests; none new on 2026-10-20 | Self-assessment section 9 |
+
+All evaluation figures are on synthetic data, one run per setting. They support these scenarios, not general security.
 
 ## 8. Security self-assessment
 
-Permission tiers (admin, T0 human owner, T1 delegating holder, T2 leaf holder, S settlement service, and no tier for models) and the controls-to-threats map are in `docs/SECURITY_SELF_ASSESSMENT.md` sections 3 and 4; the known-risk list is section 7 (R1 to R22). At the time of writing:
-- **Mitigated:** R1 split purchases (opt-in windows), R2 cross-mandate settlement service, R3 simulated settle path, R4 recipient mapping (allow-list), R7 shared inference budget, R8 rate limit and key lifecycle, R9 retry cost, R16, R17 (rotate once more before submission), R21 inbox flooding, R22 probing without consequence. R20 and R18 are partly mitigated.
-- **Accepted, and stated as not claimed:** R5 one operator hot wallet; R6 per-mandate serialization; R10 the router's `needs_review` does not bind a malicious holder; R11 revoking the root freezes the mandate; R12 in-flight transfers cannot be recalled; R13 service principals can read every mandate; R14 refused requests write audit rows; R19 injection detection is pattern-based; R20 a database superuser can rewrite an un-anchored chain.
-- **Open at the time of reading:** R15 (model text in the UI); the dashboard renders it as plain text, so this row should be re-checked and closed by the lead.
-Review history: an independent Opus review of the kernel (9 findings, all fixed), of the simulation harness and cost ledger, of ADR-0008, of settlement (3 fixes), and of Phase 3 (K1 fixed, 2 low findings fixed). The lead updates risk text at the freeze; this document should then be re-read against it. Note that sections 1 and 8 of the assessment itself still predate the live-model runs.
+Permission tiers (admin, T0 human owner, T1 delegating holder, T2 leaf holder, S settlement service, and no tier for models) and the controls-to-threats map are in `docs/SECURITY_SELF_ASSESSMENT.md` sections 3 and 4; the known-risk list is section 7 (R1 to R24). As of 2026-10-20:
+- **Mitigated:** R1 split purchases (opt-in windows), R2 cross-mandate settlement service, R3 simulated settle path, R4 recipient mapping (allow-list), R7 shared inference budget, R8 rate limit and key lifecycle, R9 retry cost, R16, R17 (rotate once more before submission), R15 model text in the UI (plain text only, no HTML sinks, searched and re-checked on the rebuilt UI), R21 inbox flooding, R22 probing without consequence, R23 demo sign-in keys (dev builds only; a production build was scanned and holds none). R20 and R18 are partly mitigated.
+- **Accepted, and stated as not claimed:** R5 one operator hot wallet; R6 per-mandate serialization; R10 the router's `needs_review` does not bind a malicious holder; R11 revoking the root freezes the mandate; R12 in-flight transfers cannot be recalled; R13 service principals can read every mandate; R14 refused requests write audit rows; R19 injection detection is pattern-based; R20 a database superuser can rewrite an un-anchored chain; R24 agent names are visible to every principal on `/budget`.
+- **Open:** none rated above Low that is not listed as accepted. R17 (rotate the database password just before submission) is an operator step.
+Review history: an independent Opus review of the kernel (9 findings, all fixed), of the simulation harness and cost ledger, of ADR-0008, of settlement (3 fixes), and of Phase 3 (K1 fixed, 2 low findings fixed). The self-assessment (draft 3, 2026-10-20) was re-read against the frozen build and its figures refreshed from Runs 5 to 7.
 
 ## 9. Limits and future work
 
@@ -113,4 +126,4 @@ Review history: an independent Opus review of the kernel (9 findings, all fixed)
 - A database superuser can rewrite an un-anchored chain; anchoring more often narrows the window but does not remove it. Future: smart-account wallets with on-chain spending limits (ADR-0007).
 - Serialization per mandate limits throughput to roughly one operation every 2.3 s per mandate on our hosted database (network-bound); different mandates run in parallel.
 - The rate limiter is per process.
-- The evaluation is synthetic, one run per setting, and the escalation model has not been evaluated; a held-out set written by someone else would be a stronger test.
+- The evaluation is synthetic, one run per setting, and the second dataset shares the first's generator; fee arithmetic (0/12) is not solved by either configuration. A held-out set written by someone else would be a stronger test.
