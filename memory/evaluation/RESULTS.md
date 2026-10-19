@@ -126,3 +126,20 @@ Latency end to end: p50 about 6.9 s (v1) and 6.6 s (v2), p95 about 12.7 s and 12
 - One run per setting at 131 cases; v2 comes from the same generator as v1 (different seed). All data is synthetic.
 - The escalation model is DeepSeek V4.1 Flash served through OpenRouter, not DeepSeek's own API; the upstream provider behind OpenRouter can vary.
 - Safety is unchanged: 0 unauthorized and 0 wrong-value approvals in both configs. The gain is in how many safe requests get through, not in what the kernel allows.
+
+## Run 7: integration dry run on the frozen build (2026-10-19, UTC)
+Everything below ran on `main` after the UI freeze, against the hosted database. Raw files in `eval/results/2026-10-19/`.
+
+| Check | Result | File |
+|---|---|---|
+| Full test suite (non-slow) | **366 passed** in 64 min | `suite-full.txt` |
+| Slow property-based state machine | 1 passed | `suite-slow.txt` |
+| `scripts/demo.py --attacks` from a clean start (API, simulated settlement) | 34 checks ok, 0 failed; all 7 attack scenarios: kernel held | `demo-attacks-2030utc.txt` |
+| Database round trip (`SELECT 1`, 30 samples) | median **114.5 ms** (min 113.3, p95 116.9) | measured inline, 20:31 UTC |
+| `authorize` latency, 25 sequential calls (`eval/measure_latency.py`) | plain grant median **2,327 ms** (p95 2,716); window + threshold median 2,391 ms; ADR-0008 controls add **+64 ms** | `latency-202843.json` |
+
+**Reading the latency.** Run 3 measured 1,089 ms at about 60 ms per round trip; today the round trip is about 115 ms and the call takes 2,327 ms. Both are about 19 to 20 round trips per authorization, so the slowdown is the network to the overseas database, not the kernel. The hash-chain trigger and the circuit breaker (added after Run 3) fit inside that count. Throughput per mandate is about one authorization every 2.3 s here; different mandates run in parallel. The ADR-0008 target (controls add under 100 ms) still holds at +64 ms.
+
+**Attack scenarios in this run (baseline vs kernel).** Concurrent overspend: baseline spent 240,000 of 90,000, kernel approved 3 of 8 and reserved exactly 90,000. Delegation amplification: baseline 180,000 delegated from 90,000, kernel 90,000 of 90,000. Limit probing: baseline never stopped, kernel suspended after probe 5 of 12. Replay: baseline debited 5 times, kernel 1 transaction. Revoked ancestor: baseline spent, kernel `GRANT_REVOKED`. Revocation race: **no baseline violation in this run either** (timing-dependent), kernel held. Split purchases: informational, as in Run 2.
+
+**Test-environment note.** At about 106 to 115 ms per round trip, the last of eight queued racers waits longer than the 5 s production `statement_timeout` (which counts lock waits) and gets `KernelBusy`, a designed, retryable refusal. The race tests therefore raise that timeout so they can assert I1 to I3 under contention; `KernelBusy` has its own test (`test_lock_timeout_fails_closed_not_open`).

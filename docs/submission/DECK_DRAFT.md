@@ -24,7 +24,7 @@ Rule for the speaker: if a number is not on this page with a source, do not say 
 
 ### 4. Guard rails on spending (50 s)
 **On the slide:** velocity window ("at most 150.00 USD per hour across the grant's subtree") and approval threshold ("above 60.00 USD the owner must approve"); screenshots `02`, `03`.
-**Say:** A per-transaction limit alone can be split into many small spends (we show that limit honestly, below). A window closes it, and it is checked under the same lock. Cost measured: about +47 ms median per authorization, against a target of under 100 ms. [ADR-0008; `RESULTS.md` Run 3. Caveat: Run 3 was before the hash chain and breaker; the lead re-measures at the freeze.]
+**Say:** A per-transaction limit alone can be split into many small spends (we show that limit honestly, below). A window closes it, and it is checked under the same lock. Cost measured: about +64 ms median per authorization, against a target of under 100 ms. [ADR-0008; `RESULTS.md` Run 7, re-measured on the frozen build]
 
 ### 5. Does it hold? Attacks against an unsafe baseline (80 s)
 **On the slide:** the table from `RESULTS.md` Run 2.
@@ -69,7 +69,7 @@ Rules only: 51/131 (38.9%), 0 unauthorized (Run 1). Cost of a whole 131-case run
 - Testnet prototype, no external audit, must not hold real funds.
 - A database superuser can rewrite an un-anchored chain (R20); the hot wallet is one key (R5).
 - The rate limiter is per process (R8); the router's "needs review" does not bind a malicious holder (R10); revoking the root freezes the mandate (R11); in-flight transfers cannot be recalled (R12); service principals can read every mandate (R13); injection detection is pattern-based (R19).
-- Evaluation is synthetic, one run per setting; authorize takes about 1.1 s on the hosted database (Run 3, one operation per second per mandate).
+- Evaluation is synthetic, one run per setting; authorize takes about 2.3 s on our hosted database, which is about 115 ms away (about 20 round trips; one operation every 2.3 s per mandate; Run 7).
 
 ### 11. Final numbers (lead, after the freeze)
 
@@ -80,6 +80,6 @@ Rules only: 51/131 (38.9%), 0 unauthorized (Run 1). Cost of a whole 131-case run
 
 ## For the lead to decide
 1. `SECURITY_SELF_ASSESSMENT.md` sections 1 and 8 still read as if live-model accuracy was not measured and as if the summary evidence were rules-only (Runs 4 and 5 now exist), and section 1 still lists "no velocity limit" as a known limit although R1 is mitigated (opt-in). I did not copy those lines. Update at the freeze.
-2. Run 3 latency is from before the hash-chain trigger and the breaker. Re-measure before quoting 1.1 s as final.
+2. Latency re-measured on the frozen build (Run 7): 2,327 ms median at a 114.5 ms round trip; controls add 64 ms. Quote these, not Run 3.
 3. Config C: done (Run 6, 113/131 on both datasets); slide 6 states it in the caveats.
 4. The two small UI findings, and a third (the agent saw Revoke buttons it could not use), are fixed in the stacked follow-up PR; slide 7 can now say the agent is told who can reinstate. Screenshots `07` and `19` changed accordingly.

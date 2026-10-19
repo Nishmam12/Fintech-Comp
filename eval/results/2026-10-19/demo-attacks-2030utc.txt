@@ -1,0 +1,70 @@
+== 1. Health
+  [ok] API reachable
+== 2. People: a human owner, an AI agent, a settlement service
+== 3. Owner creates a mandate: 1000.00 USD, 100.00 protected (never spendable)
+  [ok] mandate created  (spendable 90000)
+== 4. An agent cannot mint its own authority
+  [ok] agent-created mandate refused  (OWNER_MUST_BE_HUMAN)
+== 5. Owner delegates 300.00 to the agent: narrower scope, cannot re-delegate
+  [ok] delegation created
+  [ok] wider scope than the parent is refused  (SCOPE_WIDER_THAN_PARENT)
+== 6. The agent asks in plain language; the kernel decides
+  [ok] in-scope request reserved  (route=['fast_path'])
+  [ok] over the per-transaction limit rejected
+  [ok] recipient outside the grant rejected
+  [ok] retry with the same key replays, no double reservation
+== 7. Settlement (simulated; real Base Sepolia transfer when the API runs with BK_SETTLEMENT_MODE=testnet)
+  [ok] settlement service settles the reservation
+  [ok] owner cannot declare a settled transfer failed  (NOT_SETTLER)
+== 7b. Guard rails: approval threshold and velocity window (a second 200.00 grant)
+  [ok] guarded grant created (review above 60.00, at most 150.00 per hour)
+  [ok] a 70.00 request is held for the owner, nothing reserved
+  [ok] owner approves it and the money is reserved
+  [ok] a 50.00 request is under the threshold and reserved
+  [ok] the next 40.00 would break the hourly limit and is refused
+  [ok] the server reports window use (120.00 of 150.00)  (window_used=12000)
+== 7c. Circuit breaker: an agent that keeps probing its limits is suspended (a third 100.00 grant)
+  [ok] five probes outside the grant's categories are each refused
+  [ok] the fifth refusal suspends the grant
+  [ok] even a valid request is now refused
+  [ok] the agent cannot reinstate itself  (NOT_OWNER)
+  [ok] the owner reinstates it
+  [ok] a valid request is served again
+== 8. Owner revokes the agent's grant; the agent is cut off immediately
+  [ok] revoked
+  [ok] agent request after revocation rejected
+== 9. Ledger invariants
+  [ok] conservation and backing invariants hold  ([])
+  [ok] the hash-chained history verifies  (37 rows, head 396fef6d7e89)
+  audit trail: 26 events, e.g. GRANT_DELEGATED, GRANT_REINSTATED, GRANT_REVOKED, GRANT_SUSPENDED, MANDATE_CREATED, SCOPE_WIDER_THAN_PARENT
+== 10. Attack scenarios: unsafe baseline vs kernel (measured, each takes a while)
+  concurrency_overspend:
+      baseline: approved 8 of 8 requests; spent 240000 from 90000
+      kernel:   approved 3 of 8; reserved 90000 of 90000; gave up 0; invariants hold: True
+  [ok] concurrency_overspend: kernel held
+  delegation_amplification:
+      baseline: created 6 children holding 180000 from a parent with 90000
+      kernel:   created 3 children holding 90000 of 90000; invariants hold: True
+  [ok] delegation_amplification: kernel held
+  limit_probing:
+      baseline: 12 of 12 probes refused one by one; the agent's next request was processed normally (no consequence for probing)
+      kernel:   suspended after probe 5 of 12; a valid request while suspended: GRANT_SUSPENDED; after the owner reinstated it: reserved; invariants hold: True
+  [ok] limit_probing: kernel held
+  replay_duplicate:
+      baseline: the same request sent 5 times was debited 5 times
+      kernel:   the same request sent 5 times created 1 transaction; reserved 10000
+  [ok] replay_duplicate: kernel held
+  revocation_race:
+      baseline: 0 spend(s) were recorded after the revocation committed (timing-dependent)
+      kernel:   0 live reservation(s) on the revoked grant; invariants hold: True
+  [ok] revocation_race: kernel held
+  revoked_ancestor:
+      baseline: grandchild still spent after its parent was revoked
+      kernel:   grandchild rejected (GRANT_REVOKED); descendant status revoked
+  [ok] revoked_ancestor: kernel held
+  split_purchases:
+      baseline: not applicable: baseline has no per-transaction limit
+      kernel:   one 30000 request: PER_TX_LIMIT_EXCEEDED; 5 split requests of 10000 approved (total 50000 of 50000) -- The per-transaction limit is not a velocity limit: a 30,000 request is refused, but 5 requests of 10000 are approved. Total spend is still capped by the grant's balance. A grant with a velocity window of 20000 per hour refuses the same split after 2 (VELOCITY_LIMIT_EXCEEDED).
+  [ok] split_purchases: kernel held
+
+RESULT: all expectations held

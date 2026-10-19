@@ -95,7 +95,7 @@ All raw files are under `eval/results/`; dataset versions and seeds are in `memo
 | Cost of a 131-case live run | about 2,700 micro-USD for 84 model calls (the other 47 cases use the free rules path) | Run 5 (2,720 and 2,708 micro-USD) |
 | Interpretation latency end to end | p50 about 4.2 s, p95 about 6.1 s (v1) | Run 5 |
 | Attacks, unsafe baseline vs kernel | overspend race, delegation amplification, revoked ancestor, replay: baseline violated, kernel held. Revocation race: did not reproduce against the baseline in the recorded run; kernel held. | Run 2. The split-purchase scenario is a disclosed limitation, since closed for grants that set a window (R1). |
-| Authorization latency | about 1.1 s median per `authorize` on the hosted database; the window and threshold add about 47 ms | Run 3. **Measured before the hash chain and the breaker existed; re-measure before quoting as final.** |
+| Authorization latency | 2,327 ms median per `authorize` (25 sequential calls) on the hosted database at a 114.5 ms round trip, about 20 round trips; the window and threshold add 64 ms | Run 7 (2026-10-19, frozen build, includes the hash chain and the breaker). Run 3 measured 1,089 ms at about 60 ms per round trip: the same round-trip count. |
 
 **[lead]** final numbers after the freeze, including a re-measured latency.
 
@@ -111,6 +111,6 @@ Review history: an independent Opus review of the kernel (9 findings, all fixed)
 
 - Testnet prototype, not externally audited, must not hold real funds.
 - A database superuser can rewrite an un-anchored chain; anchoring more often narrows the window but does not remove it. Future: smart-account wallets with on-chain spending limits (ADR-0007).
-- Serialization per mandate limits throughput to roughly one operation per second per mandate on the hosted database; different mandates run in parallel.
+- Serialization per mandate limits throughput to roughly one operation every 2.3 s per mandate on our hosted database (network-bound); different mandates run in parallel.
 - The rate limiter is per process.
 - The evaluation is synthetic, one run per setting, and the escalation model has not been evaluated; a held-out set written by someone else would be a stronger test.
