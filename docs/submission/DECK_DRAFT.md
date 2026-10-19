@@ -1,6 +1,6 @@
-# Deck draft 2 (BK-120): 11 slides, about 10 minutes
+# Deck draft 3 (BK-120): 10 slides plus the lead's numbers slide, about 10 minutes
 
-For the lead to review. Replaces the outline in `DECK_OUTLINE.md`. Every number has its source in brackets; nothing is from memory. The final numbers slide (12) is the lead's, written after the freeze. Screenshots are in `docs/submission/screenshots/bk413/` (390 px, real keys, real API on main at `e5c69ed`).
+For the lead to review. Replaces the outline in `DECK_OUTLINE.md`. Every number has its source in brackets; nothing is from memory. The final numbers slide (11) is the lead's, written after the freeze. Screenshots named below (`01`, `02`...) are the old 390 px shots in `docs/submission/screenshots/bk413/` and are placeholders: after the UI freeze (Oct 19, 14:00 BST) every one is re-shot from the frozen UI with the demo sign-in buttons, at 1280x800 for slides plus one 390x844 phone shot (BK-120/BK-160).
 
 Rule for the speaker: if a number is not on this page with a source, do not say it.
 
@@ -51,34 +51,32 @@ Rules only: 51/131 (38.9%), 0 unauthorized (Run 1). Cost of a whole 131-case run
 **On the slide:** screenshots `05` (suspended) and `18` (only the owner can reinstate).
 **Say:** Five probing refusals inside ten minutes suspend a grant and everything below it (a suspected injection counts 3). Then an independent review found a bypass: an agent could delegate a child to itself, probe it into suspension, and reinstate it as holder of the parent, forever. **Fix, with tests first:** reinstate is owner-only and self-delegation is refused. The dashboard shows an ancestor "Only the mandate owner can reinstate this grant" and the server returns 403 `NOT_OWNER` either way. Finding it before the freeze is the point of the review. [ADR-0009 B and amendment K1; `PHASE3_REVIEW.md`]
 
-### 8. Tamper-evident history, anchored on a public chain (75 s)
-**On the slide:** screenshot `01` (badge: "History intact · N records", head hash), then the anchor transaction link.
-**Say:** Every audit and movement row is hash-chained by a database trigger; a read-only verifier recomputes it independently and names the break (`SEQ_GAP`, `PREV_MISMATCH`, `HASH_MISMATCH`, `HEAD_MISMATCH`, `ANCHOR_MISMATCH`). The newest head is written to Base Sepolia as a zero-value transaction whose calldata is `BKANCHOR1` + the 32-byte digest: anchor 1, tx `0xcb1ba8f8c64413779274509bb7333e9693123cdc8d5e9229ba927b74f5578e2e`, block 48219690, checked by the lead over the public RPC (status 1). [`evidence/SETTLEMENTS.md`; CHANGELOG 2026-10-17]
+### 8. Tamper-evident history and real settlement, both on a public chain (75 s)
+**On the slide:** the badge ("History intact · N records", head hash, "View anchor on Base Sepolia" button), then three explorer links: the history anchor and the two settlements (testnet, 1.0 test USDC each).
+**Say:** Every audit and movement row is hash-chained by a database trigger; a read-only verifier recomputes it and names the break (`SEQ_GAP`, `PREV_MISMATCH`, `HASH_MISMATCH`, `HEAD_MISMATCH`, `ANCHOR_MISMATCH`). The newest head is written to Base Sepolia as a zero-value transaction whose calldata is `BKANCHOR1` + the 32-byte digest. Settlement is real too: the recipient comes from an operator allow-list, never from a model, and each transfer has its audit trail (reserved, submitted, settled).
+- Anchor 1: tx `0xcb1ba8f8c64413779274509bb7333e9693123cdc8d5e9229ba927b74f5578e2e`, block 48219690, checked by the lead over the public RPC (status 1).
+- Settlement: `0x2c5665e7908ebb775e03185e5aef9fd9e566b79c21652d7f3c789db1add49090` (block 48155797)
+- Settlement: `0x7570ccbe8c9ca0aa52c057d2c52e567fece698c28909718e29e3b505f061abf1` (block 48219666)
+[`evidence/SETTLEMENTS.md`; CHANGELOG 2026-10-17]
 **State the limit on the slide:** a database superuser can rewrite a whole chain and recompute every hash unless the head was anchored. The anchor makes that detectable after the fact; it does not prevent it. [ADR-0009 A; R20]
 
-### 9. The dashboard, at 390 px (60 s)
-**On the slide:** a strip of `02` (held request), `18` (owner-only text), `14` (rate limit), `15` (key rotation, key blurred).
-**Say:** Real API, real keys, no mocks. Model text is rendered as plain text. Friendly handling for 429 with the wait time, expired key, disabled account, and two rotations racing (`20`). The click-through found and fixed two defects and recorded three open findings, all small. [`CLICKTHROUGH_BK413.md`]
+### 9. The dashboard, in 30 s
+**On the slide:** three frozen-UI shots: the Ask decision ("Held for the owner's approval"), the owner-only reinstate text, the Review card.
+**Say:** Real API, real keys, no mocks; sign-in in one tap, tabs match the role, refusals in plain words, model text rendered as plain text. [`CLICKTHROUGH_BK413.md`]
 
-### 10. Settlement is real (40 s)
-**On the slide:** the two kernel-approved payments on Base Sepolia (testnet, 1.0 test USDC each) with their explorer links:
-- `0x2c5665e7908ebb775e03185e5aef9fd9e566b79c21652d7f3c789db1add49090` (block 48155797)
-- `0x7570ccbe8c9ca0aa52c057d2c52e567fece698c28909718e29e3b505f061abf1` (block 48219666)
-**Say:** The recipient address comes from an operator allow-list, never from a model. Each transfer has its audit trail (reserved, submitted, settled). [`evidence/SETTLEMENTS.md`]
-
-### 11. What we do not claim (60 s)
+### 10. What we do not claim (60 s)
 **On the slide:** four short lines.
 - Testnet prototype, no external audit, must not hold real funds.
 - A database superuser can rewrite an un-anchored chain (R20); the hot wallet is one key (R5).
 - The rate limiter is per process (R8); the router's "needs review" does not bind a malicious holder (R10); revoking the root freezes the mandate (R11); in-flight transfers cannot be recalled (R12); service principals can read every mandate (R13); injection detection is pattern-based (R19).
 - Evaluation is synthetic, one run per setting, config C not run; authorize takes about 1.1 s on the hosted database (Run 3, one operation per second per mandate).
 
-### 12. Final numbers (lead, after the freeze)
+### 11. Final numbers (lead, after the freeze)
 
 ---
 
 ## Timing
-40 + 50 + 60 + 50 + 80 + 80 + 75 + 75 + 60 + 40 + 60 = **670 s (11 min 10 s)**, over by about a minute. Cut order: shrink 9 to 30 s (use three screenshots), merge 10 into 8 (one "evidence on chain" slide), which brings it to about 10 minutes.
+40 + 50 + 60 + 50 + 80 + 80 + 75 + 75 + 30 + 60 = **600 s (10 min)**, before the lead's numbers slide. Slide 9 is shrunk to 30 s and the old slide 10 (settlement) is merged into slide 8.
 
 ## For the lead to decide
 1. `SECURITY_SELF_ASSESSMENT.md` sections 1 and 8 still read as if live-model accuracy was not measured and as if the summary evidence were rules-only (Runs 4 and 5 now exist), and section 1 still lists "no velocity limit" as a known limit although R1 is mitigated (opt-in). I did not copy those lines. Update at the freeze.
