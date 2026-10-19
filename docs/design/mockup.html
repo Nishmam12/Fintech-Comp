@@ -179,14 +179,39 @@
     .signin { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 100dvh; row-gap: var(--gut); }
     .signin .cheque, .signin .side { grid-column: 1 / -1; }
     .signin .side { padding: 0; }
+    .tagline { font-size: 3.25rem; }
   }
   /* ---------- phone: one column, pinned bars ---------- */
   @media (max-width: 767px) {
     :root { --gut: 1rem; }
     .brand span, .who > span:first-child, .who a, .tabs { display: none; }
-    .app { grid-template-rows: auto 1fr auto; }
-    .main { padding-bottom: 4.5rem; }
+    /* the page scrolls, so nothing inside is height-capped or clipped */
+    .app { height: auto; min-height: 100dvh; grid-template-rows: auto auto; align-content: start; }
+    .main, .main.rows-auto-fill { padding-bottom: 5rem; grid-auto-rows: auto; }
     .sec { min-height: 0; }
+    .sec-body { overflow: visible; flex: none; }
+    .sec-head { height: auto; min-height: 3.5rem; }
+    .sec-head .meta { text-align: right; max-width: 55%; }
+    .row { height: auto; min-height: var(--row); padding: 0.5rem 0; }
+    .row.head { padding: 0; }
+    .filler { min-height: calc(var(--row) * 2); flex: none; }
+    .day { height: 2.5rem; }
+    .form textarea { height: 6rem; }
+    .chips { flex: none; }
+    .pair { flex: none; grid-template-rows: auto 2rem auto; }
+    .pair .slip { padding: 1rem; }
+    .pair .proposal span, .pair .verdict p { font-size: 1.125rem; }
+    .pair .stamp { font-size: 1.125rem; }
+    .consequence { margin-bottom: 1rem; }
+    .held-cheque .amount { font-size: 2rem; }
+    .cell { height: 4.5rem; }
+    .attack-body { grid-auto-rows: auto; }
+    .atk { padding: 0.75rem 0; row-gap: 0.5rem; }
+    .signin { padding: var(--gut); }
+    .signin .cheque-in { padding: 1.5rem; gap: 2rem; }
+    .tagline { font-size: 2.25rem; overflow-wrap: anywhere; margin-bottom: 1rem; }
+    .demo { flex: none; grid-auto-rows: 3.5rem; }
+    .demo .btn { font-size: 1.125rem; padding: 0 1rem; }
     .bottom { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; inset: auto 0 0 0; height: 3.5rem;
               border-top: 1px solid var(--rule); background: var(--sheet); font-size: 0.8125rem; }
     .bottom.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
