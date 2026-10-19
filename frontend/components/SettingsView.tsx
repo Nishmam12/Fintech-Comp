@@ -1,18 +1,22 @@
 "use client";
-// BK-413: rotate the API key. The new key is shown once; the old one stops working at once, so the session
-// switches to the new key in memory. Nothing is stored anywhere else.
+// BK-413 on the revision 3 system: identity on the left, the key and sign out on the right.
+// Rotating shows the new key once; the old one stops working at once, so the session switches to the new key in
+// memory. Nothing is stored anywhere else.
 import { useState } from "react";
 import { describeError, money, rotateKey } from "@/lib/api";
+import Section, { Filler } from "@/components/ui/Section";
 import { useToast } from "@/components/Toast";
 import { useMandate } from "@/lib/mandate";
 import { useRole } from "@/lib/role";
 import { useSession } from "@/lib/session";
 
-// Flip to true once this view returns its own revision 3 <Section>s (see docs/handover/UI_R3.md); App then stops wrapping it.
-export const native = false;
+const KV = "12rem minmax(0,1fr)";
+const ROLE_TEXT = { owner: "Owner of this mandate", manager: "Manager", agent: "Agent" } as const;
+
+export const native = true;
 
 export default function SettingsView() {
-  const { session, replaceKey } = useSession();
+  const { session, replaceKey, signOut } = useSession();
   const { state } = useMandate();
   const { role } = useRole();
   const toast = useToast();
@@ -52,55 +56,58 @@ export default function SettingsView() {
     }
   }
 
+  const serial = state?.mandate.id.replace(/-/g, "").slice(0, 8).toUpperCase();
+  const expiryText = expiry ? new Date(expiry).toLocaleString() : expiry === null ? "Does not expire" : "Not reported by the server until you rotate the key";
+
   return (
-    <section className="flex max-w-2xl flex-col gap-4">
-      <div className="panel p-5">
-        <h2 className="fig text-xl">You</h2>
-        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-          <dt className="text-muted">Name</dt><dd className="wrap-anywhere text-right">{session?.name ?? "Unknown"}</dd>
-          <dt className="text-muted">Role</dt><dd className="text-right capitalize">{role}</dd>
-          {state && (
-            <>
-              <dt className="text-muted">Mandate</dt>
-              <dd className="text-right">
-                {money(state.mandate.total, state.mandate.currency)} <span className="font-mono text-xs text-muted">{state.mandate.id.slice(0, 8)}</span>
-              </dd>
-            </>
-          )}
-          <dt className="text-muted">Key expires</dt>
-          <dd className="text-right">{expiry ? new Date(expiry).toLocaleString() : expiry === null ? "Does not expire" : "Not reported by the server until you rotate the key"}</dd>
-        </dl>
-      </div>
-      <div className="panel p-5">
-        <h2 className="fig text-xl">API key</h2>
-        <p className="mt-1 text-sm text-muted">
-          Rotating issues a new key and disables the current one immediately. Any other device or script using the old key
-          will be signed out.
-        </p>
-        {err && <p role="alert" className="mt-2 text-sm text-bad">{err}</p>}
-        {fresh ? (
-          <div className="mt-3 rounded-md border border-ok/40 bg-ok/10 p-3">
-            <p className="text-sm font-semibold text-ok">New key. Shown once; store it now.</p>
-            <p className="mt-2 break-all rounded border border-line bg-background p-2 font-mono text-xs select-all">{fresh}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button onClick={() => void copy()} className="btn-primary">{copied ? "Copied" : "Copy key"}</button>
-              <button onClick={() => { setFresh(null); setCopied(false); }} className="btn-ghost min-h-12">Done, hide it</button>
-            </div>
+    <>
+      <Section span={6} title="You" meta="Signed in with an API key">
+        <div className="row" style={{ gridTemplateColumns: KV }}><span className="tag" style={{ fontSize: "0.9375rem" }}>Name</span><b style={{ overflowWrap: "anywhere" }}>{session?.name ?? "Unknown"}</b></div>
+        <div className="row" style={{ gridTemplateColumns: KV }}><span className="tag" style={{ fontSize: "0.9375rem" }}>Role</span><span>{ROLE_TEXT[role]}</span></div>
+        {state && serial && (
+          <div className="row" style={{ gridTemplateColumns: KV }}>
+            <span className="tag" style={{ fontSize: "0.9375rem" }}>Mandate</span>
+            <span><span className="serial">No. {serial.slice(0, 4)} {serial.slice(4)}</span>, {money(state.mandate.total, state.mandate.currency)}</span>
           </div>
-        ) : !confirming ? (
-          <button onClick={() => setConfirming(true)} className="btn-ghost mt-3 w-full">Rotate key</button>
-        ) : (
-          <div className="mt-3 rounded-md border border-bad/50 bg-bad/10 p-3">
-            <p className="text-sm">The current key stops working as soon as you confirm. This session continues on the new key.</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button disabled={busy} onClick={() => void rotate()} className="min-h-12 rounded-md bg-bad px-3 text-base font-medium text-white disabled:opacity-60">
-                {busy ? "Rotating…" : "Confirm rotate"}
-              </button>
-              <button disabled={busy} onClick={() => setConfirming(false)} className="btn-ghost min-h-12">Cancel</button>
+        )}
+        <div className="row" style={{ gridTemplateColumns: KV }}><span className="tag" style={{ fontSize: "0.9375rem" }}>Key expires</span><span>{expiryText}</span></div>
+        <div className="row" style={{ gridTemplateColumns: KV }}><span className="tag" style={{ fontSize: "0.9375rem" }}>Settlement</span><span>Base Sepolia testnet, test USDC</span></div>
+        <Filler />
+        <p className="explain">The key is kept in this tab&rsquo;s memory only and disappears when you reload.</p>
+      </Section>
+
+      <Section span={6} title="Your key" meta="Rotate if it may have leaked">
+        <div className="row" style={{ gridTemplateColumns: "minmax(0,1fr) auto" }}>
+          <div className="name"><b>Rotate key</b><em>Issues a new key and disables this one at once</em></div>
+          <button className="btn ghost small" disabled={confirming || !!fresh} onClick={() => setConfirming(true)}>Rotate key</button>
+        </div>
+        {err && <p role="alert" className="alert">{err}</p>}
+        {confirming && (
+          <div className="manage" style={{ paddingLeft: 0 }}>
+            <p style={{ margin: "0 0 0.75rem" }}>The current key stops working as soon as you confirm. This session continues on the new key.</p>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button className="btn small" style={{ background: "var(--refuse)" }} disabled={busy} onClick={() => void rotate()}>{busy ? "Rotating…" : "Confirm rotate"}</button>
+              <button className="btn ghost small" disabled={busy} onClick={() => setConfirming(false)}>Cancel</button>
             </div>
           </div>
         )}
-      </div>
-    </section>
+        {fresh && (
+          <div className="manage" style={{ paddingLeft: 0 }}>
+            <p className="ok" style={{ margin: 0, fontWeight: 600 }}>New key. Shown once; store it now.</p>
+            <p style={{ margin: "0.5rem 0 0.75rem", padding: "0.5rem 0.75rem", border: "1px solid var(--rule)", background: "var(--paper)", fontFamily: "monospace", fontSize: "0.8125rem", wordBreak: "break-all", userSelect: "all" }}>{fresh}</p>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button className="btn small" onClick={() => void copy()}>{copied ? "Copied" : "Copy key"}</button>
+              <button className="btn ghost small" onClick={() => { setFresh(null); setCopied(false); }}>Done, hide it</button>
+            </div>
+          </div>
+        )}
+        <div className="row" style={{ gridTemplateColumns: "minmax(0,1fr) auto" }}>
+          <div className="name"><b>Sign out</b><em>Forget the key in this tab</em></div>
+          <button className="btn ghost small" onClick={signOut}>Sign out</button>
+        </div>
+        <Filler />
+        <p className="explain">After rotating, the new key is shown once. The old key stops working at once.</p>
+      </Section>
+    </>
   );
 }
