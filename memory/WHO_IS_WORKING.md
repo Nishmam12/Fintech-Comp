@@ -15,11 +15,11 @@ GPU only matters for local inference or video rendering. All model calls in the 
 One section per member. **Edit only your own section** to avoid merge conflicts. Times are UTC.
 
 ### Nishmam (RTX 4070 Ti Super)
-- **Status:** IDLE
-- **Task ID:** none active. Phase 3 (BK-421 to 423) and the lead's UI sprint work are merged to `main` (e42a002). Waiting for the go on the Step 11 integration dry run.
+- **Status:** WORKING
+- **Task ID:** UI revision 3: foundation, Sign-in, Mandate, Ask pushed (a199f5b, 01d4e6a). Teammates build the other four screens from `docs/handover/UI_R3.md`. Freeze 24:00 BST Oct 19.
 - **Branch:** main
-- **Claimed areas (paths):** none
-- **Started / last update (UTC):** 2026-10-18 (memory sync)
+- **Claimed areas (paths):** frontend/app/*, frontend/components/App.tsx, SignIn, MandateView, AskView, IntegrityBadge, components/ui/*
+- **Started / last update (UTC):** 2026-10-19 21:10
 - **Notes / blockers:** Production `bk` has migrations 003, 006 and 007. Open items are in `memory/NEXT_ACTIONS.md`.
 
 ### Member 2 (RTX 2070 Super) — daniel
