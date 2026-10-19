@@ -23,12 +23,12 @@ One section per member. **Edit only your own section** to avoid merge conflicts.
 - **Notes / blockers:** Production `bk` has migrations 003, 006 and 007. Open items are in `memory/NEXT_ACTIONS.md`.
 
 ### Member 2 (RTX 2070 Super) — daniel
-- **Status:** ACTIVE
+- **Status:** REVIEW
 - **Task ID:** UI R3 (docs/handover/UI_R3.md): Review (8+4), Settings (6+6), Toast restyle, Suspend/Revoke panel styling
 - **Branch:** daniel/BK-R3-review-settings
 - **Claimed areas (paths):** frontend/components/{ReviewView,SettingsView,Toast,SuspendControl,RevokeControl}.tsx
 - **Started / last update (UTC):** 2026-10-20
-- **Notes / blockers:** Earlier PRs #13-#18 awaiting review. BK-120 deck and BK-160 technical document still pending.
+- **Notes / blockers:** R3 Review/Settings PR open; earlier PRs #13-#18 awaiting review. BK-120 deck and BK-160 technical document still pending.
 
 ### Member 3 (RTX 5060) — Afnan Mojumder
 - **Status:** DONE (reviewed and merged 140bb79, 2026-10-20 00:00 BST)

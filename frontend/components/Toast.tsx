@@ -20,10 +20,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={show}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-20 z-20 flex justify-center px-4 lg:bottom-6 lg:pl-64">
+      <div className="pointer-events-none fixed inset-x-0 bottom-20 z-20 flex justify-center px-4 lg:bottom-6">
         <div role="status" className="contents">
           {text && (
-            <p className="pointer-events-auto rounded-md bg-ink px-4 py-2.5 text-sm font-medium text-white ring-1 ring-ink-soft">
+            <p
+              className="pointer-events-auto"
+              style={{ margin: 0, background: "var(--ink)", color: "var(--paper)", padding: "0.75rem 1.5rem", fontSize: "0.9375rem", fontWeight: 600 }}
+            >
               {text}
             </p>
           )}

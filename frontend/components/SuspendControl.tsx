@@ -20,7 +20,7 @@ export default function SuspendControl({ g, canManage, isOwner }: { g: Grant; ca
 
   // Anyone who is not the owner (the holder itself or an ancestor holder) is told who can reinstate; only the owner gets the button.
   if (suspended && !isOwner) {
-    return <p role="status" className="mt-3 text-sm text-muted">Suspended. Only the mandate owner can reinstate this grant.</p>;
+    return <p role="status" className="tag" style={{ margin: "0.75rem 0 0", fontSize: "0.875rem" }}>Suspended. Only the mandate owner can reinstate this grant.</p>;
   }
   if (!canManage || (g.status !== "active" && !suspended)) return null;
 
@@ -41,24 +41,24 @@ export default function SuspendControl({ g, canManage, isOwner }: { g: Grant; ca
   }
 
   return (
-    <div className="mt-3">
-      {err && <p role="alert" className="mb-2 text-sm text-bad">{err}</p>}
+    <div style={{ marginTop: "0.75rem" }}>
+      {err && <p role="alert" className="alert">{err}</p>}
       {!confirming ? (
-        <button onClick={() => setConfirming(true)} className="btn-ghost w-full">
+        <button onClick={() => setConfirming(true)} className="btn ghost small wide">
           {suspended ? "Reinstate this grant" : "Suspend this grant"}
         </button>
       ) : (
-        <div className="rounded-md border border-line bg-background p-3">
-          <p className="text-sm">
+        <div style={{ border: "1px solid var(--rule)", background: "var(--paper)", padding: "0.75rem" }}>
+          <p style={{ margin: 0 }}>
             {suspended
               ? "The holder can spend again. The strike count starts from zero."
               : "The holder and every grant below it cannot spend until you reinstate. Reservations already made are not released early, and transfers in flight continue."}
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button disabled={busy} onClick={() => void run()} className="btn-primary">
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+            <button disabled={busy} onClick={() => void run()} className="btn small">
               {busy ? "Working…" : suspended ? "Confirm reinstate" : "Confirm suspend"}
             </button>
-            <button disabled={busy} onClick={() => setConfirming(false)} className="btn-ghost min-h-12">Cancel</button>
+            <button disabled={busy} onClick={() => setConfirming(false)} className="btn ghost small">Cancel</button>
           </div>
         </div>
       )}

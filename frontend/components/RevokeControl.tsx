@@ -46,39 +46,39 @@ export default function RevokeControl({ g, currency }: { g: Grant; currency: str
   }
 
   return (
-    <div className="mt-3">
+    <div style={{ marginTop: "0.75rem" }}>
       {result && (
-        <div role="status" className="mb-2 rounded-md border border-line bg-background p-3 text-sm">
-          <p className="font-semibold">{result.already ? "Already " : "Grant "}{result.status}</p>
+        <div role="status" style={{ border: "1px solid var(--rule)", background: "var(--paper)", padding: "0.75rem", marginBottom: "0.5rem" }}>
+          <p style={{ margin: 0, fontWeight: 600 }}>{result.already ? "Already " : "Grant "}{result.status}</p>
           {!result.already && (
-            <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
-              <dt className="text-muted">Reclaimed</dt><dd className="text-right">{money(result.reclaimed ?? 0, currency)}</dd>
-              <dt className="text-muted">Reservations released</dt><dd className="text-right">{result.released_reservations ?? 0}</dd>
-              <dt className="text-muted">In flight (cannot be recalled)</dt>
-              <dd className="text-right">{result.in_flight_count ?? 0} · {money(result.in_flight_amount ?? 0, currency)}</dd>
+            <dl style={{ margin: "0.25rem 0 0", display: "grid", gridTemplateColumns: "1fr auto", columnGap: "0.75rem", rowGap: "0.25rem" }}>
+              <dt className="dim">Reclaimed</dt><dd style={{ margin: 0, textAlign: "right" }}>{money(result.reclaimed ?? 0, currency)}</dd>
+              <dt className="dim">Reservations released</dt><dd style={{ margin: 0, textAlign: "right" }}>{result.released_reservations ?? 0}</dd>
+              <dt className="dim">In flight (cannot be recalled)</dt>
+              <dd style={{ margin: 0, textAlign: "right" }}>{result.in_flight_count ?? 0} · {money(result.in_flight_amount ?? 0, currency)}</dd>
               {!!result.stranded_on_root && (
-                <><dt className="text-muted">Stranded on root</dt><dd className="text-right">{money(result.stranded_on_root, currency)}</dd></>
+                <><dt className="dim">Stranded on root</dt><dd style={{ margin: 0, textAlign: "right" }}>{money(result.stranded_on_root, currency)}</dd></>
               )}
             </dl>
           )}
         </div>
       )}
-      {err && <p role="alert" className="mb-2 text-sm text-bad">{err}</p>}
+      {err && <p role="alert" className="alert">{err}</p>}
       {g.status !== "active" ? null : !confirming ? (
-        <button onClick={() => setConfirming(true)} className="btn-ghost w-full border-bad/50 text-bad">
+        <button onClick={() => setConfirming(true)} className="btn ghost small wide" style={{ color: "var(--refuse)", borderColor: "var(--refuse)" }}>
           Revoke this grant
         </button>
       ) : (
-        <div className="rounded-md border border-bad/50 bg-bad/10 p-3">
-          <p className="text-sm">
+        <div style={{ border: "1px solid var(--refuse)", padding: "0.75rem" }}>
+          <p style={{ margin: 0 }}>
             This cuts off the holder and every grant below it immediately. Unspent funds return to the parent. Transfers
             already in flight cannot be recalled.
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button disabled={busy} onClick={() => void revoke()} className="min-h-12 rounded-md bg-bad px-3 text-base font-medium text-white disabled:opacity-60">
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+            <button disabled={busy} onClick={() => void revoke()} className="btn small" style={{ background: "var(--refuse)" }}>
               {busy ? "Revoking…" : "Confirm revoke"}
             </button>
-            <button disabled={busy} onClick={() => setConfirming(false)} className="btn-ghost min-h-12">Cancel</button>
+            <button disabled={busy} onClick={() => setConfirming(false)} className="btn ghost small">Cancel</button>
           </div>
         </div>
       )}
