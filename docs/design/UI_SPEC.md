@@ -12,6 +12,21 @@ The product's claim is "Models propose. The kernel decides." The interface draws
 
 Everything else stays quiet: paper, ink and rules. Colour appears only where it means a state.
 
+## Grid and symmetry rules (revision 2: these override any layout detail below)
+The first mockup broke its own grid. These rules fix it, and every screen must follow them.
+1. **One grid:** 12 columns, 24 px gutter, content width 1200 px on desktop (16 px side padding on a phone). Every block spans whole columns: 12, 8 + 4, or 6 + 6. No other splits.
+2. **Spacing scale: 8 px.** Gaps are 8, 16, 24, 32 or 48 px. Sections are 48 px apart vertically; items inside a section are 16 px apart.
+3. **One section module everywhere:**
+   - A 56 px heading row: h2 on the left; meta text on the right, baseline-aligned.
+   - On top of a **2 px ink rule**.
+   - Then the content.
+   - Do not wrap sections in boxes. **The cheque is the only bordered box** (Review's held cheques are the one other exception).
+4. **Side-by-side halves share their geometry.** Two 6-column sections start at the same y, open with the same heading module, and use the same row height (64 px rows, 40 px column-header and footer rows), so their rows line up across the page. If one side has fewer rows, it shows an empty-state row, never a shorter column.
+5. **Pairs are equal.** A proposal slip and its verdict are always the same width and height: 48 px in the stream, and stretched to fill the column on Ask. On Ask, the right column ends on the same line as the left column's button.
+6. **Equal-width controls in a set:** example chips are a 2 × 2 grid of equal cells; the legend is 4 equal columns; on Ask the primary button is full width.
+7. **The seal sits inside the cheque,** in its own 4-column cell beside the amount (8 + 4), never as a floating box.
+8. **Check it with numbers, not by eye.** Before a PR, measure in the browser: in each pair of halves the heading tops, row bottoms and column bottoms must be equal to the pixel. The mockup passes this check (`docs/design/mockup.html`).
+
 ## Tokens (replace the current ones in `frontend/app/globals.css`)
 | Token | Light | Dark | Use |
 |---|---|---|---|
