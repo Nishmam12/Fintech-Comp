@@ -2,7 +2,8 @@
 // Screen 6: the attack panel. Runs a named attack against the unsafe baseline and the real kernel and shows the
 // measured result exactly as the API returns it. Nothing here is computed in the browser.
 import { useEffect, useState } from "react";
-import { ApiError, describeError, listScenarios, runScenario, type SimResult, type SimSide } from "@/lib/api";
+import { ApiError, describeError, listScenarios, money, runScenario, type SimResult, type SimSide } from "@/lib/api";
+import Section, { Filler } from "@/components/ui/Section";
 import { useSession } from "@/lib/session";
 
 const label = (s: string) => s.replace(/_/g, " ");
@@ -17,30 +18,24 @@ const DESCRIPTIONS: Record<string, string> = {
   limit_probing: "An agent keeps testing its limits with refused requests. Does it get suspended?",
 };
 
+export const native = true;
+
+// The API's summaries embed amounts as integer minor units ("reserved 90000 of 90000"). Display only: any bare integer of
+// four digits or more is written as money. The measured result itself is never recomputed here.
+const clamp2 = { whiteSpace: "normal", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.2, fontSize: "0.8125rem" } as const;
+const asMoney = (s: string) => s.replace(/\b\d{4,}\b/g, (n) => money(Number(n)));
+
 // violated === null means the scenario has no baseline to compare against (informational).
-function Side({ title, side, kernel }: { title: string; side: SimSide; kernel: boolean }) {
+function Cell({ side, kernel }: { side: SimSide; kernel: boolean }) {
   const na = (side.violated as boolean | null) === null;
-  const bad = !na && side.violated;
-  const tone = na ? "border-line" : bad ? "border-bad/50 bg-bad/10" : kernel ? "border-ok/50 bg-ok/10" : "border-line";
-  const metrics = Object.entries(side.metrics ?? {}).filter(([, v]) => typeof v === "number" || typeof v === "string");
+  const word = na ? "Not applicable" : side.violated ? "Broken" : "Held";
+  const t = na ? "dim" : side.violated ? "no" : kernel ? "ok" : "dim";
   return (
-    <div className={`rounded-md border p-3 ${tone}`}>
-      <p className="text-xs uppercase tracking-wide text-muted">{title}</p>
-      <p className="mt-1 text-sm font-medium wrap-anywhere">{side.summary}</p>
-      <p className={`fig mt-2 text-lg ${na ? "text-muted" : bad ? "text-bad" : "text-ok"}`}>{na ? "Not applicable" : bad ? "Violated" : "Held"}</p>
-      {metrics.length > 0 && (
-        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 text-xs text-muted">
-          {metrics.map(([k, v]) => (
-            <div key={k} className="contents"><dt>{label(k)}</dt><dd className="fig wrap-anywhere text-right">{String(v)}</dd></div>
-          ))}
-        </dl>
-      )}
+    <div className={`slip verdict ${t}`} title={asMoney(side.summary)}>
+      <span className="stamp">{word}</span><p style={clamp2}>{asMoney(side.summary)}</p>
     </div>
   );
 }
-
-// Flip to true once this view returns its own revision 3 <Section>s (see docs/handover/UI_R3.md); App then stops wrapping it.
-export const native = false;
 
 export default function SimulationView() {
   const { session } = useSession();
@@ -49,6 +44,7 @@ export default function SimulationView() {
   const [progress, setProgress] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, SimResult>>({});
   const [err, setErr] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const key = session?.key;
   const humanOnly = session?.kind !== undefined && session.kind !== "human";
 
@@ -56,14 +52,14 @@ export default function SimulationView() {
     if (!key || humanOnly) return;
     let live = true;
     listScenarios(key)
-      .then((r) => { if (live) setScenarios(r.scenarios); })
+      .then((r) => { if (live) { setScenarios(r.scenarios); setLoaded(true); } })
       .catch((e) => { if (live) setErr(describeError(e, "Could not load scenarios")); });
     return () => { live = false; };
   }, [key, humanOnly]);
 
   if (!key) return null;
   if (humanOnly) {
-    return <p className="panel p-4 text-sm text-muted">Attack simulations can only be run with a human key.</p>;
+    return <Section span={12} title="Attack lab"><Filler>Attack simulations can only be run with a human key.</Filler></Section>;
   }
 
   async function run(name: string): Promise<boolean> {
@@ -92,44 +88,39 @@ export default function SimulationView() {
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <p className="text-xs text-muted">
-        Each attack runs twice on real Postgres: against an intentionally unsafe baseline and against the kernel. Outcomes are measured, not canned. Simulations use their own fresh mandate.
-      </p>
-      {err && <p role="alert" className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
-      <div className="flex items-center gap-3">
-        <button disabled={running !== null || scenarios.length === 0} onClick={() => void runAll()} className="btn-primary">
+    <Section
+      span={12}
+      title="Attack lab"
+      meta={
+        <button className="btn small" disabled={running !== null || scenarios.length === 0} onClick={() => void runAll()}>
           {progress ? `Running ${progress}…` : "Run all attacks"}
         </button>
-      </div>
-      <ul className="flex flex-col gap-3">
+      }
+      head={
+        <div className="row head atk">
+          <span>Attack</span><span className="hide-s">What it tests</span><span>Without the kernel</span><span>With Budget Kernel</span><span />
+        </div>
+      }
+      foot={<span>Each attack runs twice on real Postgres: against an intentionally unsafe baseline, and against the kernel. Results are measured, not scripted.</span>}
+    >
+      {err && <p role="alert" className="alert">{err}</p>}
+      {!loaded && !err && <Filler>Loading attacks…</Filler>}
+      <div className="attack-body" style={{ flex: 1, minHeight: 0 }}>
         {scenarios.map((name) => {
           const r = results[name];
           return (
-            <li key={name} className="panel p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold capitalize">{r?.title ?? label(name)}</p>
-                  {DESCRIPTIONS[name] && <p className="mt-0.5 text-sm text-muted">{DESCRIPTIONS[name]}</p>}
-                </div>
-                <button disabled={running !== null} onClick={() => void run(name)} className="btn-primary shrink-0">
-                  {running === name ? "Running…" : r ? "Run again" : "Run attack"}
-                </button>
-              </div>
-              {r && (
-                <div className="mt-3 flex flex-col gap-2">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <Side title="Without the kernel" side={r.naive} kernel={false} />
-                    <Side title="With Budget Kernel" side={r.kernel} kernel />
-                  </div>
-                  <p className="text-sm text-muted wrap-anywhere">{r.what_it_proves}</p>
-                  <p className="text-xs text-muted">Took {r.duration_ms} ms{r.informational ? " · informational scenario" : ""}</p>
-                </div>
-              )}
-            </li>
+            <div key={name} className="row atk">
+              <div className="name"><b>{r?.title ?? label(name)}</b>{r?.informational && <em>Informational</em>}</div>
+              <span className="hide-s"><span style={{ ...clamp2, fontSize: "0.875rem" }}>{DESCRIPTIONS[name] ?? ""}</span></span>
+              {r ? <Cell side={r.naive} kernel={false} /> : <div className="slip proposal"><span>Not run yet</span></div>}
+              {r ? <Cell side={r.kernel} kernel /> : <div className="slip proposal"><span>Not run yet</span></div>}
+              <button className="btn ghost small" disabled={running !== null} onClick={() => void run(name)}>
+                {running === name ? "Running…" : r ? "Run again" : "Run"}
+              </button>
+            </div>
           );
         })}
-      </ul>
-    </section>
+      </div>
+    </Section>
   );
 }
