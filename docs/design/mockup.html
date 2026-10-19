@@ -206,7 +206,6 @@
     .held-cheque .amount { font-size: 2rem; }
     .cell { height: 4.5rem; }
     .attack-body { grid-auto-rows: auto; }
-    .atk { padding: 0.75rem 0; row-gap: 0.5rem; }
     .signin { padding: var(--gut); }
     .signin .cheque-in { padding: 1.5rem; gap: 2rem; }
     .tagline { font-size: 2.25rem; overflow-wrap: anywhere; margin-bottom: 1rem; }
@@ -226,8 +225,17 @@
     .legend { grid-template-columns: 1fr 1fr; row-gap: 0.75rem; }
     .ledger .row { grid-template-columns: minmax(0, 1fr) 6rem 2.5rem !important; }
     .ledger .row .hide-s { display: none; }
-    .atk { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 5rem; }
+    /* attack card: name + run button on top, the two outcomes side by side and equal below */
+    .atk { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; padding: 1rem 0; row-gap: 0.75rem; }
+    .atk.head { display: none; }
     .atk .hide-s { display: none; }
+    .atk > .name { grid-column: 1; grid-row: 1; justify-content: center; }
+    .atk > .btn { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; width: 7rem; }
+    .atk > .slip { grid-row: 2; height: auto; min-height: 5.5rem; padding: 0.75rem; align-items: flex-start; justify-content: flex-start; gap: 0.375rem; flex-direction: column; }
+    .atk > .slip::before { content: "Without the kernel"; font-size: 0.75rem; color: var(--muted); font-weight: 400; }
+    .atk > .slip:nth-of-type(n+3)::before { content: "With Budget Kernel"; }
+    .atk > .slip > * { white-space: normal; overflow: visible; }
+    .atk .verdict p { font-size: 0.8125rem; line-height: 1.3; }
     .held-cheque { grid-template-columns: minmax(0, 1fr); row-gap: 1rem; }
     .held-cheque .actions { grid-template-rows: none; grid-template-columns: 1fr 1fr; }
     .demo { grid-template-columns: minmax(0, 1fr); }
