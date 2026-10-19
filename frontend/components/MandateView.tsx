@@ -1,48 +1,30 @@
 "use client";
-import { grantName, money, reasonText, reasonTitle, txState, type Grant, type Transaction } from "@/lib/api";
+// Screen 1 on the revision 3 system: a cheque for the mandate (amount, seal, allocation), then two equal halves,
+// "Who may spend" (the grant tree as ledger rows) and "Decisions" (each proposal beside the kernel's verdict).
+import { useState } from "react";
+import { grantName, money, reasonText, type Grant, type Transaction } from "@/lib/api";
 import IntegrityBadge from "@/components/IntegrityBadge";
 import RevokeControl from "@/components/RevokeControl";
 import SuspendControl from "@/components/SuspendControl";
-import { useSession } from "@/lib/session";
+import Cheque from "@/components/ui/Cheque";
+import ProposalVerdict from "@/components/ui/ProposalVerdict";
+import Section, { Filler } from "@/components/ui/Section";
+import type { Tone } from "@/components/ui/Stamp";
 import { useMandate } from "@/lib/mandate";
+import { useSession } from "@/lib/session";
 
-function childrenOf(grants: Grant[], parent: string | null) {
-  return grants.filter((g) => g.parent_id === parent);
-}
+const COLS = "minmax(0,1fr) 6rem 6rem 6rem 2.5rem";
 
-// Velocity meter (BK-324). window_used, window_limit and review_above are shown exactly as the server returned them.
-function Velocity({ g, cur }: { g: Grant; cur: string }) {
-  const { window_limit: limit, window_seconds: secs, review_above: above } = g.scope;
-  if (limit === undefined && above === undefined) return null;
-  return (
-    <div className="mt-2 text-xs text-muted">
-      {limit !== undefined && g.window_used !== undefined && (
-        <>
-          <div className="flex justify-between">
-            <span>Velocity{secs !== undefined ? ` · per ${secs >= 3600 && secs % 3600 === 0 ? `${secs / 3600} h` : `${secs} s`}` : ""}</span>
-            <span>{money(g.window_used, cur)} of {money(limit, cur)}</span>
-          </div>
-          <progress
-            className="mt-1 h-2 w-full overflow-hidden rounded [&::-webkit-progress-bar]:bg-line [&::-webkit-progress-value]:bg-accent [&::-moz-progress-bar]:bg-accent"
-            max={limit}
-            value={g.window_used}
-            aria-label="Spend in the current window"
-          />
-        </>
-      )}
-      {above !== undefined && <p className="mt-1">Needs your approval above {money(above, cur)}</p>}
-    </div>
-  );
-}
+// money() gives "1,000.00 USD"; the cheque shows the figure large and the currency small.
+const figure = (minor: number, cur: string) => money(minor, cur).replace(/\s+\S+$/, "");
+const hhmm = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-function TxLink({ t }: { t: Transaction }) {
-  // Only the API-provided link, and only https: model/user text must never become a clickable script URL.
-  if (!t.explorer_url || !t.explorer_url.startsWith("https://")) return null;
-  return (
-    <a href={t.explorer_url} target="_blank" rel="noopener noreferrer" className="text-accent underline">
-      View on explorer
-    </a>
-  );
+// Grants in tree order (parents before their children) so depth indents read as nesting.
+function inTreeOrder(grants: Grant[]): Grant[] {
+  const out: Grant[] = [];
+  const walk = (parent: string | null) => grants.filter((g) => g.parent_id === parent).forEach((g) => { out.push(g); walk(g.id); });
+  walk(null);
+  return out;
 }
 
 // Owner, or the holder of a grant above this one (the server applies the same rule).
@@ -63,96 +45,90 @@ function frozenByAncestor(g: Grant, all: Grant[]): boolean {
   return false;
 }
 
-function BudgetBar({ grants, total, reserve, cur }: { grants: Grant[]; total: number; reserve: number; cur: string }) {
+function holderLine(g: Grant, all: Grant[]): string {
+  const role = g.parent_id === null ? "Owner's root grant" : g.scope.can_delegate ? "Manager" : "Agent";
+  const bits = [role];
+  if (g.status === "suspended") bits.push("suspended");
+  else if (g.status === "revoked") bits.push("revoked");
+  else if (frozenByAncestor(g, all)) bits.push("frozen by a grant above");
+  else if (g.strikes_in_window) bits.push(`${g.strikes_in_window} refused recently`);
+  return bits.join(", ");
+}
+
+function verdictOf(t: Transaction): { stamp: string; tone: Tone; reason: React.ReactNode; title?: string } {
+  switch (t.state) {
+    case "rejected":
+      { const why = t.reject_reason ? reasonText(t.reject_reason) : "The kernel said no"; return { stamp: "Refused", tone: "no", reason: why, title: why }; }
+    case "proposed":
+    { const why = t.review_reason ? reasonText(t.review_reason) : "Waiting for the owner"; return { stamp: "Held", tone: "wait", reason: why, title: why }; }
+    case "settled": {
+      const link = t.explorer_url?.startsWith("https://") ? t.explorer_url : null; // only the API's https link
+      return { stamp: "Paid", tone: "ok", reason: link ? <>Settled, <a href={link} target="_blank" rel="noopener noreferrer">view on explorer</a></> : "Settled" };
+    }
+    case "submitted": return { stamp: "Sending", tone: "wait", reason: "Payment sent, waiting to confirm" };
+    case "released": return { stamp: "Released", tone: "dim", reason: "The reservation was released" };
+    default: return { stamp: "Approved", tone: "ok", reason: "Money reserved for this payment" };
+  }
+}
+
+function Allocation({ grants, total, reserve, cur }: { grants: Grant[]; total: number; reserve: number; cur: string }) {
   const sum = (f: (g: Grant) => number) => grants.reduce((a, g) => a + f(g), 0);
   const parts = [
-    { key: "settled", label: "Spent", value: sum((g) => g.settled), color: "bg-ink" },
-    { key: "reserved", label: "Reserved for pending payments", value: sum((g) => g.reserved), color: "bg-warn" },
-    { key: "available", label: "Free to spend", value: sum((g) => g.available), color: "bg-accent" },
-    { key: "reserve", label: "Protected reserve", value: reserve, color: "bg-ok" },
+    { label: "Spent", value: sum((g) => g.settled), style: { background: "var(--ink)" }, cls: "" },
+    { label: "Waiting to settle", value: sum((g) => g.reserved), style: { background: "var(--held)" }, cls: "" },
+    { label: "Free to spend", value: sum((g) => g.available), style: {}, cls: "hatch" },
+    { label: "Protected", value: reserve, style: { background: "var(--approve)" }, cls: "" },
   ];
-  const whole = parts.reduce((a, p) => a + p.value, 0) || 1;
+  const whole = parts.reduce((a, p) => a + p.value, 0) || total || 1;
   return (
-    <div className="panel p-5 lg:p-6">
-      <p className="text-sm text-muted">Mandate total</p>
-      <p className="fig text-4xl lg:text-5xl">{money(total, cur)}</p>
-      <div
-        role="img"
-        aria-label={parts.map((p) => `${p.label} ${money(p.value, cur)}`).join(", ")}
-        className="mt-5 flex h-4 w-full gap-0.5 overflow-hidden rounded-full bg-line"
-      >
-        {parts.map((p) => p.value > 0 && <span key={p.key} className={p.color} style={{ width: `${(p.value / whole) * 100}%` }} />)}
+    <>
+      <div className="c12 alloc" role="img" aria-label={parts.map((p) => `${p.label} ${money(p.value, cur)}`).join(", ")}>
+        {parts.map((p) => p.value > 0 && <i key={p.label} className={p.cls} style={{ ...p.style, width: `${(p.value / whole) * 100}%` }} />)}
       </div>
-      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+      <div className="c12 legend">
         {parts.map((p) => (
-          <li key={p.key} className="flex items-start gap-2">
-            <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${p.color}`} aria-hidden />
-            <span>
-              <span className="block text-sm text-muted">{p.label}</span>
-              <span className="fig text-lg">{money(p.value, cur)}</span>
-            </span>
-          </li>
+          <div key={p.label}>
+            <span><i className={`sw ${p.cls}`} style={{ ...p.style, border: p.cls ? "1px solid var(--rule)" : undefined }} />{p.label}</span>
+            <b className="fig">{figure(p.value, cur)}</b>
+          </div>
         ))}
-      </ul>
-    </div>
+      </div>
+    </>
   );
 }
 
-const timeOf = (iso: string) => new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
-
-function GrantNode({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: string; me: string; owner: string }) {
-  const kids = childrenOf(all, g.id);
-  const tone = g.status === "active" ? "bg-ok/12 text-ok" : g.status === "suspended" ? "bg-warn/15 text-warn" : "bg-bad/12 text-bad";
-  const frozen = g.status === "active" && frozenByAncestor(g, all);
+function LedgerRow({ g, all, cur, me, owner }: { g: Grant; all: Grant[]; cur: string; me: string; owner: string }) {
+  const [open, setOpen] = useState(false);
+  const manageable = canManage(g, all, me, owner);
+  const dim = g.status !== "active";
   return (
-    <li>
-      <div className="panel p-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="fig wrap-anywhere text-lg">{grantName(g)}</h3>
-            <p className="font-mono text-xs text-muted">{g.id.slice(0, 8)}</p>
-          </div>
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${tone}`}>{g.status}</span>
-        </div>
-        <dl className="mt-3 grid grid-cols-3 gap-2">
-          <div><dt className="text-sm text-muted">Available</dt><dd className="fig whitespace-nowrap text-base sm:text-lg">{money(g.available, cur)}</dd></div>
-          <div><dt className="text-sm text-muted">Reserved</dt><dd className="fig whitespace-nowrap text-base sm:text-lg">{money(g.reserved, cur)}</dd></div>
-          <div><dt className="text-sm text-muted">Settled</dt><dd className="fig whitespace-nowrap text-base sm:text-lg">{money(g.settled, cur)}</dd></div>
-        </dl>
-        <p className="mt-2 text-xs text-muted">
-          Expires {new Date(g.expires_at).toLocaleString()} · per-tx limit {money(g.scope.per_tx_limit, cur)}
-        </p>
-        <Velocity g={g} cur={cur} />
-        {g.status === "suspended" && (
-          <p role="status" className="mt-2 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm">
-            Suspended{g.suspend_reason === "STRIKES" ? " by the circuit breaker (too many refused requests)" : g.suspend_reason === "MANUAL" ? " by hand" : ""}
-            {g.suspended_at ? ` · ${new Date(g.suspended_at).toLocaleString()}` : ""}. It cannot spend until reinstated.
-          </p>
-        )}
-        {frozen && (
-          <p role="status" className="mt-2 rounded-md border border-line bg-background px-3 py-2 text-sm text-muted">
-            Frozen: a grant above this one is suspended.
-          </p>
-        )}
-        {g.status === "active" && !!g.strikes_in_window && (
-          <p className="mt-2 text-xs text-muted">Strikes in the current window: {g.strikes_in_window}</p>
-        )}
-        {g.parent_id !== null && (canManage(g, all, me, owner) ? (
-          <details className="mt-3 border-t border-line pt-2">
-            <summary className="cursor-pointer text-sm text-muted">Manage</summary>
-            <SuspendControl g={g} canManage isOwner={me === owner} />
-            <RevokeControl g={g} currency={cur} />
-          </details>
-        ) : (
-          <SuspendControl g={g} canManage={false} isOwner={me === owner} />
-        ))}
+    <>
+      <div className={`row d${Math.min(g.depth, 2)}`} style={{ gridTemplateColumns: COLS, opacity: dim ? 0.7 : 1 }}>
+        <div className="name"><b>{g.parent_id === null ? (g.holder_name ?? "Owner") : grantName(g)}</b><em>{holderLine(g, all)}</em></div>
+        <span className="num fig">{figure(g.available, cur)}</span>
+        <span className="num hide-s">{figure(g.reserved, cur)}</span>
+        <span className="num hide-s">{figure(g.settled, cur)}</span>
+        {g.parent_id !== null
+          ? <button className="more" aria-expanded={open} aria-label={`Manage ${grantName(g)}`} onClick={() => setOpen(!open)}>⋯</button>
+          : <span />}
       </div>
-      {kids.length > 0 && (
-        <ul className="ml-4 mt-2 flex flex-col gap-2 border-l-2 border-line pl-4">
-          {kids.map((k) => <GrantNode key={k.id} g={k} all={all} cur={cur} me={me} owner={owner} />)}
-        </ul>
+      {open && (
+        <div className="manage">
+          <p className="tag" style={{ margin: "0 0 0.5rem" }}>
+            Expires {new Date(g.expires_at).toLocaleDateString()}, up to {money(g.scope.per_tx_limit, cur)} a payment
+            {g.scope.review_above !== undefined && <>, approval above {money(g.scope.review_above, cur)}</>}
+          </p>
+          {manageable ? (
+            <>
+              <SuspendControl g={g} canManage isOwner={me === owner} />
+              <RevokeControl g={g} currency={cur} />
+            </>
+          ) : (
+            <SuspendControl g={g} canManage={false} isOwner={me === owner} />
+          )}
+        </div>
       )}
-    </li>
+    </>
   );
 }
 
@@ -160,68 +136,81 @@ export default function MandateView() {
   const { state, error: err, refresh, updatedAt } = useMandate();
   const { session } = useSession();
 
-  if (!state) return <p className="p-4 text-sm text-muted">{err ?? "Loading…"}</p>;
-  const cur = state.mandate.currency;
-  const inv = state.invariants;
-  const roots = childrenOf(state.grants, null);
+  if (!state) {
+    return <Section span={12} title="Mandate"><p className="tag" style={{ padding: "1rem 0" }}>{err ?? "Loading…"}</p></Section>;
+  }
+  const m = state.mandate;
+  const cur = m.currency;
   const me = session?.principalId ?? "";
-  const owner = state.mandate.owner_principal_id;
+  const isOwner = m.owner_principal_id === me;
+  const tree = inTreeOrder(state.grants);
+  const root = state.grants.find((g) => g.parent_id === null);
+  const mine = state.grants.find((g) => g.holder_principal_id === me && g.parent_id !== null);
+  const sample = mine ?? [...tree].reverse().find((g) => g.parent_id !== null);
+  const serial = m.id.replace(/-/g, "").slice(0, 8).toUpperCase();
+  const [whole, unit] = money(m.total, cur).split(/\s+(?=\S+$)/);
 
   return (
-    <section className="flex flex-col gap-4">
-      <BudgetBar grants={state.grants} total={state.mandate.total} reserve={state.mandate.protected_reserve} cur={cur} />
-      {err && <p role="alert" className="text-sm text-bad">{err}</p>}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="fig text-xl">Grants</h2>
-            <div className="flex items-center gap-3">
-              {updatedAt && <span className="text-xs text-muted">Updated {updatedAt.toLocaleTimeString()}</span>}
-              <button onClick={refresh} className="btn-ghost">Refresh</button>
-            </div>
-          </div>
-          <ul className="flex flex-col gap-2">
-            {roots.map((g) => <GrantNode key={g.id} g={g} all={state.grants} cur={cur} me={me} owner={owner} />)}
-          </ul>
+    <>
+      <Cheque className="c12" inner="">
+        <div className="c12 meta-line">
+          <span>Spending mandate{root?.holder_name ? ` issued by ${root.holder_name}` : ""}</span>
+          <span className="serial">No. {serial.slice(0, 4)} {serial.slice(4)}, valid to {new Date(m.expires_at).toLocaleDateString([], { dateStyle: "medium" })}</span>
         </div>
-        <div className="flex flex-col gap-4">
-          <div
-            role="status"
-            className={`rounded-lg border px-4 py-3 ${inv.ok ? "border-ok/40 bg-ok/10 text-ok" : "border-bad/40 bg-bad/10 text-bad"}`}
-          >
-            <p className="text-base font-semibold">
-              {inv.ok ? "Ledger invariants hold" : `Invariant VIOLATION (${inv.violations.length})`}
-            </p>
-            <p className="text-sm opacity-80">Checked by the server on this refresh.</p>
-            {!inv.ok && <pre className="mt-2 whitespace-pre-wrap text-xs">{JSON.stringify(inv.violations, null, 2)}</pre>}
-          </div>
-          <IntegrityBadge />
-          <div className="panel p-4">
-            <h2 className="fig text-xl">Transactions</h2>
-            {state.transactions.length === 0 && <p className="mt-2 text-sm text-muted">No transactions yet. Ask for a payment to see the kernel decide.</p>}
-            <ul className="mt-3 flex flex-col divide-y divide-line">
-              {state.transactions.slice(0, 30).map((t) => {
-                const st = txState(t.state);
-                const holder = state.grants.find((g) => g.id === t.grant_id);
-                return (
-                  <li key={t.id} className="py-2.5">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="fig text-lg">{money(t.amount, t.currency || cur)}</span>
-                      <span className={`text-sm font-semibold ${st.tone}`}>{st.label}</span>
-                    </div>
-                    <p className="wrap-anywhere text-sm text-muted">
-                      {holder ? `${grantName(holder)} · ` : ""}{t.recipient} · {t.category}
-                      {t.reject_reason && <> · <span title={reasonTitle(t.reject_reason)}>{reasonText(t.reject_reason)}</span></>}
-                    </p>
-                    <p className="text-xs text-muted">{timeOf(t.created_at)}</p>
-                    <TxLink t={t} />
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+        <div className={isOwner ? "c8" : "c12"}>
+          <div className="amount fig">{whole}<small>{unit}</small></div>
+          <p className="note">
+            Agents below may spend within their limits. {money(m.protected_reserve, cur)} is held back and can never be spent.
+          </p>
         </div>
-      </div>
-    </section>
+        <IntegrityBadge ledgerOk={state.invariants.ok} />
+        <Allocation grants={state.grants} total={m.total} reserve={m.protected_reserve} cur={cur} />
+      </Cheque>
+
+      <Section
+        span={6}
+        title="Who may spend"
+        className="ledger"
+        meta={<>{updatedAt ? `Updated ${hhmm(updatedAt.toISOString())}` : ""} <button className="linkbtn" onClick={refresh}>Refresh</button></>}
+        head={
+          <div className="row head" style={{ gridTemplateColumns: COLS }}>
+            <span>Holder</span><span className="num">Free</span><span className="num hide-s">Reserved</span><span className="num hide-s">Spent</span><span />
+          </div>
+        }
+        foot={sample ? (
+          <>
+            <span>{grantName(sample)}: up to {figure(sample.scope.per_tx_limit, cur)} a payment</span>
+            {sample.scope.review_above !== undefined && <span>approval above {figure(sample.scope.review_above, cur)}</span>}
+            {sample.scope.window_limit !== undefined && sample.window_used !== undefined && <span>{figure(sample.window_used, cur)} of {figure(sample.scope.window_limit, cur)} this window</span>}
+          </>
+        ) : undefined}
+      >
+        {tree.map((g) => <LedgerRow key={g.id} g={g} all={state.grants} cur={cur} me={me} owner={m.owner_principal_id} />)}
+        <Filler>Grants you delegate appear here, nested under the grant they come from.</Filler>
+      </Section>
+
+      <Section
+        span={6}
+        title="Decisions"
+        meta="Model proposes, kernel decides"
+        foot={<span>{state.transactions.length} decision{state.transactions.length === 1 ? "" : "s"}, newest first</span>}
+        head={<div className="row head pairrow"><span>Proposed by the model</span><span /><span>Decided by the kernel</span></div>}
+      >
+        {err && <p role="alert" className="alert">{err}</p>}
+        {state.transactions.slice(0, 40).map((t) => {
+          const v = verdictOf(t);
+          const holder = state.grants.find((g) => g.id === t.grant_id);
+          return (
+            <ProposalVerdict
+              key={t.id}
+              who={`${holder ? grantName(holder) : "Unknown holder"}, ${hhmm(t.created_at)}`}
+              proposal={`Pay ${figure(t.amount, t.currency || cur)} to ${t.recipient}, ${t.category}`}
+              stamp={v.stamp} tone={v.tone} reason={v.reason} title={v.title}
+            />
+          );
+        })}
+        <Filler>Every request an agent sends appears here: what the model read, and what the kernel decided.</Filler>
+      </Section>
+    </>
   );
 }

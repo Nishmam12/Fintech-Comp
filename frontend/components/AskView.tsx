@@ -3,9 +3,11 @@
 // What the (untrusted) interpreter proposed sits in a collapsed section below. Everything rendered here is plain text.
 import { useState } from "react";
 import {
-  api, describeError, grantName, money, reasonText, reasonTitle, txState,
+  api, describeError, grantName, money, reasonText, reasonTitle,
   type AgentResponse, type Interpretation, type Decision,
 } from "@/lib/api";
+import Section from "@/components/ui/Section";
+import Stamp, { type Tone } from "@/components/ui/Stamp";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
@@ -87,43 +89,24 @@ const INTERPRETER_TEXT: Record<string, string> = {
   BAD_INPUT_SIZE: "the request is empty or too long",
 };
 
-// The decision in plain words, derived only from the kernel's answer.
-function headline(d: Decision | null): string {
-  if (!d) return "Not sent to the kernel";
-  if (d.state === "proposed") return "Held for the owner's approval";
-  if (d.state === "rejected") return `Refused: ${d.reason ? reasonText(d.reason) : "the kernel said no."}`;
-  if (d.state === "settled") return "Approved and paid";
-  return "Approved and reserved";
-}
-
-function DecisionCard({ d, interp }: { d: Decision | null; interp: Interpretation }) {
-  const st = txState(d?.state ?? "");
-  return (
-    <div className="panel p-5 lg:p-6">
-      <p className="text-sm text-muted">Kernel decision</p>
-      <p
-        className={`fig mt-1 text-2xl lg:text-3xl ${st.tone}`}
-        title={d?.reason ? reasonTitle(d.reason) : undefined}
-      >
-        {headline(d)}
-      </p>
-      {d ? (
-        <>
-          {d.state === "proposed" && (
-            <p className="mt-2 text-sm text-muted">
-              {d.review_reason ? `${reasonText(d.review_reason)} ` : ""}No money is reserved until the owner approves.
-            </p>
-          )}
-          {d.suspended && <p className="mt-2 text-sm text-warn">This refusal suspended the grant (circuit breaker).</p>}
-          {d.replayed && <p className="mt-2 text-sm text-muted">This exact request was already decided; nothing new was reserved.</p>}
-        </>
-      ) : (
-        <p className="mt-2 text-sm text-muted">
-          {interp.reasons.length > 0 ? `${interp.reasons.map((r) => INTERPRETER_TEXT[r] ?? r).join(", ")}. ` : ""}The request could not be read well enough to send. Nothing was reserved.
-        </p>
-      )}
-    </div>
-  );
+// The kernel's verdict as a stamp and one plain sentence, derived only from its answer.
+const sentence = (t: string) => (/[.!?]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);
+function verdict(d: Decision | null, interp: Interpretation): { stamp: string; tone: Tone; text: string; after: string } {
+  if (!d) {
+    const why = interp.reasons.map((r) => INTERPRETER_TEXT[r] ?? r).join(", ");
+    return { stamp: "Not sent", tone: "dim", text: `${why ? `${why[0].toUpperCase()}${why.slice(1)}. ` : ""}The request could not be read well enough to send.`, after: "Nothing was reserved." };
+  }
+  if (d.state === "proposed") {
+    return { stamp: "Held", tone: "wait", text: `${d.review_reason ? `${sentence(reasonText(d.review_reason))} ` : ""}The owner has to approve it.`, after: "No money is reserved until the owner approves." };
+  }
+  if (d.state === "rejected") {
+    return {
+      stamp: "Refused", tone: "no", text: d.reason ? sentence(reasonText(d.reason)) : "The kernel said no.",
+      after: d.suspended ? "Nothing was reserved. This refusal suspended the grant until the owner reinstates it." : "Nothing was reserved. Repeated refusals suspend the grant until the owner reinstates it.",
+    };
+  }
+  if (d.state === "settled") return { stamp: "Paid", tone: "ok", text: "Approved and paid.", after: "The payment settled." };
+  return { stamp: "Approved", tone: "ok", text: "Approved and the money is reserved.", after: "The reservation holds until the payment settles or expires." };
 }
 
 export default function AskView() {
@@ -138,6 +121,8 @@ export default function AskView() {
   const [result, setResult] = useState<AgentResponse | null>(null);
 
   const chosen = grants.some((g) => g.id === grantId) ? grantId : (grants[grants.length - 1]?.id ?? "");
+  const cur = state?.mandate.currency ?? "USD";
+  const chosenGrant = grants.find((g) => g.id === chosen);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -160,73 +145,70 @@ export default function AskView() {
     }
   }
 
+  const p = result?.interpretation.proposal;
+  const v = result ? verdict(result.decision, result.interpretation) : null;
+
   return (
-    <section className="flex max-w-2xl flex-col gap-4">
-      <div aria-live="polite" className="flex flex-col gap-3">
-        {result ? (
-          <DecisionCard d={result.decision} interp={result.interpretation} />
-        ) : (
-          <div className="panel p-5 lg:p-6">
-            <p className="text-sm text-muted">Kernel decision</p>
-            <p className="fig mt-1 text-2xl text-muted lg:text-3xl">{busy ? "Asking the kernel…" : "Nothing asked yet"}</p>
-          </div>
-        )}
-        {err && <p role="alert" className="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{err}</p>}
-      </div>
-
-      {state && grants.length === 0 && (
-        <p role="status" className="rounded-md border border-line bg-card px-3 py-2 text-sm text-muted">
-          You do not hold an active grant in this mandate, so there is nothing to ask against.
-        </p>
-      )}
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Spend from
-          <select value={chosen} onChange={(e) => setGrantId(e.target.value)} className="field">
-            {grants.map((g) => (
-              <option key={g.id} value={g.id}>
-                {grantName(g)} · {money(g.available, state?.mandate.currency)} available
-              </option>
-            ))}
+    <>
+      <Section span={6} title="Ask to pay" meta={chosenGrant ? `${money(chosenGrant.available, cur)} free` : undefined}>
+        <form onSubmit={submit} className="form">
+          {state && grants.length === 0 && (
+            <p role="status" className="alert" style={{ borderColor: "var(--rule)", color: "var(--ink-2)" }}>
+              You do not hold an active grant in this mandate, so there is nothing to ask against.
+            </p>
+          )}
+          <label htmlFor="ask-grant">Spend from</label>
+          <select id="ask-grant" value={chosen} onChange={(e) => setGrantId(e.target.value)} className="field">
+            {grants.map((g) => <option key={g.id} value={g.id}>{grantName(g)}, {money(g.available, cur)} free</option>)}
           </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Request
-          <textarea
-            required
-            maxLength={2000}
-            rows={3}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="pay 50 USD to aws for cloud"
-            className="field"
-          />
-        </label>
-        <div>
-          <p className="text-sm text-muted">Try an example</p>
-          <ul className="mt-1 flex flex-wrap gap-2">
+          <label htmlFor="ask-text">Request, in your own words</label>
+          <textarea id="ask-text" required maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder="pay 50 USD to aws for cloud" className="field" />
+          <label style={{ margin: "1rem 0 0" }}>Or try an example</label>
+          <div className="chips">
             {EXAMPLES.map((x) => (
-              <li key={x.text}>
-                <button type="button" onClick={() => setText(x.text)} className="btn-ghost text-left">
-                  {x.text}
-                  <span className="block text-xs font-normal text-muted">{x.outcome}</span>
-                </button>
-              </li>
+              <button key={x.text} type="button" className="chip" onClick={() => setText(x.text)}>{x.text}<span>{x.outcome}</span></button>
             ))}
-          </ul>
-        </div>
-        <button disabled={busy || !chosen} className="btn-primary">{busy ? "Asking…" : "Send request"}</button>
-      </form>
-
-      {result && (
-        <details className="panel p-4">
-          <summary className="cursor-pointer text-sm font-semibold">How the model read this request</summary>
-          <p className="mt-1 text-xs text-muted">Untrusted: the model only proposes. The kernel decision above is the authority.</p>
-          <div className="mt-3">
-            <InterpretationCard i={result.interpretation} />
           </div>
-        </details>
-      )}
-    </section>
+          <button disabled={busy || !chosen} className="btn wide">{busy ? "Asking the kernel…" : "Send to the kernel"}</button>
+        </form>
+      </Section>
+
+      <Section span={6} title="Decision" meta="Untrusted proposal, authoritative verdict" live>
+        {err && <p role="alert" className="alert">{err}</p>}
+        <div className="pair">
+          {result ? (
+            <div className="slip proposal">
+              <small>The model read it as</small>
+              <span>
+                {p && p.amount_minor !== null
+                  ? <>Pay <b>{money(p.amount_minor, p.currency ?? cur)}</b> to <b>{p.recipient ?? "?"}</b>, category <b>{p.category ?? "?"}</b></>
+                  : "Nothing it could turn into a payment"}
+              </span>
+              <small>Untrusted. The model only proposes.</small>
+            </div>
+          ) : (
+            <div className="slip proposal"><small>The model read it as</small><span>{busy ? "Reading your request…" : "Nothing asked yet"}</span></div>
+          )}
+          <div className="arrow" aria-hidden="true">↓</div>
+          {v ? (
+            <div className={`slip verdict ${v.tone}`} title={result?.decision?.reason ? reasonTitle(result.decision.reason) : undefined}>
+              <Stamp>{v.stamp}</Stamp><p>{v.text}</p>
+            </div>
+          ) : (
+            <div className="slip proposal"><small>The kernel decides</small><span>{busy ? "Asking the kernel…" : "Send a request to see the verdict"}</span></div>
+          )}
+        </div>
+        <p className="consequence">
+          {v ? v.after : "The model only reads the request. The kernel checks it against the grant's limits before any money moves."}
+          {result?.decision?.replayed && " This exact request was already decided; nothing new was reserved."}
+        </p>
+        {result && (
+          <details className="manage" style={{ padding: "0.75rem 0" }}>
+            <summary style={{ cursor: "pointer" }}>How the model read this request</summary>
+            <div style={{ marginTop: "0.75rem" }}><InterpretationCard i={result.interpretation} /></div>
+          </details>
+        )}
+      </Section>
+    </>
   );
 }

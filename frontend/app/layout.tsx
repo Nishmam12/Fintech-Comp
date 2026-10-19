@@ -1,16 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Public_Sans } from "next/font/google";
+import { Archivo } from "next/font/google";
 import "./globals.css";
+import "./ui.css";
 
-const display = Bricolage_Grotesque({
-  variable: "--nf-display",
-  subsets: ["latin"],
-});
-
-const body = Public_Sans({
-  variable: "--nf-body",
-  subsets: ["latin"],
-});
+// Archivo's width axis carries the display look: wdth 125 for figures and headings, 100 for text (see .fig in ui.css).
+const archivo = Archivo({ variable: "--nf-archivo", subsets: ["latin"], axes: ["wdth"] });
 
 export const metadata: Metadata = {
   title: "Budget Kernel",
@@ -18,12 +12,12 @@ export const metadata: Metadata = {
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
 };
 
-export const viewport: Viewport = { themeColor: "#0e1a2b" };
+export const viewport: Viewport = { themeColor: "#f1f2ee" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className={`${archivo.variable} antialiased`}>
+      <body>{children}</body>
     </html>
   );
 }

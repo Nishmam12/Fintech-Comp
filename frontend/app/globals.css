@@ -1,75 +1,29 @@
 @import "tailwindcss";
 
-:root {
-  --background: #eceff3;
-  --foreground: #0e1a2b;
-  --card: #ffffff;
-  --line: #d5dbe3;
-  --muted: #566376;
-  --ok: #0b7a5a;
-  --bad: #c0301c;
-  --warn: #b26b00;
-  --accent: #2347c5;
-  --ink: #0e1a2b;
-  --ink-soft: #1b2b44;
-  --ink-text: #c9d3e2;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b1220;
-    --foreground: #e6ebf3;
-    --card: #131c2d;
-    --line: #26344c;
-    --muted: #93a1b8;
-    --ok: #3fc79a;
-    --bad: #ff8168;
-    --warn: #f0b04a;
-    --accent: #8aa6ff;
-    --ink: #070c16;
-    --ink-soft: #131c2d;
-    --ink-text: #c9d3e2;
-  }
-}
-
+/* Tokens live in ui.css (paper, sheet, ink, rule, approve, held, refuse). This file maps them onto Tailwind's names so screens
+   that have not been rebuilt yet (Review, Activity, Attack lab, Settings) pick up the new palette. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-line: var(--line);
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-card: var(--sheet);
+  --color-line: var(--rule);
   --color-muted: var(--muted);
-  --color-ok: var(--ok);
-  --color-bad: var(--bad);
-  --color-warn: var(--warn);
-  --color-accent: var(--accent);
+  --color-ok: var(--approve);
+  --color-bad: var(--refuse);
+  --color-warn: var(--held);
+  --color-accent: var(--ink);
   --color-ink: var(--ink);
-  --color-ink-soft: var(--ink-soft);
-  --color-ink-text: var(--ink-text);
-  --font-display: var(--nf-display), system-ui, sans-serif;
-  --font-sans: var(--nf-body), system-ui, sans-serif;
-  --radius-lg: 0.875rem;
-  --radius-md: 0.625rem;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--nf-body), system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.5;
-}
-
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  --color-ink-soft: var(--ink-2);
+  --color-ink-text: var(--rule);
+  --font-sans: var(--nf-archivo), system-ui, sans-serif;
+  --radius-lg: 0;
+  --radius-md: 0;
 }
 
 @layer components {
-  .field { @apply rounded-md border border-line bg-card px-3 py-3 text-base outline-none focus:border-accent; }
-  .btn-primary { @apply min-h-12 rounded-md bg-accent px-5 text-base font-semibold text-white transition-colors hover:brightness-110 disabled:opacity-60 dark:text-ink; }
-  .btn-ghost { @apply min-h-11 rounded-md border border-line bg-card px-4 text-sm font-medium transition-colors hover:border-accent hover:text-accent; }
-  .panel { @apply rounded-lg border border-line bg-card; }
-  .fig { font-family: var(--nf-display), system-ui, sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+  .btn-primary { @apply min-h-12 bg-ink px-5 text-base font-semibold text-background transition-colors hover:bg-ink-soft disabled:opacity-60; }
+  .btn-ghost { @apply min-h-11 border border-ink bg-transparent px-4 text-sm font-medium transition-colors hover:bg-ink hover:text-background; }
+  .panel { @apply border border-line bg-card; }
 }
 
 @media (prefers-reduced-motion: reduce) {

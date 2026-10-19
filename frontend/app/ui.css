@@ -1,0 +1,249 @@
+/* Revision 3 design system (docs/design/UI_SPEC.md). Extracted from docs/design/mockup.html; keep the two in step.
+   One fluid root size, everything in rem, full-bleed frames that fill the viewport. */
+  html { font-size: clamp(14px, min(1.2vw, 2.1dvh), 40px); }
+  @media (max-width: 767px) { html { font-size: 16px; } }
+
+  :root {
+    --paper: #f1f2ee; --sheet: #fbfbf8; --ink: #17201c; --ink-2: #3a453f; --muted: #5a635b; --rule: #d6d9d1;
+    --approve: #1d6b47; --held: #8a5c00; --refuse: #a8361f;
+    --gut: 1.5rem; --row: 3.5rem;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--nf-archivo), "Archivo", system-ui, sans-serif;
+         font-size: 0.9375rem; font-variation-settings: "wdth" 100; font-variant-numeric: tabular-nums; line-height: 1.5; }
+  .fig { font-variation-settings: "wdth" 125; font-weight: 700; letter-spacing: -0.01em; }
+  /* element resets sit in the base layer so Tailwind utilities (still used by screens not yet rebuilt) can override them */
+  @layer base { a { color: inherit; } button { font: inherit; color: inherit; cursor: pointer; } }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  html { color-scheme: light; }
+
+  /* ---------- app frame: fills the viewport, no side gaps ---------- */
+  .app { display: grid; grid-template-rows: auto auto 1fr; height: 100dvh; width: 100%; }
+  .top { height: 4rem; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--gut); border-bottom: 1px solid var(--rule); }
+  .brand { display: flex; align-items: baseline; gap: 1rem; }
+  .brand b { font-size: 1.25rem; }
+  .brand span { color: var(--muted); font-size: 0.875rem; }
+  .who { display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; }
+  .who a { color: var(--muted); }
+  .pill { padding: 0.125rem 0.75rem; border: 1px solid var(--ink); border-radius: 999px; font-size: 0.8125rem; }
+  .tabs { height: 3rem; display: flex; gap: 2rem; padding: 0 var(--gut); border-bottom: 1px solid var(--rule); }
+  .tabs a { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); text-decoration: none; font-size: 0.9375rem; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs a.on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+  .count { font-size: 0.75rem; background: var(--held); color: #fff; padding: 0 0.5rem; border-radius: 999px; }
+  .bottom { display: none; }
+
+  .main { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr);
+          column-gap: var(--gut); row-gap: var(--gut); padding: var(--gut); min-height: 0; }
+  .main.rows-auto-fill { grid-template-rows: auto minmax(0, 1fr); grid-auto-rows: unset; }
+  .c12 { grid-column: span 12; } .c8 { grid-column: span 8; } .c6 { grid-column: span 6; } .c4 { grid-column: span 4; }
+
+  /* ---------- the one section module ---------- */
+  .sec { display: flex; flex-direction: column; min-height: 0; }
+  .sec-head { flex: none; height: 3.5rem; display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+              padding-bottom: 0.75rem; border-bottom: 0.125rem solid var(--ink); }
+  .sec-head h2 { margin: 0; font-size: 1.375rem; line-height: 1; }
+  .sec-head .meta { color: var(--muted); font-size: 0.8125rem; }
+  .sec-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+  .sec-foot { flex: none; height: 2.5rem; display: flex; align-items: center; gap: 1.5rem; border-top: 1px solid var(--rule); font-size: 0.8125rem; color: var(--ink-2); }
+
+  /* ---------- rows: equal height everywhere ---------- */
+  .row { flex: none; height: var(--row); display: grid; align-items: center; column-gap: 1rem; border-bottom: 1px solid var(--rule); }
+  .row.head { height: 2.5rem; font-size: 0.8125rem; color: var(--muted); }
+  .num { text-align: right; }
+  .name { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+  .name b { font-size: 0.9375rem; } .name em { font-style: normal; color: var(--muted); font-size: 0.8125rem; }
+  .d1 .name { padding-left: 1rem; box-shadow: inset 2px 0 0 var(--rule); }
+  .d2 .name { padding-left: 2rem; box-shadow: inset 2px 0 0 var(--rule), inset 1.125rem 0 0 var(--paper), inset 1.25rem 0 0 var(--rule); }
+  .more { width: 2.5rem; height: 2rem; border: 1px solid var(--rule); background: transparent; border-radius: 0.375rem; font-size: 1.125rem; color: var(--ink-2); }
+  .filler { flex: 1; min-height: 0; color: var(--muted); font-size: 0.875rem;
+            background: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--row) - 1px), var(--rule) calc(var(--row) - 1px), var(--rule) var(--row)); }
+  .filler > p { height: var(--row); margin: 0; display: flex; align-items: center; }
+
+  /* ---------- cheque ---------- */
+  .cheque { position: relative; overflow: hidden; background: var(--sheet); border: 1px solid var(--ink); }
+  .cheque svg.guilloche { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .6; pointer-events: none; }
+  .cheque-in { position: relative; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut);
+               row-gap: 0.75rem; padding: 1rem 1.5rem; }
+  .cheque .meta-line { display: flex; justify-content: space-between; font-size: 0.875rem; color: var(--ink-2); }
+  .serial { font-variation-settings: "wdth" 80; letter-spacing: .08em; }
+  .amount { font-size: 3rem; line-height: 1; }
+  .amount small { font-size: 0.35em; margin-left: 0.5rem; color: var(--ink-2); }
+  .note { font-size: 0.9375rem; color: var(--ink-2); margin: 0.25rem 0 0; }
+  .alloc { display: flex; height: 0.75rem; border: 1px solid var(--ink); }
+  .alloc i { display: block; height: 100%; }
+  .hatch { background: repeating-linear-gradient(90deg, var(--sheet) 0 0.375rem, #dfe3da 0.375rem 0.4375rem); }
+  .legend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--gut); }
+  .legend div { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8125rem; color: var(--ink-2); }
+  .legend span { display: flex; align-items: center; gap: 0.5rem; }
+  .legend b { font-size: 1.125rem; color: var(--ink); }
+  .sw { width: 0.625rem; height: 0.625rem; display: inline-block; }
+  .seal-cell { border-left: 1px solid var(--rule); padding-left: var(--gut); display: flex; flex-direction: column; justify-content: center; gap: 0.75rem; }
+  .seal-line { display: flex; align-items: center; gap: 1rem; }
+  .seal-cell p { margin: 0; font-size: 0.875rem; color: var(--ink-2); }
+  .seal-cell b { display: block; font-size: 1rem; color: var(--ink); }
+  .seal-cell a { font-size: 0.875rem; }
+  .seal { width: 3rem; height: 3rem; flex: none; }
+
+  /* ---------- proposal -> verdict ---------- */
+  .pairrow { grid-template-columns: minmax(0, 1fr) 1.5rem minmax(0, 1fr); }
+  .slip { height: 3rem; display: flex; flex-direction: column; justify-content: center; padding: 0 0.75rem; font-size: 0.8125rem; min-width: 0; }
+  .slip > * { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .proposal { border: 1.5px dashed var(--muted); color: var(--ink-2); }
+  .proposal small { color: var(--muted); font-size: 0.75rem; }
+  .verdict { border: 1.5px solid currentColor; background: var(--sheet); flex-direction: row; align-items: center; justify-content: flex-start; gap: 0.75rem; }
+  .verdict p { margin: 0; color: var(--ink); }
+  .stamp { flex: none; display: inline-block; font-variation-settings: "wdth" 115; font-weight: 800; font-size: 0.75rem; padding: 0.1875rem 0.625rem; box-shadow: inset 0 0 0 0.125rem currentColor; }
+  .arrow { text-align: center; color: var(--muted); }
+  .ok { color: var(--approve); } .wait { color: var(--held); } .no { color: var(--refuse); } .dim { color: var(--muted); }
+
+  /* ---------- controls ---------- */
+  @layer base { label { display: block; font-size: 0.8125rem; color: var(--ink-2); margin: 1rem 0 0.5rem; } }
+  .field { width: 100%; height: 3rem; border: 1px solid var(--ink); background: var(--sheet); padding: 0 1rem; font: inherit; font-size: 1rem; }
+  textarea.field { padding: 0.75rem 1rem; resize: none; height: auto; }
+  .btn { height: 3rem; padding: 0 1.5rem; background: var(--ink); color: var(--paper); border: 0; font-weight: 600; font-size: 0.9375rem; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
+  .btn.small { height: 2.25rem; padding: 0 1rem; font-size: 0.875rem; }
+  .btn.wide { width: 100%; }
+  .chips { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(3.5rem, 1fr); gap: 0.5rem; margin: 1rem 0; }
+  .chip { height: auto; border: 1px solid var(--rule); background: transparent; padding: 0 1rem; font-size: 0.9375rem; text-align: left; display: flex; flex-direction: column; justify-content: center; }
+  .chip span { display: block; color: var(--muted); font-size: 0.8125rem; margin-top: 0.125rem; }
+
+  /* Ask */
+  .form { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .form textarea { flex: none; height: 6.5rem; }
+  .pair { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) 2rem minmax(0, 1fr); margin-top: 1rem; }
+  .pair .slip { height: auto; padding: 0 1.5rem; font-size: 0.9375rem; }
+  .pair .slip > * { white-space: normal; }
+  .pair .proposal small { font-size: 0.875rem; margin: 0.25rem 0; }
+  .pair .proposal span { font-size: 1.5rem; line-height: 1.3; }
+  .pair .verdict { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.75rem; }
+  .pair .stamp { font-size: 1.5rem; padding: 0.3125rem 0.9375rem; box-shadow: inset 0 0 0 0.1875rem currentColor; }
+  .pair .verdict p { font-size: 1.5rem; line-height: 1.3; }
+  .pair .arrow { line-height: 2rem; }
+  .consequence { flex: none; min-height: 3rem; margin: 1rem 0 0; font-size: 0.875rem; color: var(--ink-2); }
+
+  /* Review cheques awaiting signature */
+  .held-cheque { flex: none; border: 1px solid var(--ink); background: var(--sheet); padding: 1.25rem 1.5rem; margin-top: 1rem;
+                 display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); column-gap: var(--gut); align-items: center; }
+  .held-cheque .amount { font-size: 2.5rem; }
+  .held-cheque .actions { display: grid; grid-template-rows: 1fr 1fr; gap: 0.5rem; }
+  .cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
+  .cells.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cell { height: 5rem; display: flex; flex-direction: column; justify-content: center; padding-left: 1rem; border-left: 1px solid var(--rule); }
+  .cell:nth-child(3n+1) { border-left: 0; padding-left: 0; }
+  .cells.four .cell:nth-child(3n+1) { border-left: 1px solid var(--rule); padding-left: 1rem; }
+  .cells.four .cell:nth-child(2n+1) { border-left: 0; padding-left: 0; }
+  .cells.four .cell:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
+  .cell b { font-size: 1.5rem; } .cell span { font-size: 0.8125rem; color: var(--ink-2); }
+  .explain { flex: none; margin: 0; padding: 1rem 0 0; font-size: 0.875rem; color: var(--ink-2); border-top: 1px solid var(--rule); }
+
+  /* Activity timeline */
+  .day { flex: none; height: 2.5rem; display: flex; align-items: flex-end; padding-bottom: 0.25rem; font-size: 0.8125rem; color: var(--muted); }
+  .tl { grid-template-columns: 1.5rem minmax(0, 1fr) auto; }
+  .dot { width: 0.625rem; height: 0.625rem; border-radius: 999px; background: currentColor; }
+
+  /* Attack lab: rows share the height equally */
+  .attack-body { display: grid; grid-auto-rows: minmax(4rem, 1fr); }
+  .atk { height: auto; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 3fr) minmax(0, 3fr) 7.5rem; }
+  .atk .verdict { height: 3rem; }
+  .atk .btn { white-space: nowrap; }
+
+  /* Sign-in */
+  .signin { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); height: 100dvh; padding: var(--gut); }
+  .signin .cheque { grid-column: span 6; display: flex; }
+  .signin .cheque-in { display: flex; flex-direction: column; justify-content: space-between; width: 100%; padding: 2.5rem; }
+  .tagline { font-size: 4.5rem; line-height: 1.02; margin: 0 0 1.5rem; }
+  .signin .side { grid-column: span 6; display: flex; flex-direction: column; min-height: 0; }
+  .demo { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 0.5rem; margin-top: 1rem; }
+  .demo .btn { height: auto; display: flex; flex-direction: row; align-items: center; justify-content: space-between; text-align: left; padding: 0 1.5rem; font-size: 1.25rem; }
+  .demo .btn span { font-weight: 400; font-size: 0.875rem; }
+  .or { display: flex; align-items: center; gap: 1rem; color: var(--muted); font-size: 0.8125rem; margin: 1.5rem 0 0.75rem; }
+  .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--rule); }
+
+  /* ---------- tablet: halves stack, page scrolls ---------- */
+  @media (max-width: 1023px) {
+    .app { height: auto; min-height: 100dvh; }
+    .main, .main.rows-auto-fill { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-rows: auto; }
+    .c12, .c8, .c6, .c4 { grid-column: 1 / -1; }
+    .sec { min-height: 50dvh; }
+    .signin { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 100dvh; row-gap: var(--gut); }
+    .signin .cheque, .signin .side { grid-column: 1 / -1; }
+    .signin .side { padding: 0; }
+    .tagline { font-size: 3.25rem; }
+  }
+  /* ---------- phone: one column, pinned bars ---------- */
+  @media (max-width: 767px) {
+    :root { --gut: 1rem; }
+    .brand span, .who > span:first-child, .tabs { display: none; }
+    .who { gap: 0.75rem; }
+    /* the page scrolls, so nothing inside is height-capped or clipped */
+    .app { height: auto; min-height: 100dvh; grid-template-rows: auto auto; align-content: start; }
+    .main, .main.rows-auto-fill { padding-bottom: 5rem; grid-auto-rows: auto; }
+    .sec { min-height: 0; }
+    .sec-body { overflow: visible; flex: none; }
+    .sec-head { height: auto; min-height: 3.5rem; }
+    .sec-head .meta { text-align: right; max-width: 55%; }
+    .row { height: auto; min-height: var(--row); padding: 0.5rem 0; }
+    .row.head { padding: 0; }
+    .filler { min-height: calc(var(--row) * 2); flex: none; }
+    .day { height: 2.5rem; }
+    .form textarea { height: 6rem; }
+    .chips { flex: none; }
+    .pair { flex: none; grid-template-rows: auto 2rem auto; }
+    .pair .slip { padding: 1rem; }
+    .pair .proposal span, .pair .verdict p { font-size: 1.125rem; }
+    .pair .stamp { font-size: 1.125rem; }
+    .consequence { margin-bottom: 1rem; }
+    .held-cheque .amount { font-size: 2rem; }
+    .cell { height: 4.5rem; }
+    .attack-body { grid-auto-rows: auto; }
+    .signin { padding: var(--gut); }
+    .signin .cheque-in { padding: 1.5rem; gap: 2rem; }
+    .tagline { font-size: 2.25rem; overflow-wrap: anywhere; margin-bottom: 1rem; }
+    .demo { flex: none; grid-auto-rows: 3.5rem; }
+    .demo .btn { font-size: 1.125rem; padding: 0 1rem; }
+    .bottom { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; inset: auto 0 0 0; height: 3.5rem;
+              border-top: 1px solid var(--rule); background: var(--sheet); font-size: 0.8125rem; }
+    .bottom.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .bottom a { display: flex; align-items: center; justify-content: center; color: var(--muted); text-decoration: none; }
+    .bottom a.on { color: var(--ink); font-weight: 700; box-shadow: inset 0 2px 0 var(--ink); }
+    .cheque-in { padding: 1rem; }
+    .amount { font-size: 2.5rem; }
+    .cheque .meta-line span:first-child { display: none; }
+    .cheque .meta-line { justify-content: flex-start; }
+    .cheque .c8, .cheque .c4 { grid-column: 1 / -1; }
+    .seal-cell { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 0.75rem; }
+    .legend { grid-template-columns: 1fr 1fr; row-gap: 0.75rem; }
+    .ledger .row { grid-template-columns: minmax(0, 1fr) 6rem 2.5rem !important; }
+    .ledger .row .hide-s { display: none; }
+    /* attack card: name + run button on top, the two outcomes side by side and equal below */
+    .atk { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; padding: 1rem 0; row-gap: 0.75rem; }
+    .atk.head { display: none; }
+    .atk .hide-s { display: none; }
+    .atk > .name { grid-column: 1; grid-row: 1; justify-content: center; }
+    .atk > .btn { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; width: 7rem; }
+    .atk > .slip { grid-row: 2; height: auto; min-height: 5.5rem; padding: 0.75rem; align-items: flex-start; justify-content: flex-start; gap: 0.375rem; flex-direction: column; }
+    .atk > .slip::before { content: "Without the kernel"; font-size: 0.75rem; color: var(--muted); font-weight: 400; }
+    .atk > .slip:nth-of-type(n+3)::before { content: "With Budget Kernel"; }
+    .atk > .slip > * { white-space: normal; overflow: visible; }
+    .atk .verdict p { font-size: 0.8125rem; line-height: 1.3; }
+    .held-cheque { grid-template-columns: minmax(0, 1fr); row-gap: 1rem; }
+    .held-cheque .actions { grid-template-rows: none; grid-template-columns: 1fr 1fr; }
+    .demo { grid-template-columns: minmax(0, 1fr); }
+  }
+
+
+  /* ---------- additions made while building the real app ---------- */
+  .linkbtn { background: none; border: 0; padding: 0; color: var(--ink-2); text-decoration: underline; font-size: inherit; }
+  .manage { flex: none; padding: 0.75rem 0 1rem 1rem; border-bottom: 1px solid var(--rule); font-size: 0.875rem; background: var(--sheet); }
+  .tag { font-size: 0.75rem; color: var(--muted); }
+  .alert { margin: 0.75rem 0 0; padding: 0.5rem 0.75rem; border: 1px solid var(--refuse); color: var(--refuse); font-size: 0.875rem; }
+  .skel { height: 3rem; background: repeating-linear-gradient(90deg, var(--rule) 0 0.5rem, transparent 0.5rem 1rem); opacity: .5; }
+
+  /* a verdict reason may take two lines inside its fixed-height slip; the full text is the row's title */
+  .pairrow .verdict p { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; font-size: 0.8125rem; }
+
+  .sec-foot { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sec-foot > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .count { margin-left: 0.5rem; }
+  @media (max-width: 767px) { .sec-foot { flex-wrap: wrap; height: auto; min-height: 2.5rem; white-space: normal; padding: 0.5rem 0; row-gap: 0.25rem; } }

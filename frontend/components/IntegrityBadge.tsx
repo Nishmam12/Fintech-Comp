@@ -1,12 +1,14 @@
 "use client";
-// BK-413: tamper-evidence badge (ADR-0009 A4). Owner only. Everything shown is what GET /integrity returned;
-// when the call fails the badge says so and never guesses. The explorer link is the API's, never built here.
+// BK-413: tamper-evidence seal (ADR-0009 A4). Owner only. Everything shown is what GET /integrity returned;
+// when the call fails the seal says so and never guesses. The explorer link is the API's, never built here.
+// Rendered inside the mandate cheque as its right-hand cell.
 import { useEffect, useState } from "react";
 import { ApiError, describeError, getIntegrity, type Integrity } from "@/lib/api";
+import Seal from "@/components/ui/Seal";
 import { useMandate } from "@/lib/mandate";
 import { useSession } from "@/lib/session";
 
-export default function IntegrityBadge() {
+export default function IntegrityBadge({ ledgerOk = true }: { ledgerOk?: boolean }) {
   const { session } = useSession();
   const { state } = useMandate();
   const [data, setData] = useState<Integrity | null>(null);
@@ -29,65 +31,25 @@ export default function IntegrityBadge() {
   }, [session, isOwner, stamp]);
 
   if (!isOwner) return null;
-  if (err) {
-    return (
-      <div role="status" className="rounded-lg border border-line bg-card px-4 py-3">
-        <p className="text-base font-semibold">History check unavailable</p>
-        <p className="text-sm text-muted">{err}</p>
-      </div>
-    );
-  }
-  if (!data) {
-    return (
-      <div role="status" aria-label="Checking history" className="panel animate-pulse px-4 py-3">
-        <div className="h-4 w-2/5 rounded bg-line" />
-        <div className="mt-2 h-3 w-full rounded bg-line" />
-        <div className="mt-1.5 h-3 w-3/4 rounded bg-line" />
-      </div>
-    );
-  }
+  const cell = (seal: React.ReactNode, title: string, line: string, extra?: React.ReactNode) => (
+    <div className="c4 seal-cell" role="status">
+      <div className="seal-line">{seal}<p><b>{title}</b>{line}</p></div>
+      {extra}
+    </div>
+  );
+  if (err) return cell(<Seal ok={false} />, "History check unavailable", err);
+  if (!data) return cell(<div className="seal skel" aria-hidden />, "Checking history", "Recomputing the hash chain");
 
   const a = data.last_anchor;
   const link = a?.explorer_url?.startsWith("https://") ? a.explorer_url : null;
-  return (
-    <div
-      role="status"
-      className={`rounded-lg border px-4 py-3 ${data.ok ? "border-ok/40 bg-ok/10 text-ok" : "border-bad/40 bg-bad/10 text-bad"}`}
-    >
-      {data.ok ? (
-        <>
-          <p className="text-base font-semibold">History intact · {data.length} records</p>
-          <p className="text-sm opacity-80">Every record is linked to the one before it, so editing any record breaks the chain.</p>
-          <p className="mt-1 text-xs opacity-80">
-            Latest link <span className="font-mono">{data.head_hash.slice(0, 12)}</span> (record {data.head_seq}), recomputed by the server.
-          </p>
-        </>
-      ) : (
-        <>
-          <p className="text-base font-semibold">History BROKEN{data.broken_at !== null ? ` at record ${data.broken_at}` : ""}</p>
-          <p className="text-sm">Reason: <span className="font-mono">{data.reason ?? "unknown"}</span></p>
-        </>
-      )}
-      <p className="mt-1 text-sm opacity-80">
-        {a ? (
-          <>
-            Last on-chain anchor: record {a.seq}, {a.status}
-            {a.matches ? ", matches" : ", DOES NOT MATCH"}
-          </>
-        ) : (
-          "Not anchored on-chain yet."
-        )}
-      </p>
-      {link && (
-        <a
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-ghost mt-3 inline-flex items-center text-foreground"
-        >
-          View anchor on Base Sepolia
-        </a>
-      )}
-    </div>
+  if (!data.ok) {
+    return cell(<Seal ok={false} />, `History BROKEN${data.broken_at !== null ? ` at record ${data.broken_at}` : ""}`, `Reason: ${data.reason ?? "unknown"}`);
+  }
+  const anchorLine = a ? `Last anchor: record ${a.seq}, ${a.status}${a.matches ? ", matches" : ", DOES NOT MATCH"}` : "Not anchored on-chain yet.";
+  return cell(
+    <Seal ok={ledgerOk} />,
+    "History intact",
+    `${data.length} records, ${ledgerOk ? "ledger checks pass" : "LEDGER CHECK FAILED"}`,
+    link ? <a href={link} target="_blank" rel="noopener noreferrer">{anchorLine}, view on Base Sepolia</a> : <p>{anchorLine}</p>,
   );
 }
