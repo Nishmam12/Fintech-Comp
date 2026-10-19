@@ -1,6 +1,6 @@
 # Execution evidence: Base Sepolia settlements
 
-Generated 2026-10-17 04:25 UTC. 2 confirmed transfer(s). Testnet only.
+Generated 2026-10-19 22:27 UTC. 2 confirmed transfer(s). Testnet only.
 
 ## Kernel transaction `769b9063-fe9d-4226-bd0f-962e92d17c9b`
 - Amount: 100 USD minor units (1.0 test USDC) to `aws` (`0x69fF04AC767915473993646D94A35cb7923B88A0`)
