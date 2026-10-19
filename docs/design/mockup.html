@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Budget Kernel UI direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f1f2ee;      /* banknote paper */
+    --sheet: #fbfbf8;      /* raised surfaces */
+    --ink: #17201c;        /* text, primary actions */
+    --ink-2: #3a453f;
+    --muted: #5e675f;
+    --rule: #d6d9d1;
+    --approve: #1d6b47;
+    --held: #9a6700;
+    --refuse: #a8361f;
+    --wide: 125;           /* Archivo width axis for figures */
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Archivo", system-ui, sans-serif;
+         font-variation-settings: "wdth" 100; font-variant-numeric: tabular-nums; line-height: 1.5; }
+  .fig { font-variation-settings: "wdth" var(--wide); font-weight: 700; letter-spacing: -0.01em; }
+  .frame-title { max-width: 1240px; margin: 40px auto 12px; padding: 0 24px; color: var(--muted); font-size: 14px; }
+
+  /* app shell: top bar, text tabs */
+  .app { max-width: 1240px; margin: 0 auto 48px; background: var(--paper); border: 1px solid var(--rule); }
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 18px 28px; border-bottom: 1px solid var(--rule); }
+  .brand { display: flex; align-items: baseline; gap: 14px; }
+  .brand b { font-size: 20px; }
+  .brand span { color: var(--muted); font-size: 14px; }
+  .who { display: flex; align-items: center; gap: 14px; font-size: 14px; }
+  .who .role { padding: 2px 10px; border: 1px solid var(--ink); border-radius: 999px; }
+  .tabs { display: flex; gap: 28px; padding: 0 28px; border-bottom: 1px solid var(--rule); font-size: 15px; }
+  .tabs a { padding: 12px 0; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; }
+  .tabs a.on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+  .tabs .count { margin-left: 6px; font-size: 12px; background: var(--held); color: #fff; padding: 1px 7px; border-radius: 999px; }
+  main { padding: 28px; }
+
+  /* the cheque: the one bold element */
+  .cheque { position: relative; overflow: hidden; background: var(--sheet); border: 1px solid var(--ink); padding: 28px 32px 24px; }
+  .cheque svg.guilloche { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .55; pointer-events: none; }
+  .cheque > * { position: relative; }
+  .cheque-head { display: flex; justify-content: space-between; align-items: flex-start; font-size: 14px; color: var(--ink-2); }
+  .serial { font-variation-settings: "wdth" 80; letter-spacing: .08em; }
+  .amount { font-size: 64px; line-height: 1.05; margin: 14px 0 4px; }
+  .amount small { font-size: 22px; margin-left: 8px; color: var(--ink-2); }
+  .payto { font-size: 15px; color: var(--ink-2); }
+  .alloc { display: flex; height: 12px; margin: 22px 0 12px; border: 1px solid var(--ink); }
+  .alloc i { display: block; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend b { font-size: 16px; }
+  .sw { width: 10px; height: 10px; display: inline-block; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 28px; margin-top: 28px; }
+  h2 { font-size: 22px; margin: 0 0 12px; }
+  .sub { color: var(--muted); font-size: 14px; margin: -8px 0 14px; }
+
+  /* grants as a ledger */
+  .ledger { border-top: 2px solid var(--ink); }
+  .row { display: grid; grid-template-columns: 1fr 110px 110px 110px 36px; align-items: center; gap: 12px;
+         padding: 14px 0; border-bottom: 1px solid var(--rule); font-size: 15px; }
+  .row.head { font-size: 13px; color: var(--muted); padding: 8px 0; }
+  .row .num { text-align: right; }
+  .name { display: flex; flex-direction: column; }
+  .name b { font-size: 16px; }
+  .name em { font-style: normal; color: var(--muted); font-size: 13px; }
+  .indent-1 .name { padding-left: 22px; border-left: 2px solid var(--rule); margin-left: 6px; }
+  .indent-2 .name { padding-left: 22px; border-left: 2px solid var(--rule); margin-left: 34px; }
+  .limits { grid-column: 1 / -1; display: flex; gap: 18px; font-size: 13px; color: var(--ink-2); margin: -6px 0 0 58px; }
+  .meter { width: 120px; height: 6px; background: var(--rule); display: inline-block; vertical-align: middle; margin-left: 6px; }
+  .meter i { display: block; height: 100%; background: var(--ink); }
+  .more { width: 32px; height: 32px; border: 1px solid var(--rule); background: transparent; border-radius: 6px; font-size: 18px; line-height: 1; color: var(--ink-2); }
+
+  /* seal: integrity */
+  .seal { display: flex; gap: 16px; align-items: center; padding: 16px 0; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule); }
+  .seal svg { flex: none; }
+  .seal p { margin: 0; font-size: 14px; color: var(--ink-2); }
+  .seal b { display: block; font-size: 16px; color: var(--ink); }
+  .seal a { color: var(--ink); }
+
+  /* the decision stream: proposal (dashed) -> verdict (solid) */
+  .stream { list-style: none; margin: 18px 0 0; padding: 0; }
+  .stream li { display: grid; grid-template-columns: 1fr 24px 1fr; align-items: stretch; gap: 8px; margin-bottom: 12px; }
+  .proposal { border: 1.5px dashed var(--muted); padding: 10px 12px; font-size: 13px; color: var(--ink-2); background: transparent; }
+  .proposal .who-asks { display: block; color: var(--muted); font-size: 12px; }
+  .arrow { align-self: center; text-align: center; color: var(--muted); }
+  .verdict { padding: 10px 12px; font-size: 13px; background: var(--sheet); border: 1.5px solid currentColor; }
+  .verdict .stamp { display: inline-block; font-variation-settings: "wdth" 115; font-weight: 800; font-size: 13px;
+                    padding: 1px 8px; border: 2px solid currentColor; transform: rotate(-2deg); margin-bottom: 4px; }
+  .verdict p { margin: 0; color: var(--ink); }
+  .ok { color: var(--approve); } .wait { color: var(--held); } .no { color: var(--refuse); }
+
+  /* Ask */
+  .ask { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 36px; }
+  label { font-size: 14px; color: var(--ink-2); display: block; margin-bottom: 6px; }
+  .field { width: 100%; border: 1px solid var(--ink); background: var(--sheet); padding: 12px 14px; font: inherit; font-size: 16px; }
+  textarea.field { min-height: 96px; resize: vertical; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 18px; }
+  .chip { border: 1px solid var(--rule); background: transparent; padding: 6px 10px; font: inherit; font-size: 13px; text-align: left; }
+  .chip span { display: block; color: var(--muted); font-size: 12px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 22px;
+         background: var(--ink); color: var(--paper); border: 0; font: inherit; font-weight: 600; font-size: 15px; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
+  .bigverdict { margin-top: 4px; }
+  .bigverdict .proposal { font-size: 15px; padding: 18px; align-self: start; }
+  .bigverdict .verdict { padding: 20px; }
+  .bigverdict .verdict .stamp { font-size: 22px; padding: 2px 12px; border-width: 3px; }
+  .bigverdict .verdict p { font-size: 20px; margin-top: 8px; }
+  .why { font-size: 14px; color: var(--ink-2); margin-top: 14px; border-top: 1px solid var(--rule); padding-top: 12px; }
+
+  /* phone */
+  .phone { width: 390px; margin: 0 auto 64px; border: 1px solid var(--rule); background: var(--paper); }
+  .phone .top { padding: 14px 16px; }
+  .phone main { padding: 16px; }
+  .phone .cheque { padding: 18px; }
+  .phone .amount { font-size: 40px; }
+  .phone .legend { gap: 6px 16px; font-size: 13px; }
+  .phone .row { grid-template-columns: 1fr 96px 32px; }
+  .phone .row .hide-s { display: none; }
+  .phone .limits { margin-left: 8px; flex-wrap: wrap; gap: 4px 12px; }
+  .bottom { display: flex; justify-content: space-around; border-top: 1px solid var(--rule); background: var(--sheet); font-size: 13px; }
+  .bottom a { padding: 14px 4px; color: var(--muted); text-decoration: none; }
+  .bottom a.on { color: var(--ink); font-weight: 700; box-shadow: inset 0 2px 0 var(--ink); }
+</style>
+</head>
+<body>
+
+<p class="frame-title">1. Mandate, owner view, 1280 px</p>
+<div class="app">
+  <div class="top">
+    <div class="brand"><b class="fig">Budget Kernel</b><span>Models propose. The kernel decides.</span></div>
+    <div class="who"><span>Nabil</span><span class="role">Owner</span><a href="#" style="color:var(--ink)">Sign out</a></div>
+  </div>
+  <nav class="tabs"><a class="on" href="#">Mandate</a><a href="#">Review<span class="count">1</span></a><a href="#">Activity</a><a href="#">Attack lab</a><a href="#">Settings</a></nav>
+  <main>
+    <section class="cheque">
+      <svg class="guilloche" data-guilloche aria-hidden="true"></svg>
+      <div class="cheque-head">
+        <span>Spending mandate, issued by Nabil</span>
+        <span class="serial">No. 97E9 D492, valid to 17 Nov 2026</span>
+      </div>
+      <div class="amount fig">1,000.00<small>USD</small></div>
+      <div class="payto">Agents below may spend within their limits. 100.00 USD is held back and can never be spent.</div>
+      <div class="alloc" role="img" aria-label="Spent 0, reserved 0, free 900, protected 100">
+        <i style="width:0%;background:var(--ink)"></i>
+        <i style="width:0%;background:var(--held)"></i>
+        <i style="width:90%;background:repeating-linear-gradient(90deg,var(--sheet) 0 6px,#e3e6de 6px 7px)"></i>
+        <i style="width:10%;background:var(--approve)"></i>
+      </div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--ink)"></i>Spent <b class="fig">0.00</b></span>
+        <span><i class="sw" style="background:var(--held)"></i>Waiting to settle <b class="fig">0.00</b></span>
+        <span><i class="sw" style="background:#e3e6de;border:1px solid var(--rule)"></i>Free to spend <b class="fig">900.00</b></span>
+        <span><i class="sw" style="background:var(--approve)"></i>Protected <b class="fig">100.00</b></span>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section>
+        <h2 class="fig">Who may spend</h2>
+        <p class="sub">Authority flows down. No one below can hold more than the grant above them.</p>
+        <div class="ledger">
+          <div class="row head"><span>Holder</span><span class="num">Free</span><span class="num">Reserved</span><span class="num">Spent</span><span></span></div>
+          <div class="row"><div class="name"><b>Nabil</b><em>Owner's root grant</em></div><span class="num fig">400.00</span><span class="num">0.00</span><span class="num">0.00</span><button class="more" aria-label="Manage">⋯</button></div>
+          <div class="row indent-1"><div class="name"><b>Ops bot</b><em>Manager, may pass authority on</em></div><span class="num fig">200.00</span><span class="num">0.00</span><span class="num">0.00</span><button class="more" aria-label="Manage">⋯</button></div>
+          <div class="row indent-2"><div class="name"><b>Research bot</b><em>Agent, 2 refused in the last 10 min</em></div><span class="num fig">300.00</span><span class="num">0.00</span><span class="num">0.00</span><button class="more" aria-label="Manage">⋯</button>
+            <div class="limits"><span>Up to 100.00 per payment</span><span>Your approval above 60.00</span><span>This hour 0 of 250.00<span class="meter"><i style="width:0%"></i></span></span></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="seal">
+          <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true">
+            <circle cx="28" cy="28" r="26" fill="none" stroke="var(--approve)" stroke-width="2"/>
+            <circle cx="28" cy="28" r="20" fill="none" stroke="var(--approve)" stroke-width="1" stroke-dasharray="2 3"/>
+            <path d="M18 29l7 7 13-15" fill="none" stroke="var(--approve)" stroke-width="3"/>
+          </svg>
+          <p><b>History intact, 22 records</b>Every record is linked to the one before it. Anchored on Base Sepolia, block 48219690. <a href="#">View on explorer</a></p>
+        </div>
+        <h2 class="fig" style="margin-top:22px">Decisions</h2>
+        <p class="sub">Left, what the model proposed. Right, what the kernel decided.</p>
+        <ul class="stream">
+          <li><div class="proposal"><span class="who-asks">Research bot asked</span>Pay 150.00 USD to aws for cloud</div><div class="arrow">→</div>
+              <div class="verdict no"><span class="stamp">Refused</span><p>Over the 100.00 per-payment limit.</p></div></li>
+          <li><div class="proposal"><span class="who-asks">Research bot asked</span>Pay 80.00 USD to aws for cloud</div><div class="arrow">→</div>
+              <div class="verdict wait"><span class="stamp">Held</span><p>Above 60.00, waiting for Nabil.</p></div></li>
+          <li><div class="proposal"><span class="who-asks">Research bot asked</span>Pay 20.00 USD to aws for cloud</div><div class="arrow">→</div>
+              <div class="verdict ok"><span class="stamp">Approved</span><p>Reserved, then released after 10 min unused.</p></div></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</div>
+
+<p class="frame-title">2. Ask, agent view, 1280 px: the decision is the screen</p>
+<div class="app">
+  <div class="top">
+    <div class="brand"><b class="fig">Budget Kernel</b><span>Models propose. The kernel decides.</span></div>
+    <div class="who"><span>Research bot</span><span class="role">Agent</span><a href="#" style="color:var(--ink)">Sign out</a></div>
+  </div>
+  <nav class="tabs"><a href="#">Mandate</a><a class="on" href="#">Ask</a><a href="#">Activity</a><a href="#">Settings</a></nav>
+  <main class="ask">
+    <section>
+      <h2 class="fig">Ask to pay</h2>
+      <label for="g">Spend from</label>
+      <select id="g" class="field"><option>Research bot, 300.00 USD free</option></select>
+      <label for="t" style="margin-top:16px">Request, in your own words</label>
+      <textarea id="t" class="field">pay 150 USD to aws for cloud</textarea>
+      <div class="chips">
+        <button class="chip">pay 20 USD to aws for cloud<span>should be approved</span></button>
+        <button class="chip">pay 80 USD to aws for cloud<span>needs the owner</span></button>
+        <button class="chip">pay 150 USD to aws for cloud<span>over the limit</span></button>
+        <button class="chip">pay 10 USD to evil for cloud<span>unknown recipient</span></button>
+      </div>
+      <button class="btn">Send to the kernel</button>
+    </section>
+    <section class="bigverdict" aria-live="polite">
+      <ul class="stream" style="margin:0">
+        <li><div class="proposal"><span class="who-asks">The model read it as</span>Pay <b>150.00 USD</b> to <b>aws</b>, category <b>cloud</b><br><span class="who-asks" style="margin-top:8px">Untrusted. The model only proposes.</span></div>
+            <div class="arrow">→</div>
+            <div class="verdict no"><span class="stamp">Refused</span><p>The amount is over this grant's limit of 100.00 for a single payment.</p></div></li>
+      </ul>
+      <div class="why">Nothing was reserved. This refusal counts as 1 strike; at 5 strikes in 10 minutes the grant is suspended until the owner reinstates it.</div>
+    </section>
+  </main>
+</div>
+
+<p class="frame-title">3. Mandate on a phone, 390 px</p>
+<div class="phone">
+  <div class="top"><b class="fig">Budget Kernel</b><span class="role" style="padding:2px 10px;border:1px solid var(--ink);border-radius:999px;font-size:13px">Owner</span></div>
+  <main>
+    <section class="cheque">
+      <svg class="guilloche" data-guilloche aria-hidden="true"></svg>
+      <div class="cheque-head"><span class="serial">No. 97E9 D492</span><span>to 17 Nov</span></div>
+      <div class="amount fig">1,000.00<small>USD</small></div>
+      <div class="alloc"><i style="width:90%;background:repeating-linear-gradient(90deg,var(--sheet) 0 6px,#e3e6de 6px 7px)"></i><i style="width:10%;background:var(--approve)"></i></div>
+      <div class="legend"><span>Free <b class="fig">900.00</b></span><span>Protected <b class="fig">100.00</b></span><span>Spent <b class="fig">0.00</b></span></div>
+    </section>
+    <h2 class="fig" style="margin-top:22px">Who may spend</h2>
+    <div class="ledger">
+      <div class="row"><div class="name"><b>Nabil</b><em>Owner's root grant</em></div><span class="num fig">400.00</span><button class="more">⋯</button></div>
+      <div class="row indent-1"><div class="name"><b>Ops bot</b><em>Manager</em></div><span class="num fig">200.00</span><button class="more">⋯</button></div>
+      <div class="row indent-2"><div class="name"><b>Research bot</b><em>Agent</em></div><span class="num fig">300.00</span><button class="more">⋯</button>
+        <div class="limits"><span>100.00 per payment</span><span>approval above 60.00</span></div></div>
+    </div>
+  </main>
+  <nav class="bottom"><a class="on" href="#">Mandate</a><a href="#">Review 1</a><a href="#">Activity</a><a href="#">Attack</a><a href="#">Settings</a></nav>
+</div>
+
+<script>
+  // Guilloché: overlapping phase-shifted sine bands, the line pattern used on cheques and banknotes.
+  document.querySelectorAll("[data-guilloche]").forEach((svg) => {
+    const w = 1200, h = 320, ns = "http://www.w3.org/2000/svg";
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    svg.setAttribute("preserveAspectRatio", "none");
+    for (let k = 0; k < 26; k++) {
+      let d = "";
+      for (let x = 0; x <= w; x += 8) {
+        const y = h / 2 + Math.sin(x / 70 + k * 0.24) * (60 + 40 * Math.sin(x / 260 + k * 0.5)) + Math.sin(x / 23 + k) * 6;
+        d += (x ? "L" : "M") + x + " " + y.toFixed(1);
+      }
+      const p = document.createElementNS(ns, "path");
+      p.setAttribute("d", d); p.setAttribute("fill", "none");
+      p.setAttribute("stroke", k % 2 ? "#c9d3c6" : "#d8dfd2"); p.setAttribute("stroke-width", "0.8");
+      svg.appendChild(p);
+    }
+  });
+</script>
+</body>
+</html>
