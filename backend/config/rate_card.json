@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-15.1",
+  "version": "2026-10-19.1",
   "notes": "Integer micro-USD per 1M tokens. Verified against the official pages on accessed_on. Worst-case pricing is used on purpose: DeepSeek at PEAK rates (off-peak is 50%), Qwen cached input at the full input price (real cache price is lower). Thinking/reasoning is disabled on both routes (see providers config), so max_tokens bounds all billable output.",
   "models": [
     {
@@ -30,6 +30,20 @@
       "accessed_on": "2026-10-15",
       "verified": true,
       "comment": "DeepSeek-V4.1-Flash, peak prices: cache miss $0.30, cache hit $0.006, output $1.20 per 1M. Whether max_tokens bounds thinking tokens is not stated on the page, so the route runs in non-thinking mode."
+    },
+    {
+      "provider": "openrouter",
+      "model_id": "deepseek/deepseek-v4.1-flash",
+      "region": "global",
+      "input_price_micro_per_Mtok": 300000,
+      "cached_input_price_micro_per_Mtok": 6000,
+      "output_price_micro_per_Mtok": 1200000,
+      "reasoning_billing": "as_output",
+      "fixed_fee_micro": 0,
+      "source_url": "https://openrouter.ai/deepseek/deepseek-v4.1-flash",
+      "accessed_on": "2026-10-19",
+      "verified": true,
+      "comment": "Config C escalation route via OpenRouter. Priced at DeepSeek's own peak list prices on purpose (conservative stand-in): OpenRouter listed $0.048 in / $0.12 out per 1M on 2026-10-19 and its upstream provider varies. Thinking is disabled with reasoning.enabled=false; a live probe on 2026-10-19 showed reasoning_tokens 0 with it and 30 without."
     }
   ]
 }

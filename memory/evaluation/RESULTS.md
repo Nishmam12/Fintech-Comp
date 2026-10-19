@@ -105,3 +105,24 @@ The first offline run on the merged tree reported the kernel scripts at **124/13
 ### Caveats (unchanged from Run 4, plus)
 - v2 is not an independent test set (same generator, different seed). One run per setting. All data is synthetic.
 - Config C (escalation model) has still **not been run** (no DeepSeek key).
+
+## Run 6: live config C, escalation through OpenRouter (2026-10-19)
+Primary model `qwen3.7-flash-2026-07-15` (non-thinking, temperature 0) as in Run 5; **escalation on**, to `deepseek/deepseek-v4.1-flash` through OpenRouter (`BK_ESCALATION_PROVIDER=openrouter`) with thinking off (`reasoning.enabled=false`; a live probe showed 0 reasoning tokens with it, 30 without). Rate card `2026-10-19.1`: the OpenRouter route is priced at DeepSeek's own **peak** list prices on purpose, so the costs below are an upper bound, not the bill (OpenRouter listed $0.048 in / $0.12 out per 1M that day). Same datasets and seeds as Run 5. Raw files in `eval/results/2026-10-19/`.
+
+| Dataset | Correct | Unauthorized approvals | Wrong-value approvals | Safe misses (failed closed) | Model calls | Escalation rate | Cost (rate-card upper bound) | Config B, Run 5 |
+|---|---|---|---|---|---|---|---|---|
+| v1 (seed 20261015) | **113/131 (86.3%)** | 0 | 0 | 13 | 100 | 19.0% of model cases | 6,169 micro-USD | 106/131 (80.9%) |
+| v2 (seed 20261016) | **113/131 (86.3%)** | 0 | 0 | 12 | 101 | 20.2% of model cases | 7,351 micro-USD | 107/131 (81.7%) |
+
+Latency end to end: p50 about 6.9 s (v1) and 6.6 s (v2), p95 about 12.7 s and 12.2 s; the escalated cases pay for a second model call.
+
+### What changed, by family (C vs B, same cases)
+- `conflicting`: 0/6 -> 5/6 (v1), 0/6 -> 4/6 (v2).
+- `ambiguous`: 3/6 -> 5/6 on both.
+- `arithmetic_fees`: unchanged at 0/12 on both. The escalation model does not fix fee arithmetic either; these still end unresolved or held, never approved with a wrong value.
+- Every other family is unchanged.
+
+### Caveats
+- One run per setting at 131 cases; v2 comes from the same generator as v1 (different seed). All data is synthetic.
+- The escalation model is DeepSeek V4.1 Flash served through OpenRouter, not DeepSeek's own API; the upstream provider behind OpenRouter can vary.
+- Safety is unchanged: 0 unauthorized and 0 wrong-value approvals in both configs. The gain is in how many safe requests get through, not in what the kernel allows.

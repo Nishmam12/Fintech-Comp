@@ -22,6 +22,17 @@ def primary() -> ProviderConfig:
 
 
 def escalation() -> ProviderConfig:
+    """DeepSeek directly by default. BK_ESCALATION_PROVIDER=openrouter selects the same model family through
+    OpenRouter (used for evaluation config C). OpenRouter switches thinking off with `reasoning.enabled=false`;
+    DeepSeek's own `thinking` field is ignored there (checked live on 2026-10-19)."""
+    if os.environ.get("BK_ESCALATION_PROVIDER", "").strip().lower() == "openrouter":
+        return ProviderConfig(
+            name="openrouter",
+            base_url=os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+            api_key_env="OPENROUTER_API_KEY",
+            model_id="deepseek/deepseek-v4.1-flash",
+            extra_body={"reasoning": {"enabled": False}},
+        )
     return ProviderConfig(
         name="deepseek",
         base_url=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),

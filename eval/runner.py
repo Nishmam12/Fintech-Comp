@@ -338,7 +338,8 @@ def run_kernel(env, split):
 
 def missing_keys(config: str) -> list[str]:
     """Config B uses the primary model only; C also escalates, so it needs the second provider's key too."""
-    need = {"B": ["DASHSCOPE_API_KEY"], "C": ["DASHSCOPE_API_KEY", "DEEPSEEK_API_KEY"]}[config]
+    second = "OPENROUTER_API_KEY" if os.environ.get("BK_ESCALATION_PROVIDER", "").strip().lower() == "openrouter" else "DEEPSEEK_API_KEY"
+    need = {"B": ["DASHSCOPE_API_KEY"], "C": ["DASHSCOPE_API_KEY", second]}[config]
     return [k for k in need if not os.environ.get(k, "").strip()]
 
 
