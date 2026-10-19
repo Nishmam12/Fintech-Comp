@@ -7,271 +7,495 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&display=swap" rel="stylesheet">
 <style>
-  /* Grid system: 12 columns, 24 px gutter, 8 px spacing scale (8, 16, 24, 32, 48). Every block snaps to it. */
+  /* ============ Revision 3: full-bleed, viewport-filling, uniform scale ============
+     One fluid root size; every other size is rem, so between 1280 and 2560 px the whole screen is a uniform zoom. */
+  /* Proportional to the width (1.2vw), bounded by the height (2.1dvh) so nothing is ever clipped. At 16:9 every size has the
+     same 83 x 47 rem canvas, so 1366, 1920 and 2560 are the same screen at different zoom. */
+  html { font-size: clamp(14px, min(1.2vw, 2.1dvh), 40px); }
+  @media (max-width: 767px) { html { font-size: 16px; } }
+
   :root {
-    --paper: #f1f2ee; --sheet: #fbfbf8; --ink: #17201c; --ink-2: #3a453f; --muted: #5e675f; --rule: #d6d9d1;
-    --approve: #1d6b47; --held: #9a6700; --refuse: #a8361f;
-    --gut: 24px; --row: 64px;
+    --paper: #f1f2ee; --sheet: #fbfbf8; --ink: #17201c; --ink-2: #3a453f; --muted: #5a635b; --rule: #d6d9d1;
+    --approve: #1d6b47; --held: #8a5c00; --refuse: #a8361f;
+    --gut: 1.5rem; --row: 3.5rem;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: #e4e6e0; color: var(--ink); font-family: "Archivo", system-ui, sans-serif;
-         font-variation-settings: "wdth" 100; font-variant-numeric: tabular-nums; line-height: 1.5; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: "Archivo", system-ui, sans-serif;
+         font-size: 0.9375rem; font-variation-settings: "wdth" 100; font-variant-numeric: tabular-nums; line-height: 1.5; }
   .fig { font-variation-settings: "wdth" 125; font-weight: 700; letter-spacing: -0.01em; }
-  .frame-title { width: 1248px; margin: 40px auto 12px; color: var(--muted); font-size: 14px; }
+  a { color: inherit; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
-  .app { width: 1248px; margin: 0 auto 48px; background: var(--paper); }
-  .wrap { padding: 0 24px; }
-  .g12 { display: grid; grid-template-columns: repeat(12, 1fr); column-gap: var(--gut); }
+  /* ---------- app frame: fills the viewport, no side gaps ---------- */
+  .app { display: grid; grid-template-rows: auto auto 1fr; height: 100dvh; width: 100%; }
+  .top { height: 4rem; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--gut); border-bottom: 1px solid var(--rule); }
+  .brand { display: flex; align-items: baseline; gap: 1rem; }
+  .brand b { font-size: 1.25rem; }
+  .brand span { color: var(--muted); font-size: 0.875rem; }
+  .who { display: flex; align-items: center; gap: 1rem; font-size: 0.875rem; }
+  .who a { color: var(--muted); }
+  .pill { padding: 0.125rem 0.75rem; border: 1px solid var(--ink); border-radius: 999px; font-size: 0.8125rem; }
+  .tabs { height: 3rem; display: flex; gap: 2rem; padding: 0 var(--gut); border-bottom: 1px solid var(--rule); }
+  .tabs a { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); text-decoration: none; font-size: 0.9375rem; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs a.on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+  .count { font-size: 0.75rem; background: var(--held); color: #fff; padding: 0 0.5rem; border-radius: 999px; }
+  .bottom { display: none; }
+
+  .main { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr);
+          column-gap: var(--gut); row-gap: var(--gut); padding: var(--gut); min-height: 0; }
+  .main.rows-auto-fill { grid-template-rows: auto minmax(0, 1fr); grid-auto-rows: unset; }
   .c12 { grid-column: span 12; } .c8 { grid-column: span 8; } .c6 { grid-column: span 6; } .c4 { grid-column: span 4; }
 
-  /* shell */
-  .top { height: 72px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--rule); }
-  .brand { display: flex; align-items: baseline; gap: 16px; }
-  .brand b { font-size: 20px; }
-  .brand span, .who a { color: var(--muted); font-size: 14px; }
-  .who { display: flex; align-items: center; gap: 16px; font-size: 14px; }
-  .pill { padding: 2px 12px; border: 1px solid var(--ink); border-radius: 999px; font-size: 13px; }
-  .tabs { height: 48px; display: flex; gap: 32px; border-bottom: 1px solid var(--rule); }
-  .tabs a { display: flex; align-items: center; color: var(--muted); text-decoration: none; font-size: 15px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-  .tabs a.on { color: var(--ink); border-color: var(--ink); font-weight: 600; }
-  .count { margin-left: 8px; font-size: 12px; background: var(--held); color: #fff; padding: 0 8px; border-radius: 999px; }
-  main { padding: 32px 0 48px; row-gap: 48px; }
+  /* ---------- the one section module ---------- */
+  .sec { display: flex; flex-direction: column; min-height: 0; }
+  .sec-head { flex: none; height: 3.5rem; display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+              padding-bottom: 0.75rem; border-bottom: 0.125rem solid var(--ink); }
+  .sec-head h2 { margin: 0; font-size: 1.375rem; line-height: 1; }
+  .sec-head .meta { color: var(--muted); font-size: 0.8125rem; }
+  .sec-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+  .sec-foot { flex: none; height: 2.5rem; display: flex; align-items: center; gap: 1.5rem; border-top: 1px solid var(--rule); font-size: 0.8125rem; color: var(--ink-2); }
 
-  /* the one section module: heading row on a 2 px ink rule */
-  .mod-head { height: 56px; display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
-  .mod-head h2 { margin: 0; font-size: 22px; line-height: 1; }
-  .mod-head span { color: var(--muted); font-size: 13px; }
+  /* ---------- rows: equal height everywhere ---------- */
+  .row { flex: none; height: var(--row); display: grid; align-items: center; column-gap: 1rem; border-bottom: 1px solid var(--rule); }
+  .row.head { height: 2.5rem; font-size: 0.8125rem; color: var(--muted); }
+  .num { text-align: right; }
+  .name { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+  .name b { font-size: 0.9375rem; } .name em { font-style: normal; color: var(--muted); font-size: 0.8125rem; }
+  .d1 .name { padding-left: 1rem; box-shadow: inset 2px 0 0 var(--rule); }
+  .d2 .name { padding-left: 2rem; box-shadow: inset 2px 0 0 var(--rule), inset 1.125rem 0 0 var(--paper), inset 1.25rem 0 0 var(--rule); }
+  .more { width: 2.5rem; height: 2rem; border: 1px solid var(--rule); background: transparent; border-radius: 0.375rem; font-size: 1.125rem; color: var(--ink-2); }
+  .filler { flex: 1; min-height: 0; color: var(--muted); font-size: 0.875rem;
+            background: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--row) - 1px), var(--rule) calc(var(--row) - 1px), var(--rule) var(--row)); }
+  .filler > p { height: var(--row); margin: 0; display: flex; align-items: center; }
 
-  /* cheque: the only bordered box; inner grid matches the page grid */
+  /* ---------- cheque ---------- */
   .cheque { position: relative; overflow: hidden; background: var(--sheet); border: 1px solid var(--ink); }
   .cheque svg.guilloche { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .6; pointer-events: none; }
-  .cheque-in { position: relative; padding: 32px; row-gap: 24px; }
-  .cheque .meta { display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-2); }
+  .cheque-in { position: relative; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut);
+               row-gap: 0.75rem; padding: 1rem 1.5rem; }
+  .cheque .meta-line { display: flex; justify-content: space-between; font-size: 0.875rem; color: var(--ink-2); }
   .serial { font-variation-settings: "wdth" 80; letter-spacing: .08em; }
-  .amount { font-size: 64px; line-height: 1; }
-  .amount small { font-size: 22px; margin-left: 8px; color: var(--ink-2); }
-  .note { font-size: 15px; color: var(--ink-2); margin: 8px 0 0; }
-  .alloc { display: flex; height: 12px; border: 1px solid var(--ink); }
+  .amount { font-size: 3rem; line-height: 1; }
+  .amount small { font-size: 0.35em; margin-left: 0.5rem; color: var(--ink-2); }
+  .note { font-size: 0.9375rem; color: var(--ink-2); margin: 0.25rem 0 0; }
+  .alloc { display: flex; height: 0.75rem; border: 1px solid var(--ink); }
   .alloc i { display: block; height: 100%; }
-  .hatch { background: repeating-linear-gradient(90deg, var(--sheet) 0 6px, #dfe3da 6px 7px); }
-  .legend { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: var(--gut); }
-  .legend div { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-2); }
-  .legend div span { display: flex; align-items: center; gap: 8px; }
-  .legend b { font-size: 20px; color: var(--ink); }
-  .sw { width: 10px; height: 10px; display: inline-block; }
-  .seal-box { border-left: 1px solid var(--rule); padding-left: var(--gut); display: flex; flex-direction: column; justify-content: center; gap: 12px; }
-  .seal-line { display: flex; align-items: center; gap: 16px; }
-  .seal-box p { margin: 0; font-size: 14px; color: var(--ink-2); }
-  .seal-box b { display: block; font-size: 16px; color: var(--ink); }
-  .seal-box a { color: var(--ink); font-size: 14px; }
+  .hatch { background: repeating-linear-gradient(90deg, var(--sheet) 0 0.375rem, #dfe3da 0.375rem 0.4375rem); }
+  .legend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--gut); }
+  .legend div { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8125rem; color: var(--ink-2); }
+  .legend span { display: flex; align-items: center; gap: 0.5rem; }
+  .legend b { font-size: 1.125rem; color: var(--ink); }
+  .sw { width: 0.625rem; height: 0.625rem; display: inline-block; }
+  .seal-cell { border-left: 1px solid var(--rule); padding-left: var(--gut); display: flex; flex-direction: column; justify-content: center; gap: 0.75rem; }
+  .seal-line { display: flex; align-items: center; gap: 1rem; }
+  .seal-cell p { margin: 0; font-size: 0.875rem; color: var(--ink-2); }
+  .seal-cell b { display: block; font-size: 1rem; color: var(--ink); }
+  .seal-cell a { font-size: 0.875rem; }
+  .seal { width: 3rem; height: 3rem; flex: none; }
 
-  /* rows that line up across both halves */
-  .rows { list-style: none; margin: 0; padding: 0; }
-  .rows > li { height: var(--row); display: grid; align-items: center; border-bottom: 1px solid var(--rule); }
-  .colhead { height: 40px !important; font-size: 13px; color: var(--muted); }
-
-  .ledger > li { grid-template-columns: 1fr 96px 96px 96px 40px; column-gap: 16px; }
-  .num { text-align: right; }
-  .name { display: flex; flex-direction: column; line-height: 1.3; }
-  .name b { font-size: 15px; }
-  .name em { font-style: normal; color: var(--muted); font-size: 13px; }
-  .d1 .name { padding-left: 16px; box-shadow: inset 2px 0 0 var(--rule); }
-  .d2 .name { padding-left: 32px; box-shadow: inset 2px 0 0 var(--rule), inset 18px 0 0 var(--paper), inset 20px 0 0 var(--rule); }
-  .more { width: 40px; height: 32px; border: 1px solid var(--rule); background: transparent; border-radius: 6px; font-size: 18px; color: var(--ink-2); }
-  .limits { height: 40px !important; grid-template-columns: repeat(3, 1fr) !important; font-size: 13px; color: var(--ink-2); padding-left: 32px; }
-  .meter { width: 64px; height: 6px; background: var(--rule); display: inline-block; vertical-align: middle; margin-left: 8px; }
-
-  .stream > li { grid-template-columns: 1fr 24px 1fr; column-gap: 8px; }
-  .slip { height: 48px; display: flex; flex-direction: column; justify-content: center; padding: 0 12px; font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  /* ---------- proposal -> verdict ---------- */
+  .pairrow { grid-template-columns: minmax(0, 1fr) 1.5rem minmax(0, 1fr); }
+  .slip { height: 3rem; display: flex; flex-direction: column; justify-content: center; padding: 0 0.75rem; font-size: 0.8125rem; min-width: 0; }
+  .slip > * { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .proposal { border: 1.5px dashed var(--muted); color: var(--ink-2); }
-  .proposal small { color: var(--muted); font-size: 12px; }
-  .verdict { border: 1.5px solid currentColor; background: var(--sheet); flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; }
-  .verdict p { margin: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
-  .stamp { flex: none; font-variation-settings: "wdth" 115; font-weight: 800; font-size: 12px; padding: 1px 8px; border: 2px solid currentColor; }
+  .proposal small { color: var(--muted); font-size: 0.75rem; }
+  .verdict { border: 1.5px solid currentColor; background: var(--sheet); flex-direction: row; align-items: center; justify-content: flex-start; gap: 0.75rem; }
+  .verdict p { margin: 0; color: var(--ink); }
+  .stamp { flex: none; display: inline-block; font-variation-settings: "wdth" 115; font-weight: 800; font-size: 0.75rem; padding: 0.1875rem 0.625rem; box-shadow: inset 0 0 0 0.125rem currentColor; }
   .arrow { text-align: center; color: var(--muted); }
-  .ok { color: var(--approve); } .wait { color: var(--held); } .no { color: var(--refuse); }
+  .ok { color: var(--approve); } .wait { color: var(--held); } .no { color: var(--refuse); } .dim { color: var(--muted); }
 
-  /* Ask: two equal halves, same module heads, matching heights */
-  label { display: block; font-size: 13px; color: var(--ink-2); margin: 16px 0 8px; }
-  .field { width: 100%; height: 48px; border: 1px solid var(--ink); background: var(--sheet); padding: 0 16px; font: inherit; font-size: 16px; }
-  textarea.field { height: 96px; padding: 12px 16px; resize: none; }
-  .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0; }
-  .chip { height: 56px; border: 1px solid var(--rule); background: transparent; padding: 0 12px; font: inherit; font-size: 13px; text-align: left; }
-  .chip span { display: block; color: var(--muted); font-size: 12px; }
-  .btn { width: 100%; height: 48px; background: var(--ink); color: var(--paper); border: 0; font: inherit; font-weight: 600; font-size: 15px; }
-  .decision-col { display: flex; flex-direction: column; }
-  .pair { flex: 1; display: grid; grid-template-rows: 1fr 32px 1fr; margin-top: 16px; }
-  .pair .slip { height: auto; white-space: normal; padding: 0 24px; font-size: 15px; }
-  .pair .proposal small { font-size: 13px; margin-bottom: 4px; }
-  .pair .verdict { flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; }
-  .pair .stamp { font-size: 20px; padding: 2px 12px; border-width: 3px; }
-  .pair .verdict p { font-size: 20px; line-height: 1.3; white-space: normal; }
-  .pair .arrow { line-height: 32px; }
-  .consequence { margin: 16px 0 0; font-size: 14px; color: var(--ink-2); min-height: 42px; }
+  /* ---------- controls ---------- */
+  label { display: block; font-size: 0.8125rem; color: var(--ink-2); margin: 1rem 0 0.5rem; }
+  .field { width: 100%; height: 3rem; border: 1px solid var(--ink); background: var(--sheet); padding: 0 1rem; font: inherit; font-size: 1rem; }
+  textarea.field { padding: 0.75rem 1rem; resize: none; height: auto; }
+  .btn { height: 3rem; padding: 0 1.5rem; background: var(--ink); color: var(--paper); border: 0; font-weight: 600; font-size: 0.9375rem; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
+  .btn.small { height: 2.25rem; padding: 0 1rem; font-size: 0.875rem; }
+  .btn.wide { width: 100%; }
+  .chips { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(3.5rem, 1fr); gap: 0.5rem; margin: 1rem 0; }
+  .chip { height: auto; border: 1px solid var(--rule); background: transparent; padding: 0 1rem; font-size: 0.9375rem; text-align: left; display: flex; flex-direction: column; justify-content: center; }
+  .chip span { display: block; color: var(--muted); font-size: 0.8125rem; margin-top: 0.125rem; }
 
-  /* phone: one column, the same modules */
-  .phone { width: 390px; margin: 0 auto 64px; background: var(--paper); }
-  .phone .wrap { padding: 0 16px; }
-  .phone .top { height: 56px; }
-  .phone main { padding: 16px 0 24px; display: flex; flex-direction: column; gap: 32px; }
-  .phone .cheque-in { padding: 16px; row-gap: 16px; }
-  .phone .amount { font-size: 40px; }
-  .phone .legend { grid-template-columns: 1fr 1fr; row-gap: 12px; }
-  .phone .legend b { font-size: 16px; }
-  .phone .ledger > li { grid-template-columns: 1fr 96px 40px; }
-  .bottom { height: 56px; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--rule); background: var(--sheet); font-size: 13px; }
-  .bottom a { display: flex; align-items: center; justify-content: center; color: var(--muted); text-decoration: none; }
-  .bottom a.on { color: var(--ink); font-weight: 700; box-shadow: inset 0 2px 0 var(--ink); }
+  /* Ask */
+  .form { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .form textarea { flex: none; height: 6.5rem; }
+  .pair { flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) 2rem minmax(0, 1fr); margin-top: 1rem; }
+  .pair .slip { height: auto; padding: 0 1.5rem; font-size: 0.9375rem; }
+  .pair .slip > * { white-space: normal; }
+  .pair .proposal small { font-size: 0.875rem; margin: 0.25rem 0; }
+  .pair .proposal span { font-size: 1.5rem; line-height: 1.3; }
+  .pair .verdict { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.75rem; }
+  .pair .stamp { font-size: 1.5rem; padding: 0.3125rem 0.9375rem; box-shadow: inset 0 0 0 0.1875rem currentColor; }
+  .pair .verdict p { font-size: 1.5rem; line-height: 1.3; }
+  .pair .arrow { line-height: 2rem; }
+  .consequence { flex: none; min-height: 3rem; margin: 1rem 0 0; font-size: 0.875rem; color: var(--ink-2); }
+
+  /* Review cheques awaiting signature */
+  .held-cheque { flex: none; border: 1px solid var(--ink); background: var(--sheet); padding: 1.25rem 1.5rem; margin-top: 1rem;
+                 display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); column-gap: var(--gut); align-items: center; }
+  .held-cheque .amount { font-size: 2.5rem; }
+  .held-cheque .actions { display: grid; grid-template-rows: 1fr 1fr; gap: 0.5rem; }
+  .cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--rule); }
+  .cells.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cell { height: 5rem; display: flex; flex-direction: column; justify-content: center; padding-left: 1rem; border-left: 1px solid var(--rule); }
+  .cell:nth-child(3n+1) { border-left: 0; padding-left: 0; }
+  .cells.four .cell:nth-child(3n+1) { border-left: 1px solid var(--rule); padding-left: 1rem; }
+  .cells.four .cell:nth-child(2n+1) { border-left: 0; padding-left: 0; }
+  .cells.four .cell:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
+  .cell b { font-size: 1.5rem; } .cell span { font-size: 0.8125rem; color: var(--ink-2); }
+  .explain { flex: none; margin: 0; padding: 1rem 0 0; font-size: 0.875rem; color: var(--ink-2); border-top: 1px solid var(--rule); }
+
+  /* Activity timeline */
+  .day { flex: none; height: 2.5rem; display: flex; align-items: flex-end; padding-bottom: 0.25rem; font-size: 0.8125rem; color: var(--muted); }
+  .tl { grid-template-columns: 1.5rem minmax(0, 1fr) auto; }
+  .dot { width: 0.625rem; height: 0.625rem; border-radius: 999px; background: currentColor; }
+
+  /* Attack lab: rows share the height equally */
+  .attack-body { display: grid; grid-auto-rows: minmax(4rem, 1fr); }
+  .atk { height: auto; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 3fr) minmax(0, 3fr) 7.5rem; }
+  .atk .verdict { height: 3rem; }
+  .atk .btn { white-space: nowrap; }
+
+  /* Sign-in */
+  .signin { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); height: 100dvh; padding: var(--gut); }
+  .signin .cheque { grid-column: span 6; display: flex; }
+  .signin .cheque-in { display: flex; flex-direction: column; justify-content: space-between; width: 100%; padding: 2.5rem; }
+  .tagline { font-size: 4.5rem; line-height: 1.02; margin: 0; }
+  .signin .side { grid-column: span 6; display: flex; flex-direction: column; min-height: 0; }
+  .demo { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 0.5rem; margin-top: 1rem; }
+  .demo .btn { height: auto; display: flex; flex-direction: row; align-items: center; justify-content: space-between; text-align: left; padding: 0 1.5rem; font-size: 1.25rem; }
+  .demo .btn span { font-weight: 400; font-size: 0.875rem; }
+  .or { display: flex; align-items: center; gap: 1rem; color: var(--muted); font-size: 0.8125rem; margin: 1.5rem 0 0.75rem; }
+  .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--rule); }
+
+  /* ---------- tablet: halves stack, page scrolls ---------- */
+  @media (max-width: 1023px) {
+    .app { height: auto; min-height: 100dvh; }
+    .main, .main.rows-auto-fill { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-rows: auto; }
+    .c12, .c8, .c6, .c4 { grid-column: 1 / -1; }
+    .sec { min-height: 50dvh; }
+    .signin { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 100dvh; row-gap: var(--gut); }
+    .signin .cheque, .signin .side { grid-column: 1 / -1; }
+    .signin .side { padding: 0; }
+  }
+  /* ---------- phone: one column, pinned bars ---------- */
+  @media (max-width: 767px) {
+    :root { --gut: 1rem; }
+    .brand span, .who > span:first-child, .who a, .tabs { display: none; }
+    .app { grid-template-rows: auto 1fr auto; }
+    .main { padding-bottom: 4.5rem; }
+    .sec { min-height: 0; }
+    .bottom { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; inset: auto 0 0 0; height: 3.5rem;
+              border-top: 1px solid var(--rule); background: var(--sheet); font-size: 0.8125rem; }
+    .bottom.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .bottom a { display: flex; align-items: center; justify-content: center; color: var(--muted); text-decoration: none; }
+    .bottom a.on { color: var(--ink); font-weight: 700; box-shadow: inset 0 2px 0 var(--ink); }
+    .cheque-in { padding: 1rem; }
+    .amount { font-size: 2.5rem; }
+    .cheque .meta-line span:first-child { display: none; }
+    .cheque .meta-line { justify-content: flex-start; }
+    .cheque .c8, .cheque .c4 { grid-column: 1 / -1; }
+    .seal-cell { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 0.75rem; }
+    .legend { grid-template-columns: 1fr 1fr; row-gap: 0.75rem; }
+    .ledger .row { grid-template-columns: minmax(0, 1fr) 6rem 2.5rem !important; }
+    .ledger .row .hide-s { display: none; }
+    .atk { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 5rem; }
+    .atk .hide-s { display: none; }
+    .held-cheque { grid-template-columns: minmax(0, 1fr); row-gap: 1rem; }
+    .held-cheque .actions { grid-template-rows: none; grid-template-columns: 1fr 1fr; }
+    .demo { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* ---------- gallery (only when no ?screen=) ---------- */
+  .gallery { padding: 1.5rem; }
+  .gallery h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+  .gallery .lead { color: var(--ink-2); margin: 0 0 1rem; max-width: 70ch; }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; }
+  .controls button { border: 1px solid var(--ink); background: transparent; padding: 0.375rem 0.75rem; font-size: 0.875rem; }
+  .controls button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 36rem), 1fr)); gap: 1.5rem; }
+  .shot p { margin: 0 0 0.5rem; font-size: 0.875rem; color: var(--ink-2); }
+  .viewport { position: relative; overflow: hidden; border: 1px solid var(--ink); background: #fff; }
+  .viewport iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; }
 </style>
 </head>
 <body>
+<div id="root"></div>
 
-<p class="frame-title">1. Mandate, owner view, desktop</p>
-<div class="app">
-  <div class="wrap">
-    <div class="top">
-      <div class="brand"><b class="fig">Budget Kernel</b><span>Models propose. The kernel decides.</span></div>
-      <div class="who"><span>Nabil</span><span class="pill">Owner</span><a href="#">Sign out</a></div>
-    </div>
-    <nav class="tabs"><a class="on" href="#">Mandate</a><a href="#">Review<span class="count">1</span></a><a href="#">Activity</a><a href="#">Attack lab</a><a href="#">Settings</a></nav>
+<template id="t-top-owner">
+  <header class="top"><div class="brand"><b class="fig">Budget Kernel</b><span>Models propose. The kernel decides.</span></div>
+    <div class="who"><span>Nabil</span><span class="pill">Owner</span><a href="#">Sign out</a></div></header>
+</template>
+<template id="t-top-agent">
+  <header class="top"><div class="brand"><b class="fig">Budget Kernel</b><span>Models propose. The kernel decides.</span></div>
+    <div class="who"><span>Research bot</span><span class="pill">Agent</span><a href="#">Sign out</a></div></header>
+</template>
 
-    <main class="g12">
-      <section class="c12 cheque">
-        <svg class="guilloche" data-guilloche aria-hidden="true"></svg>
-        <div class="cheque-in g12">
-          <div class="c12 meta"><span>Spending mandate issued by Nabil</span><span class="serial">No. 97E9 D492, valid to 17 Nov 2026</span></div>
-          <div class="c8">
-            <div class="amount fig">1,000.00<small>USD</small></div>
-            <p class="note">Agents below may spend within their limits. 100.00 USD is held back and can never be spent.</p>
-          </div>
-          <div class="c4 seal-box">
-            <div class="seal-line">
-              <svg width="48" height="48" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="26" fill="none" stroke="var(--approve)" stroke-width="2"/><circle cx="28" cy="28" r="20" fill="none" stroke="var(--approve)" stroke-width="1" stroke-dasharray="2 3"/><path d="M18 29l7 7 13-15" fill="none" stroke="var(--approve)" stroke-width="3"/></svg>
-              <p><b>History intact</b>22 records, ledger checks pass</p>
-            </div>
-            <a href="#">Anchored on Base Sepolia, block 48219690</a>
-          </div>
-          <div class="c12 alloc" role="img" aria-label="Spent 0, waiting 0, free 900, protected 100">
-            <i style="width:90%" class="hatch"></i><i style="width:10%;background:var(--approve)"></i>
-          </div>
-          <div class="c12 legend">
-            <div><span><i class="sw" style="background:var(--ink)"></i>Spent</span><b class="fig">0.00</b></div>
-            <div><span><i class="sw" style="background:var(--held)"></i>Waiting to settle</span><b class="fig">0.00</b></div>
-            <div><span><i class="sw hatch" style="border:1px solid var(--rule)"></i>Free to spend</span><b class="fig">900.00</b></div>
-            <div><span><i class="sw" style="background:var(--approve)"></i>Protected</span><b class="fig">100.00</b></div>
-          </div>
-        </div>
-      </section>
+<script>
+const screens = {
+  signin: { title: "Sign in" },
+  mandate: { title: "Mandate (owner)", role: "owner", tab: "Mandate" },
+  ask: { title: "Ask (agent)", role: "agent", tab: "Ask" },
+  review: { title: "Review (owner)", role: "owner", tab: "Review" },
+  activity: { title: "Activity (owner)", role: "owner", tab: "Activity" },
+  attack: { title: "Attack lab (owner)", role: "owner", tab: "Attack lab" },
+  settings: { title: "Settings (owner)", role: "owner", tab: "Settings" },
+};
+const OWNER_TABS = ["Mandate", "Review", "Activity", "Attack lab", "Settings"];
+const AGENT_TABS = ["Mandate", "Ask", "Activity", "Settings"];
 
-      <section class="c6">
-        <div class="mod-head"><h2 class="fig">Who may spend</h2><span>Updated 08:41</span></div>
-        <ul class="rows ledger">
-          <li class="colhead"><span>Holder</span><span class="num">Free</span><span class="num">Reserved</span><span class="num">Spent</span><span></span></li>
-          <li><div class="name"><b>Nabil</b><em>Owner's root grant</em></div><span class="num fig">400.00</span><span class="num">0.00</span><span class="num">0.00</span><button class="more" aria-label="Manage">⋯</button></li>
-          <li class="d1"><div class="name"><b>Ops bot</b><em>Manager</em></div><span class="num fig">200.00</span><span class="num">0.00</span><span class="num">0.00</span><button class="more" aria-label="Manage">⋯</button></li>
-          <li class="d2"><div class="name"><b>Research bot</b><em>Agent, 2 refused recently</em></div><span class="num fig">300.00</span><span class="num">0.00</span><span class="num">0.00</span><button class="more" aria-label="Manage">⋯</button></li>
-          <li class="limits"><span>Up to 100.00 a payment</span><span>Approval above 60.00</span><span style="white-space:nowrap">0 of 250.00 this hour <i class="meter"></i></span></li>
-        </ul>
-      </section>
+function tabs(role, on) {
+  const list = role === "owner" ? OWNER_TABS : AGENT_TABS;
+  const a = (t) => `<a href="#" class="${t === on ? "on" : ""}">${t}${t === "Review" ? '<span class="count">1</span>' : ""}</a>`;
+  const b = (t) => `<a href="#" class="${t === on ? "on" : ""}">${t === "Attack lab" ? "Attack" : t}</a>`;
+  return { top: `<nav class="tabs">${list.map(a).join("")}</nav>`,
+           bottom: `<nav class="bottom ${list.length === 4 ? "four" : ""}">${list.map(b).join("")}</nav>` };
+}
 
-      <section class="c6">
-        <div class="mod-head"><h2 class="fig">Decisions</h2><span>Model proposes, kernel decides</span></div>
-        <ul class="rows stream">
-          <li class="colhead" style="grid-template-columns:1fr 24px 1fr"><span>Proposed by the model</span><span></span><span>Decided by the kernel</span></li>
-          <li><div class="slip proposal"><small>Research bot</small>Pay 150.00 to aws, cloud</div><span class="arrow">→</span><div class="slip verdict no"><span class="stamp">Refused</span><p>Over the 100.00 limit</p></div></li>
-          <li><div class="slip proposal"><small>Research bot</small>Pay 80.00 to aws, cloud</div><span class="arrow">→</span><div class="slip verdict wait"><span class="stamp">Held</span><p>Waiting for Nabil</p></div></li>
-          <li><div class="slip proposal"><small>Research bot</small>Pay 20.00 to aws, cloud</div><span class="arrow">→</span><div class="slip verdict ok"><span class="stamp">Approved</span><p>Reserved, then released</p></div></li>
-          <li class="limits" style="grid-template-columns:1fr !important;padding-left:0"><a href="#" style="color:var(--ink)">All decisions in Activity</a></li>
-        </ul>
-      </section>
-    </main>
-  </div>
-</div>
+const SEAL = `<svg class="seal" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="26" fill="none" stroke="var(--approve)" stroke-width="2"/><circle cx="28" cy="28" r="20" fill="none" stroke="var(--approve)" stroke-width="1" stroke-dasharray="2 3"/><path d="M18 29l7 7 13-15" fill="none" stroke="var(--approve)" stroke-width="3"/></svg>`;
 
-<p class="frame-title">2. Ask, agent view, desktop</p>
-<div class="app">
-  <div class="wrap">
-    <div class="top">
-      <div class="brand"><b class="fig">Budget Kernel</b><span>Models propose. The kernel decides.</span></div>
-      <div class="who"><span>Research bot</span><span class="pill">Agent</span><a href="#">Sign out</a></div>
-    </div>
-    <nav class="tabs"><a href="#">Mandate</a><a class="on" href="#">Ask</a><a href="#">Activity</a><a href="#">Settings</a></nav>
-    <main class="g12">
-      <section class="c6">
-        <div class="mod-head"><h2 class="fig">Ask to pay</h2><span>300.00 USD free</span></div>
-        <label for="g">Spend from</label>
-        <select id="g" class="field"><option>Research bot, 300.00 USD free</option></select>
-        <label for="t">Request, in your own words</label>
-        <textarea id="t" class="field">pay 150 USD to aws for cloud</textarea>
+const body = {
+  mandate: () => `
+  <main class="main rows-auto-fill">
+    <section class="c12 cheque"><svg class="guilloche" data-guilloche aria-hidden="true"></svg>
+      <div class="cheque-in">
+        <div class="c12 meta-line"><span>Spending mandate issued by Nabil</span><span class="serial">No. 97E9 D492, valid to 17 Nov 2026</span></div>
+        <div class="c8"><div class="amount fig">1,000.00<small>USD</small></div>
+          <p class="note">Agents below may spend within their limits. 100.00 USD is held back and can never be spent.</p></div>
+        <div class="c4 seal-cell"><div class="seal-line">${SEAL}<p><b>History intact</b>22 records, ledger checks pass</p></div>
+          <a href="#">Anchored on Base Sepolia, block 48219690</a></div>
+        <div class="c12 alloc" role="img" aria-label="Spent 0, waiting 0, free 900, protected 100"><i style="width:90%" class="hatch"></i><i style="width:10%;background:var(--approve)"></i></div>
+        <div class="c12 legend">
+          <div><span><i class="sw" style="background:var(--ink)"></i>Spent</span><b class="fig">0.00</b></div>
+          <div><span><i class="sw" style="background:var(--held)"></i>Waiting to settle</span><b class="fig">0.00</b></div>
+          <div><span><i class="sw hatch" style="border:1px solid var(--rule)"></i>Free to spend</span><b class="fig">900.00</b></div>
+          <div><span><i class="sw" style="background:var(--approve)"></i>Protected</span><b class="fig">100.00</b></div>
+        </div></div></section>
+
+    <section class="c6 sec ledger">
+      <div class="sec-head"><h2 class="fig">Who may spend</h2><span class="meta">Updated 08:41</span></div>
+      <div class="row head" style="grid-template-columns:minmax(0,1fr) 6rem 6rem 6rem 2.5rem"><span>Holder</span><span class="num">Free</span><span class="num hide-s">Reserved</span><span class="num hide-s">Spent</span><span></span></div>
+      <div class="sec-body">
+        <div class="row" style="grid-template-columns:minmax(0,1fr) 6rem 6rem 6rem 2.5rem"><div class="name"><b>Nabil</b><em>Owner's root grant</em></div><span class="num fig">400.00</span><span class="num hide-s">0.00</span><span class="num hide-s">0.00</span><button class="more" aria-label="Manage">⋯</button></div>
+        <div class="row d1" style="grid-template-columns:minmax(0,1fr) 6rem 6rem 6rem 2.5rem"><div class="name"><b>Ops bot</b><em>Manager</em></div><span class="num fig">200.00</span><span class="num hide-s">0.00</span><span class="num hide-s">0.00</span><button class="more" aria-label="Manage">⋯</button></div>
+        <div class="row d2" style="grid-template-columns:minmax(0,1fr) 6rem 6rem 6rem 2.5rem"><div class="name"><b>Research bot</b><em>Agent, 2 refused recently</em></div><span class="num fig">300.00</span><span class="num hide-s">0.00</span><span class="num hide-s">0.00</span><button class="more" aria-label="Manage">⋯</button></div>
+        <div class="filler"><p>Grants you delegate appear here, nested under the grant they come from.</p></div>
+      </div>
+      <div class="sec-foot"><span>Research bot: up to 100.00 a payment</span><span>approval above 60.00</span><span>0 of 250.00 this hour</span></div>
+    </section>
+
+    <section class="c6 sec">
+      <div class="sec-head"><h2 class="fig">Decisions</h2><span class="meta">Model proposes, kernel decides</span></div>
+      <div class="row head pairrow"><span>Proposed by the model</span><span></span><span>Decided by the kernel</span></div>
+      <div class="sec-body">
+        <div class="row pairrow"><div class="slip proposal"><small>Research bot</small><span>Pay 150.00 to aws, cloud</span></div><span class="arrow">→</span><div class="slip verdict no"><span class="stamp">Refused</span><p>Over the 100.00 limit</p></div></div>
+        <div class="row pairrow"><div class="slip proposal"><small>Research bot</small><span>Pay 80.00 to aws, cloud</span></div><span class="arrow">→</span><div class="slip verdict wait"><span class="stamp">Held</span><p>Waiting for Nabil</p></div></div>
+        <div class="row pairrow"><div class="slip proposal"><small>Research bot</small><span>Pay 20.00 to aws, cloud</span></div><span class="arrow">→</span><div class="slip verdict ok"><span class="stamp">Approved</span><p>Reserved, then released</p></div></div>
+        <div class="filler"><p>Every request an agent sends appears here: what the model read, and what the kernel decided.</p></div>
+      </div>
+      <div class="sec-foot"><a href="#">All decisions in Activity</a></div>
+    </section>
+  </main>`,
+
+  ask: () => `
+  <main class="main">
+    <section class="c6 sec">
+      <div class="sec-head"><h2 class="fig">Ask to pay</h2><span class="meta">300.00 USD free</span></div>
+      <div class="form">
+        <label for="g">Spend from</label><select id="g" class="field"><option>Research bot, 300.00 USD free</option></select>
+        <label for="t">Request, in your own words</label><textarea id="t" class="field">pay 150 USD to aws for cloud</textarea>
+        <label style="margin:1rem 0 0">Or try an example</label>
         <div class="chips">
           <button class="chip">pay 20 USD to aws for cloud<span>should be approved</span></button>
           <button class="chip">pay 80 USD to aws for cloud<span>needs the owner</span></button>
           <button class="chip">pay 150 USD to aws for cloud<span>over the limit</span></button>
           <button class="chip">pay 10 USD to evil for cloud<span>unknown recipient</span></button>
         </div>
-        <button class="btn">Send to the kernel</button>
-      </section>
-      <section class="c6 decision-col" aria-live="polite">
-        <div class="mod-head"><h2 class="fig">Decision</h2><span>Untrusted proposal, authoritative verdict</span></div>
-        <div class="pair">
-          <div class="slip proposal"><small>The model read it as</small><span>Pay <b>150.00 USD</b> to <b>aws</b>, category <b>cloud</b></span><small style="margin-top:8px">Untrusted. The model only proposes.</small></div>
-          <div class="arrow">↓</div>
-          <div class="slip verdict no"><span class="stamp">Refused</span><p>The amount is over this grant's limit of 100.00 for a single payment.</p></div>
-        </div>
-        <p class="consequence">Nothing was reserved. This refusal counts as 1 strike; at 5 in 10 minutes the grant is suspended until the owner reinstates it.</p>
-      </section>
-    </main>
-  </div>
-</div>
+        <button class="btn wide">Send to the kernel</button>
+      </div>
+    </section>
+    <section class="c6 sec" aria-live="polite">
+      <div class="sec-head"><h2 class="fig">Decision</h2><span class="meta">Untrusted proposal, authoritative verdict</span></div>
+      <div class="pair">
+        <div class="slip proposal"><small>The model read it as</small><span>Pay <b>150.00 USD</b> to <b>aws</b>, category <b>cloud</b></span><small>Untrusted. The model only proposes.</small></div>
+        <div class="arrow">↓</div>
+        <div class="slip verdict no"><span class="stamp">Refused</span><p>The amount is over this grant's limit of 100.00 for a single payment.</p></div>
+      </div>
+      <p class="consequence">Nothing was reserved. This refusal counts as 1 strike; at 5 in 10 minutes the grant is suspended until the owner reinstates it.</p>
+    </section>
+  </main>`,
 
-<p class="frame-title">3. Mandate on a phone, 390 px</p>
-<div class="phone">
-  <div class="wrap">
-    <div class="top"><b class="fig">Budget Kernel</b><span class="pill">Owner</span></div>
-    <main>
-      <section class="cheque">
-        <svg class="guilloche" data-guilloche aria-hidden="true"></svg>
-        <div class="cheque-in g12">
-          <div class="c12 meta"><span class="serial">No. 97E9 D492</span><span>to 17 Nov</span></div>
-          <div class="c12 amount fig">1,000.00<small>USD</small></div>
-          <div class="c12 alloc"><i style="width:90%" class="hatch"></i><i style="width:10%;background:var(--approve)"></i></div>
-          <div class="c12 legend">
-            <div><span>Free to spend</span><b class="fig">900.00</b></div>
-            <div><span>Protected</span><b class="fig">100.00</b></div>
-          </div>
+  review: () => `
+  <main class="main">
+    <section class="c8 sec">
+      <div class="sec-head"><h2 class="fig">Waiting for you</h2><span class="meta">1 request, refreshes every 3 s</span></div>
+      <div class="sec-body">
+        <div class="held-cheque">
+          <div><p style="margin:0;color:var(--ink-2)">Research bot asks to pay</p><div class="amount fig">80.00<small>USD</small></div>
+            <p style="margin:0.25rem 0 0">to <b>aws</b> for <b>cloud</b>, requested 08:32</p>
+            <p class="wait" style="margin:0.5rem 0 0">Held because it is above the 60.00 approval limit.</p></div>
+          <div class="actions"><button class="btn">Approve</button><button class="btn ghost">Deny</button></div>
         </div>
-      </section>
-      <section>
-        <div class="mod-head"><h2 class="fig">Who may spend</h2><span>Free</span></div>
-        <ul class="rows ledger">
-          <li><div class="name"><b>Nabil</b><em>Owner's root grant</em></div><span class="num fig">400.00</span><button class="more">⋯</button></li>
-          <li class="d1"><div class="name"><b>Ops bot</b><em>Manager</em></div><span class="num fig">200.00</span><button class="more">⋯</button></li>
-          <li class="d2"><div class="name"><b>Research bot</b><em>Agent</em></div><span class="num fig">300.00</span><button class="more">⋯</button></li>
-        </ul>
-      </section>
-    </main>
-  </div>
-  <nav class="bottom"><a class="on" href="#">Mandate</a><a href="#">Review</a><a href="#">Activity</a><a href="#">Attack</a><a href="#">Settings</a></nav>
-</div>
+        <div class="day">Decided today</div>
+        <div class="row pairrow"><div class="slip proposal"><small>Research bot</small><span>Pay 70.00 to aws, cloud</span></div><span class="arrow">→</span><div class="slip verdict ok"><span class="stamp">Approved</span><p>by Nabil at 07:58</p></div></div>
+        <div class="filler"><p>Requests above an agent's approval limit wait here until you approve or deny them. Nothing is reserved while they wait.</p></div>
+      </div>
+    </section>
+    <section class="c4 sec">
+      <div class="sec-head"><h2 class="fig">Approval rules</h2><span class="meta">Today</span></div>
+      <div class="cells"><div class="cell"><b class="fig wait">1</b><span>Waiting</span></div><div class="cell"><b class="fig ok">1</b><span>Approved</span></div><div class="cell"><b class="fig">0</b><span>Denied</span></div></div>
+      <div class="sec-body">
+        <div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="name"><b>Research bot</b><em>Approval above</em></div><span class="num fig">60.00</span></div>
+        <div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="name"><b>Ops bot</b><em>Approval above</em></div><span class="num dim">none set</span></div>
+        <div class="filler"></div><p class="explain">Approving re-runs every check. If the grant has changed since the request (lower funds, suspended, revoked), the kernel can still refuse.</p>
+      </div>
+    </section>
+  </main>`,
 
-<script>
-  // Guilloché: phase-shifted sine bands, the line pattern printed on cheques and banknotes.
+  activity: () => `
+  <main class="main">
+    <section class="c8 sec">
+      <div class="sec-head"><h2 class="fig">What happened</h2><span class="meta">Newest first, updates every 3 s</span></div>
+      <div class="sec-body">
+        <div class="day">Today</div>
+        <div class="row tl"><i class="dot no"></i><span>Research bot asked to pay 150.00 USD. Refused: it is over the per-payment limit.</span><span class="dim">08:32</span></div>
+        <div class="row tl"><i class="dot wait"></i><span>Research bot asked to pay 80.00 USD. Held for approval: above the approval threshold.</span><span class="dim">08:32</span></div>
+        <div class="row tl"><i class="dot ok"></i><span>Research bot reserved 20.00 USD for aws (cloud).</span><span class="dim">08:31</span></div>
+        <div class="row tl"><i class="dot dim"></i><span>Ops bot delegated 300.00 USD to Research bot.</span><span class="dim">08:31</span></div>
+        <div class="row tl"><i class="dot dim"></i><span>Nabil delegated 500.00 USD to Ops bot.</span><span class="dim">08:31</span></div>
+        <div class="row tl"><i class="dot dim"></i><span>Nabil created a mandate of 1,000.00 USD, with 100.00 USD kept in reserve.</span><span class="dim">08:30</span></div>
+        <div class="filler"><p>Every event is hash-chained to the one before it.</p></div>
+      </div>
+    </section>
+    <section class="c4 sec">
+      <div class="sec-head"><h2 class="fig">Today</h2><span class="meta">This mandate</span></div>
+      <div class="cells four"><div class="cell"><b class="fig ok">1</b><span>Approved</span></div><div class="cell"><b class="fig wait">1</b><span>Held</span></div>
+        <div class="cell"><b class="fig no">1</b><span>Refused</span></div><div class="cell"><b class="fig">0</b><span>Suspended</span></div></div>
+      <div class="sec-body">
+        <div class="day">Model budget this month</div>
+        <div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="name"><b>Research bot</b><em>0.00003 of 0.50 used</em></div><span class="num fig">0.49997</span></div>
+        <div class="day">System budgets</div>
+        <div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="name"><b>All models</b><em>0.00003 of 9.50 used</em></div><span class="num fig">9.49997</span></div>
+        <div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="name"><b>Escalation model</b><em>0.00 of 4.00 used</em></div><span class="num fig">4.00000</span></div>
+        <div class="filler"></div><p class="explain">Amounts in USD. A model call is reserved against these caps before it is made; at the cap the request is not sent and nothing is approved.</p>
+      </div>
+    </section>
+  </main>`,
+
+  attack: () => `
+  <main class="main">
+    <section class="c12 sec">
+      <div class="sec-head"><h2 class="fig">Attack lab</h2><button class="btn small">Run all attacks</button></div>
+      <div class="row head atk"><span>Attack</span><span class="hide-s">What it tests</span><span>Without the kernel</span><span>With Budget Kernel</span><span></span></div>
+      <div class="sec-body attack-body">
+        <div class="row atk"><div class="name"><b>Concurrent overspend</b></div><span class="hide-s">8 payments arrive at once against 900.00</span><div class="slip verdict no"><span class="stamp">Broken</span><p>spent 2,400.00 of 900.00</p></div><div class="slip verdict ok"><span class="stamp">Held</span><p>reserved 900.00 of 900.00</p></div><button class="btn ghost small">Run again</button></div>
+        <div class="row atk"><div class="name"><b>Delegation amplification</b></div><span class="hide-s">An agent hands out more than it holds</span><div class="slip verdict no"><span class="stamp">Broken</span><p>authority grew to 1,800.00</p></div><div class="slip verdict ok"><span class="stamp">Held</span><p>never above 900.00</p></div><button class="btn ghost small">Run again</button></div>
+        <div class="row atk"><div class="name"><b>Limit probing</b></div><span class="hide-s">Refused requests, again and again</span><div class="slip verdict no"><span class="stamp">Broken</span><p>never stopped</p></div><div class="slip verdict ok"><span class="stamp">Held</span><p>suspended after 5 strikes</p></div><button class="btn ghost small">Run again</button></div>
+        <div class="row atk"><div class="name"><b>Replay</b></div><span class="hide-s">The same request delivered 5 times</span><div class="slip proposal"><span>Not run yet</span></div><div class="slip proposal"><span>Not run yet</span></div><button class="btn ghost small">Run</button></div>
+        <div class="row atk"><div class="name"><b>Revocation race</b></div><span class="hide-s">Revoke and spend collide</span><div class="slip proposal"><span>Not run yet</span></div><div class="slip proposal"><span>Not run yet</span></div><button class="btn ghost small">Run</button></div>
+        <div class="row atk"><div class="name"><b>Revoked manager</b></div><span class="hide-s">Agents below a revoked grant try to spend</span><div class="slip proposal"><span>Not run yet</span></div><div class="slip proposal"><span>Not run yet</span></div><button class="btn ghost small">Run</button></div>
+        <div class="row atk"><div class="name"><b>Split purchases</b></div><span class="hide-s">One big payment split to dodge the limit</span><div class="slip proposal"><span>Not run yet</span></div><div class="slip proposal"><span>Not run yet</span></div><button class="btn ghost small">Run</button></div>
+      </div>
+      <div class="sec-foot"><span>Each attack runs on real Postgres twice: against an intentionally unsafe baseline, and against the kernel. Results are measured, not scripted.</span></div>
+    </section>
+  </main>`,
+
+  settings: () => `
+  <main class="main">
+    <section class="c6 sec">
+      <div class="sec-head"><h2 class="fig">You</h2><span class="meta">Signed in with an API key</span></div>
+      <div class="sec-body">
+        <div class="row" style="grid-template-columns:12rem minmax(0,1fr)"><span class="dim">Name</span><b>Nabil</b></div>
+        <div class="row" style="grid-template-columns:12rem minmax(0,1fr)"><span class="dim">Role</span><span>Owner of this mandate</span></div>
+        <div class="row" style="grid-template-columns:12rem minmax(0,1fr)"><span class="dim">Mandate</span><span class="serial">No. 97E9 D492, 1,000.00 USD</span></div>
+        <div class="row" style="grid-template-columns:12rem minmax(0,1fr)"><span class="dim">Key expires</span><span>No expiry set</span></div>
+        <div class="row" style="grid-template-columns:12rem minmax(0,1fr)"><span class="dim">Settlement</span><span>Base Sepolia testnet, test USDC</span></div>
+        <div class="filler"></div><p class="explain">The key is kept in this tab's memory only and disappears when you reload.</p>
+      </div>
+    </section>
+    <section class="c6 sec">
+      <div class="sec-head"><h2 class="fig">Your key</h2><span class="meta">Rotate if it may have leaked</span></div>
+      <div class="sec-body">
+        <div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="name"><b>Rotate key</b><em>Issues a new key and disables this one at once</em></div><button class="btn ghost small">Rotate key</button></div>
+        <div class="row" style="grid-template-columns:minmax(0,1fr) auto"><div class="name"><b>Sign out</b><em>Forget the key in this tab</em></div><button class="btn ghost small">Sign out</button></div>
+        <div class="filler"></div><p class="explain">After rotating, the new key is shown once. Any script or device still using the old key stops working immediately.</p>
+      </div>
+    </section>
+  </main>`,
+};
+
+function screenHtml(name) {
+  if (name === "signin") return `
+  <div class="signin">
+    <section class="cheque"><svg class="guilloche" data-guilloche aria-hidden="true"></svg>
+      <div class="cheque-in"><b class="fig" style="font-size:1.25rem">Budget Kernel</b>
+        <div><p class="tagline fig">Models propose. The kernel decides.</p>
+          <p class="note" style="max-width:34rem">Give an AI agent a budget it cannot overspend. Every payment is checked against the owner's limits before any money moves.</p></div>
+        <span class="serial dim">Settles on Base Sepolia testnet</span></div></section>
+    <section class="side">
+      <div class="sec-head"><h2 class="fig">Sign in</h2><span class="meta">Demo accounts</span></div>
+      <div class="demo"><button class="btn ghost">Nabil<span>Owner</span></button><button class="btn ghost">Ops bot<span>Manager</span></button><button class="btn ghost">Research bot<span>Agent</span></button></div>
+      <div class="or">Or paste an API key</div>
+      <input class="field" type="password" aria-label="API key"><button class="btn wide" style="margin-top:0.75rem">Sign in</button>
+      <p class="dim" style="font-size:0.8125rem;margin-top:1rem">The key is kept in this tab's memory only and disappears on reload.</p>
+    </section>
+  </div>`;
+  const s = screens[name], t = tabs(s.role, s.tab);
+  return `<div class="app">${document.getElementById(s.role === "owner" ? "t-top-owner" : "t-top-agent").innerHTML}${t.top}${body[name]()}${t.bottom}</div>`;
+}
+
+function guilloche() {
   document.querySelectorAll("[data-guilloche]").forEach((svg) => {
-    const w = 1200, h = 320, ns = "http://www.w3.org/2000/svg";
-    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-    svg.setAttribute("preserveAspectRatio", "none");
+    const w = 1200, h = 400, ns = "http://www.w3.org/2000/svg";
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`); svg.setAttribute("preserveAspectRatio", "none");
     for (let k = 0; k < 26; k++) {
       let d = "";
       for (let x = 0; x <= w; x += 8) {
-        const y = h / 2 + Math.sin(x / 70 + k * 0.24) * (60 + 40 * Math.sin(x / 260 + k * 0.5)) + Math.sin(x / 23 + k) * 6;
+        const y = h / 2 + Math.sin(x / 70 + k * 0.24) * (70 + 50 * Math.sin(x / 260 + k * 0.5)) + Math.sin(x / 23 + k) * 6;
         d += (x ? "L" : "M") + x + " " + y.toFixed(1);
       }
       const p = document.createElementNS(ns, "path");
       p.setAttribute("d", d); p.setAttribute("fill", "none");
-      p.setAttribute("stroke", k % 2 ? "#c9d3c6" : "#d8dfd2"); p.setAttribute("stroke-width", "0.8");
+      p.setAttribute("stroke", k % 2 ? "#c9d3c6" : "#d8dfd2"); p.setAttribute("stroke-width", "0.8"); p.setAttribute("vector-effect", "non-scaling-stroke");
       svg.appendChild(p);
     }
   });
+}
+
+const params = new URLSearchParams(location.search);
+const root = document.getElementById("root");
+if (params.get("screen")) {
+  root.innerHTML = screenHtml(params.get("screen"));
+  guilloche();
+} else {
+  // Gallery: each screen rendered at a real viewport size in an iframe, scaled to fit the column.
+  const sizes = [[1366, 768], [1920, 1080], [2560, 1440], [390, 844]];
+  let size = sizes[1];
+  root.innerHTML = `<div class="gallery"><h1 class="fig">Budget Kernel, UI revision 3</h1>
+    <p class="lead">Every screen is rendered at a real viewport size and scaled down to fit here. Pick a size: the composition fills the frame edge to edge at every desktop size and zooms uniformly between them.</p>
+    <div class="controls">${sizes.map(([w, h]) => `<button data-w="${w}" data-h="${h}">${w} × ${h}</button>`).join("")}</div>
+    <div class="shots"></div></div>`;
+  const shots = root.querySelector(".shots");
+  function render() {
+    root.querySelectorAll(".controls button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.w === size[0])));
+    shots.style.gridTemplateColumns = size[0] < 600 ? "repeat(auto-fill, minmax(14rem, 1fr))" : "";
+    shots.innerHTML = Object.entries(screens).map(([k, s]) =>
+      `<div class="shot"><p>${s.title}</p><div class="viewport" data-k="${k}"><iframe src="?screen=${k}" width="${size[0]}" height="${size[1]}" title="${s.title}"></iframe></div></div>`).join("");
+    fit();
+  }
+  function fit() {
+    shots.querySelectorAll(".viewport").forEach((v) => {
+      const scale = v.clientWidth / size[0];
+      v.style.height = size[1] * scale + "px";
+      v.querySelector("iframe").style.transform = `scale(${scale})`;
+    });
+  }
+  root.querySelectorAll(".controls button").forEach((b) => b.addEventListener("click", () => { size = [+b.dataset.w, +b.dataset.h]; render(); }));
+  addEventListener("resize", fit);
+  render();
+}
 </script>
 </body>
 </html>

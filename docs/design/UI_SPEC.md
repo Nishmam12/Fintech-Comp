@@ -2,7 +2,7 @@
 
 **Mockup:** open `docs/design/mockup.html` in a browser. It shows three frames: Mandate (owner, 1280 px), Ask (agent, 1280 px) and Mandate (phone, 390 px). This document is what to build. The mockup is how it should look.
 
-**UI freeze: 2026-10-19 24:00 BST.** After that, only bug fixes. Afnan records the final video on Oct 20 morning; Daniel re-shoots screenshots on Oct 20 morning.
+**UI freeze: 2026-10-19 24:00 BST. Revision 3 (this section) supersedes earlier layout rules.** After that, only bug fixes. Afnan records the final video on Oct 20 morning; Daniel re-shoots screenshots on Oct 20 morning.
 
 ## The idea
 The product's claim is "Models propose. The kernel decides." The interface draws that literally:
@@ -12,20 +12,28 @@ The product's claim is "Models propose. The kernel decides." The interface draws
 
 Everything else stays quiet: paper, ink and rules. Colour appears only where it means a state.
 
-## Grid and symmetry rules (revision 2: these override any layout detail below)
-The first mockup broke its own grid. These rules fix it, and every screen must follow them.
-1. **One grid:** 12 columns, 24 px gutter, content width 1200 px on desktop (16 px side padding on a phone). Every block spans whole columns: 12, 8 + 4, or 6 + 6. No other splits.
-2. **Spacing scale: 8 px.** Gaps are 8, 16, 24, 32 or 48 px. Sections are 48 px apart vertically; items inside a section are 16 px apart.
-3. **One section module everywhere:**
-   - A 56 px heading row: h2 on the left; meta text on the right, baseline-aligned.
-   - On top of a **2 px ink rule**.
-   - Then the content.
-   - Do not wrap sections in boxes. **The cheque is the only bordered box** (Review's held cheques are the one other exception).
-4. **Side-by-side halves share their geometry.** Two 6-column sections start at the same y, open with the same heading module, and use the same row height (64 px rows, 40 px column-header and footer rows), so their rows line up across the page. If one side has fewer rows, it shows an empty-state row, never a shorter column.
-5. **Pairs are equal.** A proposal slip and its verdict are always the same width and height: 48 px in the stream, and stretched to fill the column on Ask. On Ask, the right column ends on the same line as the left column's button.
-6. **Equal-width controls in a set:** example chips are a 2 × 2 grid of equal cells; the legend is 4 equal columns; on Ask the primary button is full width.
-7. **The seal sits inside the cheque,** in its own 4-column cell beside the amount (8 + 4), never as a floating box.
-8. **Check it with numbers, not by eye.** Before a PR, measure in the browser: in each pair of halves the heading tops, row bottoms and column bottoms must be equal to the pixel. The mockup passes this check (`docs/design/mockup.html`).
+## Layout system (revision 3, overrides every px value and width below)
+The screen is full-bleed, fills the viewport, and scales as one piece. Open `docs/design/mockup.html` (the gallery renders every screen at 1366, 1920, 2560 and 390 px) and run `node scripts/mockup-check.mjs` from `frontend/`.
+
+1. **Uniform scale.** `html { font-size: clamp(14px, min(1.2vw, 2.1dvh), 40px) }`. The root size is a pure fraction of the width, bounded by the height, so a 16:9 screen at 1366, 1920 or 2560 px is the same 83 x 47 rem canvas at a different zoom. **Every size is in rem**: type, spacing, row heights, heading rules, stamp outlines. Only 1 px hairlines stay px. Draw the stamp outline with `box-shadow: inset 0 0 0 .125rem` (browsers round `border` widths down to whole pixels, which breaks scaling).
+2. **Full-bleed.** No `max-width` container anywhere. Side padding is `1.5rem` and scales. The 12-column grid spans the whole width with a `1.5rem` gutter. Splits are only 12, 8 + 4 or 6 + 6.
+3. **Fills the height (screen is 100dvh, desktop >= 1024 px).** Frame rows are `auto auto 1fr` (top bar, tabs, main). The page never scrolls. Sections stretch to the bottom; a section's body scrolls inside while its heading row and footer row stay pinned.
+4. **No blank space.** Empty area is drawn as **ruled ledger rows**: a `.filler` element (flex 1) with a hairline every `--row` (3.5rem), the same pitch as real rows, with a plain-language message in the first ruled row. No centred message floating in a void, no empty boxes. Forms use `flex: 1` on the elements that should grow (Ask: the example chips, not the textarea).
+5. **One section module:** a `3.5rem` heading row (h2 left, meta right) on a `.125rem` ink rule, then optional `2.5rem` column-header row, body, optional `2.5rem` footer row. The cheque (and Review's held cheques) are the only bordered boxes.
+6. **Halves share geometry:** same heading top, same row height, same bottom (the viewport bottom). Proposal slip and verdict are equal size; on Ask they stretch to fill the column, ending level with the left column's button.
+7. **Tablet (768 to 1023 px):** halves stack, each `min-height: 50dvh`, the page scrolls. **Phone (< 768 px):** root fixed at 16 px, one column, pinned top bar and bottom tab bar, amount `2.5rem`.
+8. **Verify with numbers.** `scripts/mockup-check.mjs` (adapt it for the real app with the seeded demo keys) must print `ALL CHECKS PASS`: no side gap, no horizontal scroll, no vertical page scroll at >= 1024, section bottoms equal, heading tops equal, and the width-, height- and font-ratios of the amount, a row, a heading and a stamp within 2 % between 1366, 1920 and 2560.
+
+### Screen compositions (desktop; each region fills to the bottom)
+| Screen | Grid | Regions |
+|---|---|---|
+| Mandate | cheque (12) then 6 + 6 | Cheque at its natural height (amount 3rem). Left "Who may spend" ledger with a limits footer; right "Decisions" stream with a link footer. Both scroll inside; ruled filler under the rows. |
+| Ask (agent) | 6 + 6 | Left: select, request textarea (fixed 6.5rem), "Or try an example" chips (2 x 2, they grow), full-width button pinned to the bottom. Right: proposal slip, arrow, verdict (equal, fill the column), consequence line pinned to the bottom. |
+| Review (owner) | 8 + 4 | Left: "Waiting for you" held cheques, then "Decided today" rows, ruled filler. Right: "Approval rules" with Waiting / Approved / Denied counters, one row per grant with its threshold, ruled filler, the "approving re-runs every check" note pinned to the bottom. |
+| Activity | 8 + 4 | Left: timeline (dot, sentence, time) grouped by day, ruled filler. Right: today's counters (2 x 2), model budget rows (agents first, then "System budgets"), note pinned to the bottom. |
+| Attack lab | 12 | Ledger: attack, what it tests, without the kernel, with Budget Kernel, run. The 7 rows share the height equally (`grid-auto-rows: minmax(4rem, 1fr)`). "Run all attacks" is the single ink button in the heading row. |
+| Settings | 6 + 6 | Left: identity rows (name, role, mandate serial, key expiry, settlement). Right: rotate key and sign out rows. Ruled filler and a note under each. |
+| Sign-in | 6 + 6, full height | Left: a full-height cheque panel with guilloche and the tagline at 4.5rem. Right: one equal-height row per demo account (they fill the height), then "Or paste an API key", field and button. |
 
 ## Tokens (replace the current ones in `frontend/app/globals.css`)
 | Token | Light | Dark | Use |
