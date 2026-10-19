@@ -1,6 +1,6 @@
 # Deck draft 3 (BK-120): 10 slides plus the lead's numbers slide, about 10 minutes
 
-For the lead to review. Replaces the outline in `DECK_OUTLINE.md`. Every number has its source in brackets; nothing is from memory. The final numbers slide (11) is the lead's, written after the freeze. Screenshots named below (`01`, `02`...) are the old 390 px shots in `docs/submission/screenshots/bk413/` and are placeholders: after the UI freeze (Oct 19, 14:00 BST) every one is re-shot from the frozen UI with the demo sign-in buttons, at 1280x800 for slides plus one 390x844 phone shot (BK-120/BK-160).
+For the lead to review. Replaces the outline in `DECK_OUTLINE.md`. Every number has its source in brackets; nothing is from memory. The final numbers slide (11) is the lead's, written after the freeze. Screenshots named below (`01`, `02`...) are the old 390 px shots in `docs/submission/screenshots/bk413/` and are placeholders: after the UI freeze (Oct 20, 00:40 BST, UI revision 3) every one is re-shot from the frozen UI with the demo sign-in buttons, at 1280x800 for slides plus one 390x844 phone shot (BK-120/BK-160).
 
 Rule for the speaker: if a number is not on this page with a source, do not say it.
 
@@ -35,7 +35,7 @@ Rule for the speaker: if a number is not on this page with a source, do not say 
 | Revoked ancestor | violated | held: `GRANT_REVOKED` |
 | Replay, same request x 5 | violated | held: 1 transaction |
 | Revocation race | **did not reproduce in the recorded run** | held |
-**Say:** Four of the five broke the baseline; the fifth is timing-dependent and we say so. Also: kernel scripts 50 of 50 cases, 134 of 134 steps, 0 unauthorized approvals, 0 invariant violations (Run 5 offline re-run). Suite: 327 tests passed plus the slow property-based state machine [CHANGELOG 2026-10-17]. These numbers cover these scenarios, not general security.
+**Say:** Four of the five broke the baseline; the fifth is timing-dependent and we say so. Also: kernel scripts 50 of 50 cases, 134 of 134 steps, 0 unauthorized approvals, 0 invariant violations (Run 5 offline re-run). Suite: 366 tests passed plus the slow property-based state machine [suite run 2026-10-19, `RESULTS.md` Run 6 notes]. These numbers cover these scenarios, not general security.
 
 ### 6. The language interface and what the live model showed (80 s)
 **On the slide:** rules path first (free), model only for messy text. Config B, live Qwen, Run 5:
@@ -45,7 +45,7 @@ Rule for the speaker: if a number is not on this page with a source, do not say 
 | v2 | 107/131 (81.7%) | 0 | 0 | 12 |
 Rules only: 51/131 (38.9%), 0 unauthorized (Run 1). Cost of a whole 131-case run: about 2,700 micro-USD (84 model calls). p50 about 4.2 s end to end.
 **Say the story:** the first live run found a real gap. For "Pay github $80" (no category) the model invented `tools` and the pipeline approved it. We grounded recipient and category in the user's words; the gap closed (Run 4: 1 unauthorized before, 0 after).
-**Caveats on the slide (small print, not optional):** synthetic data; v2 uses the same generator as v1 with another seed; one run per setting; config C (escalation model) **not run**; the digit-based datasets cannot show the number-word and alias fix. [`RESULTS.md` Runs 4 and 5]
+**Caveats on the slide (small print, not optional):** synthetic data; v2 uses the same generator as v1 with another seed; one run per setting; config C (escalation model, Run 6) scored 113/131 (86.3%) on both datasets with 0 unauthorized, at about 2.3 to 2.7 times the cost of config B; the digit-based datasets cannot show the number-word and alias fix. [`RESULTS.md` Runs 4, 5 and 6]
 
 ### 7. The circuit breaker, and the bug review found in it (75 s)
 **On the slide:** screenshots `05` (suspended) and `18` (only the owner can reinstate).
@@ -69,7 +69,7 @@ Rules only: 51/131 (38.9%), 0 unauthorized (Run 1). Cost of a whole 131-case run
 - Testnet prototype, no external audit, must not hold real funds.
 - A database superuser can rewrite an un-anchored chain (R20); the hot wallet is one key (R5).
 - The rate limiter is per process (R8); the router's "needs review" does not bind a malicious holder (R10); revoking the root freezes the mandate (R11); in-flight transfers cannot be recalled (R12); service principals can read every mandate (R13); injection detection is pattern-based (R19).
-- Evaluation is synthetic, one run per setting, config C not run; authorize takes about 1.1 s on the hosted database (Run 3, one operation per second per mandate).
+- Evaluation is synthetic, one run per setting; authorize takes about 1.1 s on the hosted database (Run 3, one operation per second per mandate).
 
 ### 11. Final numbers (lead, after the freeze)
 
@@ -81,5 +81,5 @@ Rules only: 51/131 (38.9%), 0 unauthorized (Run 1). Cost of a whole 131-case run
 ## For the lead to decide
 1. `SECURITY_SELF_ASSESSMENT.md` sections 1 and 8 still read as if live-model accuracy was not measured and as if the summary evidence were rules-only (Runs 4 and 5 now exist), and section 1 still lists "no velocity limit" as a known limit although R1 is mitigated (opt-in). I did not copy those lines. Update at the freeze.
 2. Run 3 latency is from before the hash-chain trigger and the breaker. Re-measure before quoting 1.1 s as final.
-3. Config C: if it will not exist by Oct 19, slide 6 keeps the "not run" line.
+3. Config C: done (Run 6, 113/131 on both datasets); slide 6 states it in the caveats.
 4. The two small UI findings, and a third (the agent saw Revoke buttons it could not use), are fixed in the stacked follow-up PR; slide 7 can now say the agent is told who can reinstate. Screenshots `07` and `19` changed accordingly.
