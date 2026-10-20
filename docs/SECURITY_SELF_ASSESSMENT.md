@@ -189,6 +189,7 @@ Severity is rated for a production deployment. Status is one of: **Mitigated** (
 - Velocity limits are opt-in per grant (R1); a grant without a window can still be split up to its balance. We do not authenticate real banks or merchants.
 - Live-model accuracy is measured on synthetic data, one run per setting, and the second dataset shares the first's generator: configuration B 106/131 and 107/131 (Run 5), configuration C 113/131 on both (Run 6). We make no claim about real users' wording, and fee arithmetic is not solved by either configuration.
 - Latency figures are for one hosted database about 115 ms away; they are not a throughput benchmark.
+- **Authentication is by API key only.** Every person and agent is a principal with a 256-bit key (stored as a SHA-256 hash, optional expiry, self-service rotation, admin disable). There is no username and password, no sign-up page, no multi-factor sign-in and no single sign-on; principals are created by an admin (`POST /admin/principals`). The dashboard's one-tap demo accounts are a development-build convenience (R23); a production build offers only the paste-a-key field. Human identity and key distribution would be an integration with the operator's own identity system.
 - The revocation-race baseline failure depends on timing and did not reproduce in the recorded run. The revoked-ancestor scenario is the deterministic demonstration of that failure class.
 
 ---

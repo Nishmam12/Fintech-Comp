@@ -125,5 +125,6 @@ Review history: an independent Opus review of the kernel (9 findings, all fixed)
 - Testnet prototype, not externally audited, must not hold real funds.
 - A database superuser can rewrite an un-anchored chain; anchoring more often narrows the window but does not remove it. Future: smart-account wallets with on-chain spending limits (ADR-0007).
 - Serialization per mandate limits throughput to roughly one operation every 2.3 s per mandate on our hosted database (network-bound); different mandates run in parallel.
+- Authentication is by API key only (hashed, expiring, rotatable, disable-able). There is no username and password, sign-up page or single sign-on: principals are created by an admin, and the dashboard's one-tap demo accounts exist only in development builds. A real deployment would put the operator's identity system in front of key issuance.
 - The rate limiter is per process.
 - The evaluation is synthetic, one run per setting, and the second dataset shares the first's generator; fee arithmetic (0/12) is not solved by either configuration. A held-out set written by someone else would be a stronger test.
