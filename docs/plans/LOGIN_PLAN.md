@@ -1,6 +1,6 @@
 # Real login and first-run setup (decided 2026-10-20, about 11 h before the deadline)
 
-Status: **plan for Opus review, then Sonnet builds.** Authentication is the layer the whole security story rests on, so the design is reviewed before it is built and the result is reviewed again before it is merged.
+Status (2026-10-20): **built and tested; independent review pending.** Backend: migrations 008 and 009, `api/login.py`, `api/passwords.py`; 36 login tests and 7 setup tests. Frontend: sign-in, setup, change password. Differences from this plan as written: LOGIN and LOGOUT are not audited (a global-chain write per login would serialise every login on the global chain head; the `sessions` table is the record), and `POST /admin/accounts` was added for operator-created accounts. Authentication is the layer the whole security story rests on, so the result is reviewed again before it is called final.
 
 ## What exists today
 - Every person and agent is a `principals` row with an API key (256-bit, stored as SHA-256, optional expiry, rotation, admin disable). `current_principal` (api/auth.py) turns `Authorization: Bearer <key>` into a `Principal`; every kernel permission check works on that `Principal`.

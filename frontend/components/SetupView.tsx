@@ -120,7 +120,7 @@ export default function SetupView() {
               <div className="row" style={{ gridTemplateColumns: "8rem minmax(0,1fr)" }}><span className="tag" style={{ fontSize: "0.9375rem" }}>Protected</span><span>{money(made.reserve)}, never spendable</span></div>
               <div className="row" style={{ gridTemplateColumns: "8rem minmax(0,1fr)" }}><span className="tag" style={{ fontSize: "0.9375rem" }}>Recipients</span><span style={{ overflowWrap: "anywhere" }}>{made.recipients.join(", ")}</span></div>
               <div className="row" style={{ gridTemplateColumns: "8rem minmax(0,1fr)" }}><span className="tag" style={{ fontSize: "0.9375rem" }}>Categories</span><span style={{ overflowWrap: "anywhere" }}>{made.categories.join(", ")}</span></div>
-              <Filler>Next: add an agent on the right and give it a budget. You can open the dashboard at any time.</Filler>
+              <Filler>Next: add an agent in step 2 and give it a budget. You can open the dashboard at any time.</Filler>
             </>
           ) : (
             <form onSubmit={submitMandate} className="form">

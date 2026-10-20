@@ -68,7 +68,7 @@ Rules only: 51/131 (38.9%), 0 unauthorized (Run 1). Cost of a whole 131-case run
 **On the slide:** four short lines.
 - Testnet prototype, no external audit, must not hold real funds.
 - A database superuser can rewrite an un-anchored chain (R20); the hot wallet is one key (R5).
-- Sign-in is by API key only: no username and password or single sign-on, and the one-tap demo accounts are development-only (R23). The rate limiter is per process (R8); the router's "needs review" does not bind a malicious holder (R10); revoking the root freezes the mandate (R11); in-flight transfers cannot be recalled (R12); service principals can read every mandate (R13); injection detection is pattern-based (R19).
+- Sign-in is a username and password (scrypt, lockout, 12-hour sessions); there is no password reset by email, multi-factor sign-in or single sign-on, and the one-tap demo accounts are development-only (R23, R25 to R27). The rate limiter is per process (R8); the router's "needs review" does not bind a malicious holder (R10); revoking the root freezes the mandate (R11); in-flight transfers cannot be recalled (R12); service principals can read every mandate (R13); injection detection is pattern-based (R19).
 - Evaluation is synthetic, one run per setting; authorize takes about 2.3 s on our hosted database, which is about 115 ms away (about 20 round trips; one operation every 2.3 s per mandate; Run 7).
 
 ### 11. Final numbers (45 s, optional; cut first if over 10 minutes)

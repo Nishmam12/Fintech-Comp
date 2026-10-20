@@ -47,13 +47,17 @@ uv run --project backend python scripts/demo.py --attacks   # plus the baseline-
 It creates fresh principals and a fresh mandate on every run, so it can be replayed any number of times. It exits 0 only if every expectation held.
 
 ### Dashboard
-With the API running (`BK_SETTLEMENT_MODE=simulated` for a local demo):
+People sign in with a username and password (agents and operators with an API key). Public sign-up is off by default; set `BK_ALLOW_SIGNUP=1` on the API to show "Create account", or create people with `POST /admin/accounts` (admin token). A new account has no money: the dashboard walks them through funding a mandate, adding agents and giving them budgets.
+
+With the API running (`BK_SETTLEMENT_MODE=simulated BK_ALLOW_SIGNUP=1` for a local demo; add `BK_SCHEMA=bk_dev` to keep it off your main schema):
 ```bash
-uv run --project backend python scripts/demo_seed.py   # seeds Nabil (owner), Ops bot (manager), Research bot (agent); writes frontend/.env.local
+uv run --project backend python scripts/demo_seed.py   # seeds a mandate for Nabil (username nabil, password kernel-demo-2026), Ops bot, Research bot; writes frontend/.env.local
 cd frontend && npm install && npm run dev               # http://localhost:3000, one-tap sign-in per demo account
 npm run check:layout                                    # layout check at 1366, 1920, 2560, 1024 and 390 px (needs the above running)
+npm run check:flow                                      # the demo story through the UI (agent asks, owner approves, breaker, reinstate, revoke)
+npm run check:login                                     # sign-up, setup, sign-in, wrong password, password change (API needs BK_ALLOW_SIGNUP=1)
 ```
-The demo sign-in buttons exist only in development builds; a production build contains no key.
+The demo sign-in buttons exist only in development builds; a production build contains no key. The demo owner's password is a demo value for a testnet prototype (override with `BK_DEMO_PASSWORD`).
 
 ### Tests
 ```bash

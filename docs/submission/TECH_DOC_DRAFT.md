@@ -81,6 +81,17 @@ The adapter has no HTTP route and no authorization logic. The only code path tha
 
 **D. Dashboard.** A mobile-first Next.js app driving only the real API. Demo sign-in buttons (dev builds only) give one tap per role; the tabs match the role (the owner sees Review and Attack, an agent or manager sees Ask), mirroring the server rules that only the owner approves or denies and that simulations are human-only. Screens: Mandate (named grant tree, a collapsed Manage section for suspend and revoke), Ask (the kernel decision first, in plain words), Review, Activity, Attack lab, Settings with key rotation, and the history-integrity badge. Every refusal code has a plain sentence, with the code in a tooltip. Model text is rendered as plain text; the explorer link is used only as the API returns it and only over https. Click-through evidence: `CLICKTHROUGH_BK413.md` (older 390 px shots in `screenshots/bk413/`). Figures from the frozen UI (1280x800, one phone shot at 390x844), in `docs/submission/screenshots/r3/`: `02-mandate` (cheque, seal, who may spend, decisions), `04-ask-held` and `05-ask-refused` (proposal beside verdict), `09-owner-reinstate` and `12-manager-owner-only` (only the owner can reinstate), `07-review`, `08-activity`, `10-attack-lab` (seven scenarios, baseline against kernel), `11-settings`, `13-phone-mandate`.
 
+## 6a. Sign-in, sessions and setup
+
+**Principle: change who can obtain a credential, not what a credential can do.** A person signs in with a username and password and receives a session token; the API resolves it to the same principal as an API key, so no kernel, ledger, grant or permission code changed. Agents keep API keys and never get a password or a session (a database CHECK enforces passwords for humans only).
+
+- **Passwords:** scrypt from the standard library (n=2^15, r=8, p=1, random salt), stored as `scrypt$n$r$p$salt$hash` so the cost can be raised later; 10 to 128 characters plus a common-password list.
+- **Login:** one generic error for a wrong password, an unknown username, a locked account and a disabled one; a dummy hash is verified for unknown usernames so timing does not leak which exist; five wrong passwords in a row lock the account for 15 minutes; 10 attempts a minute per client IP. Failed attempts are counted on the account and are not written to the hash-chained audit.
+- **Sessions:** 256-bit token stored only as SHA-256, absolute 12-hour life, revoked on logout and on password change (every other session), refused for a disabled person, kept in browser memory only.
+- **Setup:** a new account has no money. The dashboard walks a person through funding a mandate, adding agents (each key shown once) and giving each a budget with a per-payment limit and an approval line, using the same kernel calls as everything else. At most 10 agents per person.
+- **Tests:** 36 login tests and 7 setup tests against the real database, plus an end-to-end browser check of the whole story (`npm run check:login`: wrong password, sign-up, setup, sign-out, sign-in, password change).
+- **Not built, stated as limits:** password reset by email, multi-factor sign-in, single sign-on, identity verification. Risks R25 to R27 in the self-assessment.
+
 ## 7. Evaluation
 
 All raw files are under `eval/results/`; dataset versions and seeds are in `memory/evaluation/RESULTS.md`. Latest run of each kind only.
@@ -125,6 +136,6 @@ Review history: an independent Opus review of the kernel (9 findings, all fixed)
 - Testnet prototype, not externally audited, must not hold real funds.
 - A database superuser can rewrite an un-anchored chain; anchoring more often narrows the window but does not remove it. Future: smart-account wallets with on-chain spending limits (ADR-0007).
 - Serialization per mandate limits throughput to roughly one operation every 2.3 s per mandate on our hosted database (network-bound); different mandates run in parallel.
-- Authentication is by API key only (hashed, expiring, rotatable, disable-able). There is no username and password, sign-up page or single sign-on: principals are created by an admin, and the dashboard's one-tap demo accounts exist only in development builds. A real deployment would put the operator's identity system in front of key issuance.
+- People sign in with a username and password; agents and operators use API keys. There is no password reset by email, no multi-factor sign-in, no single sign-on and no identity verification. Public sign-up is off unless the operator enables it, and the dashboard's one-tap demo accounts exist only in development builds.
 - The rate limiter is per process.
 - The evaluation is synthetic, one run per setting, and the second dataset shares the first's generator; fee arithmetic (0/12) is not solved by either configuration. A held-out set written by someone else would be a stronger test.
