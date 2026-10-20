@@ -35,3 +35,10 @@ Online review Oct 20–31 · finalists announced Oct 31 · Shenzhen visit Nov 20
 - The kernel's grant hierarchy *is* the "permission-tier implementation" deliverable (5). THREAT_MODEL plus RISKS feed the known-risk list.
 - Task completion (40%) needs a visible agent finishing user tasks end-to-end, not only infrastructure. That is the main framing risk.
 - Topic choice is open (see OPEN_QUESTIONS OQ-008).
+
+## Re-read 2026-10-20 (rules PDF text and the CMU page)
+- Registration and submission are **two separate items** with **one shared deadline**, both by email to wangyr@pbcsf.tsinghua.edu.cn (CMU page). The registration email is "to confirm slot allocation". The rules PDF gives no subject-line, size or format requirement and does not name a portal for the submission.
+- "Submissions may be updated any time before the deadline; the latest version received prevails. No changes are accepted after the deadline."
+- **Topic F is the on-chain topic.** Execution evidence for it is **real on-chain transaction hashes**; the demo video is **optional** (and is the evidence only for the non-on-chain topics). "Choosing the on-chain topic does not affect scoring"; the 0 to 5 challenge bonus is for on-chain exploration.
+- Third-party data, code and open-source components must be properly licensed; IP stays with the team; the hosts may use entries for non-commercial promotion.
+- The official site (fintechathon.g-ican.com) is JavaScript-rendered and could not be read.
