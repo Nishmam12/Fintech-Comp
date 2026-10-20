@@ -82,7 +82,7 @@ step("signing back in goes straight to the mandate", await seen(p, "Who may spen
 // 6. change the password
 await p.locator("nav.tabs a", { hasText: "Settings" }).click();
 await p.getByLabel("Current password").fill(ME.pass);
-await p.getByLabel("New password (at least 10 characters)").fill(ME.next);
+await p.getByLabel("New password (at least 8 characters)").fill(ME.next);
 await p.getByLabel("Repeat the new password").fill(ME.next);
 await p.getByRole("button", { name: "Change password" }).click();
 step("the password is changed", await seen(p, "Password changed", 60000));

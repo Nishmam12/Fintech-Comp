@@ -16,7 +16,7 @@ Status (2026-10-20): **built and tested; independent review pending.** Backend: 
 
 ### Passwords
 - Hash with **scrypt** from the standard library (`hashlib.scrypt`, n=2^15, r=8, p=1, 16-byte random salt, 32-byte output), stored as `scrypt$n$r$p$salt$hash` so parameters can change later. No new dependency.
-- Policy: 10 to 128 characters (the upper bound stops a hashing-cost attack), not equal to the username, not in a short built-in list of common passwords. No composition rules.
+- Policy: 8 to 128 characters (the upper bound stops a hashing-cost attack). Loosened on 2026-10-20 at the owner's request: no common-password list, no composition rules. Usernames may be email addresses (migration 010).
 - Verify with `hmac.compare_digest`. For an unknown username, verify against a fixed dummy hash so the response time does not reveal which usernames exist. One generic error for every failure: `INVALID_CREDENTIALS` (401).
 
 ### Endpoints

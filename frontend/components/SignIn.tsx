@@ -7,6 +7,7 @@ import {
   type AuthResult, type MandateSummary, type Me,
 } from "@/lib/api";
 import Cheque from "@/components/ui/Cheque";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useSession } from "@/lib/session";
 
 // Dev-only one-click sign-in (BK-511). scripts/demo_seed.py writes NEXT_PUBLIC_DEMO_KEYS to the gitignored .env.local.
@@ -163,15 +164,15 @@ export default function SignIn() {
                   <input id="su-user" className="field" autoComplete="username" required maxLength={64} autoCapitalize="none" spellCheck={false}
                     value={username} onChange={(e) => setUsername(e.target.value)} />
                   <label htmlFor="su-pass">Password</label>
-                  <input id="su-pass" type="password" className="field" required maxLength={128}
+                  <PasswordInput id="su-pass" required maxLength={128}
                     autoComplete={tab === "signup" && signupOpen ? "new-password" : "current-password"}
                     value={password} onChange={(e) => setPassword(e.target.value)} />
                   {tab === "signup" && signupOpen && (
                     <>
                       <label htmlFor="su-repeat">Repeat the password</label>
-                      <input id="su-repeat" type="password" className="field" required maxLength={128} autoComplete="new-password"
+                      <PasswordInput id="su-repeat" required maxLength={128} autoComplete="new-password"
                         value={repeat} onChange={(e) => setRepeat(e.target.value)} />
-                      <p className="tag" style={{ margin: "0.5rem 0 0" }}>At least 10 characters. A username is 3 to 32 letters, digits, dots, dashes or underscores.</p>
+                      <p className="tag" style={{ margin: "0.5rem 0 0" }}>At least 8 characters. Your username can be an email address.</p>
                     </>
                   )}
                   {err && <p role="alert" className="alert">{err}</p>}
@@ -184,7 +185,7 @@ export default function SignIn() {
             {useKey && (
               <form onSubmit={submitKey}>
                 <label htmlFor="si-key">API key</label>
-                <input id="si-key" type="password" autoComplete="off" required value={key} onChange={(e) => setKey(e.target.value)} className="field" />
+                <PasswordInput id="si-key" autoComplete="off" required value={key} onChange={(e) => setKey(e.target.value)} />
                 {err && <p role="alert" className="alert">{err}</p>}
                 <button disabled={busy} className="btn wide" style={{ marginTop: "0.75rem" }}>{busy ? "Checking…" : "Sign in with the key"}</button>
               </form>

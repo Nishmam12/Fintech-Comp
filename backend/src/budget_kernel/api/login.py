@@ -25,7 +25,7 @@ LOCK_AFTER = 5                 # consecutive wrong passwords before the account 
 LOCK_MINUTES = 15
 MAX_AGENTS = 10                # agent principals one person may create (setup flow); more is an operator task
 MAX_SESSIONS = 20              # live sessions kept per person; the oldest beyond this are removed at the next login
-USERNAME = re.compile(r"^[a-z0-9][a-z0-9._-]{2,31}$")
+USERNAME = re.compile(r"^[a-z0-9][a-z0-9._@+-]{2,63}$")
 
 INVALID = {"code": "INVALID_CREDENTIALS", "message": "wrong username or password"}
 
@@ -74,7 +74,7 @@ def _normalise_username(raw: str) -> str:
     u = raw.strip().lower()
     if not USERNAME.match(u):
         raise HTTPException(400, {"code": "USERNAME_INVALID",
-                                  "message": "Use 3 to 32 letters, digits, dots, dashes or underscores, starting with a letter or digit."})
+                                  "message": "Use 3 to 64 letters, digits or . _ - @ +, starting with a letter or digit (an email address works)."})
     return u
 
 

@@ -1,6 +1,6 @@
 /* Revision 3 design system (docs/design/UI_SPEC.md). Extracted from docs/design/mockup.html; keep the two in step.
    One fluid root size, everything in rem, full-bleed frames that fill the viewport. */
-  html { font-size: clamp(14px, min(1.2vw, 2.1dvh), 40px); }
+  html { font-size: clamp(13px, min(0.95vw, 1.65dvh), 32px); }
   @media (max-width: 767px) { html { font-size: 16px; } }
 
   :root {
@@ -99,6 +99,10 @@
   /* ---------- controls ---------- */
   @layer base { label { display: block; font-size: 0.8125rem; color: var(--ink-2); margin: 1rem 0 0.5rem; } }
   .field { width: 100%; height: 3rem; border: 1px solid var(--ink); background: var(--sheet); padding: 0 1rem; font: inherit; font-size: 1rem; }
+  .pwwrap { position: relative; }
+  .pwwrap .field { padding-right: 3.25rem; }
+  .eye { position: absolute; top: 0; right: 0; width: 3rem; height: 100%; display: grid; place-items: center; background: none; border: 0; color: var(--ink); cursor: pointer; }
+  .eye:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
   textarea.field { padding: 0.75rem 1rem; resize: none; height: auto; }
   .btn { height: 3rem; padding: 0 1.5rem; background: var(--ink); color: var(--paper); border: 0; font-weight: 600; font-size: 0.9375rem; }
   .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
@@ -152,10 +156,10 @@
   .signin { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gut); height: 100dvh; padding: var(--gut); }
   .signin .cheque { grid-column: span 6; display: flex; }
   .signin .cheque-in { display: flex; flex-direction: column; justify-content: space-between; width: 100%; padding: 2.5rem; }
-  .tagline { font-size: 4.5rem; line-height: 1.02; margin: 0 0 1.5rem; }
-  .signin .side { grid-column: span 6; display: flex; flex-direction: column; min-height: 0; }
-  .demo { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(2.75rem, 1fr); gap: 0.5rem; margin-top: 1rem; }
-  .demo .btn { height: auto; display: flex; flex-direction: row; align-items: center; justify-content: space-between; text-align: left; padding: 0 1.5rem; font-size: 1.25rem; }
+  .tagline { font-size: 3.25rem; line-height: 1.02; margin: 0 0 1.5rem; }
+  .signin .side { grid-column: span 6; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+  .demo { flex: none; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: 2.75rem; gap: 0.5rem; margin-top: 1rem; }
+  .demo .btn { height: auto; display: flex; flex-direction: row; align-items: center; justify-content: space-between; text-align: left; padding: 0 1.25rem; font-size: 1.0625rem; }
   .demo .btn span { font-weight: 400; font-size: 0.875rem; }
   .or { display: flex; align-items: center; gap: 1rem; color: var(--muted); font-size: 0.8125rem; margin: 1.5rem 0 0.75rem; }
   .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--rule); }

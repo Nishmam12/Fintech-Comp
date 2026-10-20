@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { changePassword, describeError, isSessionToken, money, rotateKey } from "@/lib/api";
 import Section, { Filler } from "@/components/ui/Section";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/components/Toast";
 import { useMandate } from "@/lib/mandate";
 import { useRole } from "@/lib/role";
@@ -102,11 +103,11 @@ export default function SettingsView() {
       <Section span={6} title="Your password" meta="Change it if someone else may know it">
         <form onSubmit={savePassword}>
           <label htmlFor="pw-cur">Current password</label>
-          <input id="pw-cur" type="password" className="field" autoComplete="current-password" required value={cur} onChange={(e) => setCur(e.target.value)} />
-          <label htmlFor="pw-new">New password (at least 10 characters)</label>
-          <input id="pw-new" type="password" className="field" autoComplete="new-password" required maxLength={128} value={next} onChange={(e) => setNext(e.target.value)} />
+          <PasswordInput id="pw-cur" autoComplete="current-password" required value={cur} onChange={(e) => setCur(e.target.value)} />
+          <label htmlFor="pw-new">New password (at least 8 characters)</label>
+          <PasswordInput id="pw-new" autoComplete="new-password" required maxLength={128} value={next} onChange={(e) => setNext(e.target.value)} />
           <label htmlFor="pw-again">Repeat the new password</label>
-          <input id="pw-again" type="password" className="field" autoComplete="new-password" required maxLength={128} value={again} onChange={(e) => setAgain(e.target.value)} />
+          <PasswordInput id="pw-again" autoComplete="new-password" required maxLength={128} value={again} onChange={(e) => setAgain(e.target.value)} />
           {err && <p role="alert" className="alert">{err}</p>}
           <button disabled={busy} className="btn wide" style={{ marginTop: "1rem" }}>{busy ? "Saving…" : "Change password"}</button>
         </form>
