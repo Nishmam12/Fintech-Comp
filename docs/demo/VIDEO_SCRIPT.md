@@ -1,5 +1,7 @@
 # Demo video script (final): about 4:30 finished, hard limit 5:00
 
+> **The animated film is now planned in [`STORYBOARD.md`](STORYBOARD.md)** (4:00, voice-over 411 words, build brief for Claude Opus and Remotion). This file is the **fallback**: a live screen recording of the same story, if there is no time to build the animation.
+
 Rules from the organiser: the demo video is **optional and 5 minutes or less**. (The 10 minutes is the limit for the deck presentation, not the video.) Aim for about 4:30 finished, which leaves 30 seconds of margin.
 
 Speak at a calm pace, about 140 words a minute: the 387 words below take about 2:45 to say. The rest of the time is clicking and the screen filling (about 5 seconds a screen), so each clip has a **target length** that includes the on-screen actions. Record each clip separately and join them; a bad clip can be redone alone. The set-up, the usernames and "what to do if something goes wrong" are in `RECORDING_RUNBOOK.md`; this file is what you say and show.
