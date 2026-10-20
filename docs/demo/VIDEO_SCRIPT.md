@@ -1,31 +1,88 @@
-# Demo video script (BK-140) — draft 2, for the redesigned dashboard (BK-501..504)
+# Demo video script (final): about 4:30 finished, hard limit 5:00
 
-> **For the actual recording use [`RECORDING_RUNBOOK.md`](RECORDING_RUNBOOK.md).** The beat table below was drafted earlier and contains beats the app cannot show.
+Rules from the organiser: the demo video is **optional and 5 minutes or less**. (The 10 minutes is the limit for the deck presentation, not the video.) Aim for about 4:30 finished, which leaves 30 seconds of margin.
 
-Target: 4:58 (limit 5:00; trim beat 3 or 4 if it runs long). Screen capture + voice-over. Everything runs in the dashboard, signed in with the one-click demo buttons (seeded by `scripts/demo_seed.py`): **Nabil (owner)**, **Ops bot (manager)**, **Research bot (agent)**. Names, not ids, appear on every screen. **Draft: not final until the lead approves.** Every number shown must come from a real run on the day.
+Speak at a calm pace, about 140 words a minute: the 387 words below take about 2:45 to say. The rest of the time is clicking and the screen filling (about 5 seconds a screen), so each clip has a **target length** that includes the on-screen actions. Record each clip separately and join them; a bad clip can be redone alone. The set-up, the usernames and "what to do if something goes wrong" are in `RECORDING_RUNBOOK.md`; this file is what you say and show.
 
-| # | Time | On screen | Voice-over |
-|---|---|---|---|
-| 1 | 0:00-0:25 | Title card, then the problem: an AI agent with a wallet | "AI agents are starting to spend money. If a model can authorize a payment, one bad prompt drains the wallet. Budget Kernel puts a deterministic gate between the model and the money." |
-| 2 | 0:25-1:00 | Architecture diagram: model proposes, kernel decides, adapter settles | "The model only proposes. Plain code checks mandate, scope, limits and balance, and reserves funds. Nothing a model says is ever trusted as authorization." |
-| 3 | 1:00-1:50 | Dashboard as **Nabil (owner)**: the 1,000 USD mandate with 100 protected; grant tree Nabil -> Ops bot (500) -> Research bot (300, narrower scope). Sign in as **Ops bot** to show it cannot delegate more than it holds | "The human owner sets the mandate and delegates a narrower grant. Delegation can only shrink, and an agent cannot create its own authority." Show the refused wider-scope delegation. |
-| 4 | 1:50-2:30 | Sign in as **Research bot**: ask "pay 50 USD to aws for cloud", reserved. Then an over-limit and a wrong-recipient request, rejected. **Activity** tab shows each as a sentence ("Research bot asked to pay ... Refused: ...") | "A plain-language request becomes a typed proposal. In-scope: reserved. Over the limit or to the wrong recipient: rejected with a reason. Retrying the same request does not double-spend." |
-| 5 | 2:30-3:10 | Dashboard: Research bot asks for 70 USD to aws (above its 60 USD approval line); the request waits in the owner's inbox as "needs approval"; owner taps approve; it becomes reserved | "Large spends wait for the owner. The threshold lives in the grant, and the kernel, not the model, holds the request until the human approves." Needs BK-302/321 working by Oct 19; otherwise show it with `demo.py` section 7b. |
-| 6 | 3:10-4:00 | Settlement service signs and broadcasts the approved transfer; hash appears; open the explorer page from the `explorer_url` field; show the confirmed USDC transfer | "Only after the kernel approves and reserves, the settlement service sends a real test-USDC transfer on Base Sepolia. The hash is stored with the kernel record and the audit trail." **Must be a real hash from the same run.** |
-| 7 | 4:00-4:15 | Velocity limit: Research bot's small requests add up; the next is refused once the 250 USD/hour total is reached (the Mandate screen's footer line shows "N of 250.00 this window"; there is no bar) | "Splitting a big spend into small ones does not get around the limit." |
-| 8 | 4:15-4:35 | A probing agent: five out-of-scope requests, the grant becomes **suspended** (Activity: "Circuit breaker suspended Research bot's grant..."), even a valid request is refused. The **owner** reinstates it from the dashboard. | "An agent that probes outside its scope is suspended automatically. Only the owner can bring it back, never the agent." |
-| 9 | 4:35-4:52 | The green seal on the mandate cheque ("History intact", anchor line with the Base Sepolia link); open the anchor tx on the explorer (0-value self-transfer, data `BKANCHOR1` + digest). Then a scratch-schema copy where one audit row was edited: badge red with `broken_at`. | "The audit trail is hash-chained and its head is anchored on-chain. Edit one row and the check fails at exactly that row." **Real anchor tx hash; tamper shot on a scratch copy only.** |
-| 10 | 4:52-4:58 | Closing card: repo, team, "testnet only"; (optional quick cut before it: rate-limit 429 and key rotation) | "Budget Kernel: agents propose, the kernel decides." |
+Everything on screen is real and runs on the final build: sign-in, setup, the kernel's decisions, the attack lab. Settlement in the take is simulated, and the script says so.
 
-## Recording checklist
-- Run `scripts/demo_seed.py` against the live API just before recording (new mandate, new keys in `frontend/.env.local`), then restart `next dev` so the sign-in buttons pick the keys up. Keys are never printed; do not open `.env.local` on camera.
-- Fresh run of `scripts/demo.py` with the API in `BK_SETTLEMENT_MODE=testnet`; copy the hash and explorer link from that run.
-- Wallet funded (test ETH + test USDC) before recording; mandates about $20 total.
-- Hide `.env`, API keys and the admin token from the terminal and screen; never show the settlement private key.
-- Say clearly that it is testnet and that model providers were measured, not assumed (disclosed limitations).
-- Tamper shot: scratch schema or copy only (lift the append-only trigger as table owner, edit one audit row, reload the seal). Never touch production `bk`; discard the scratch data afterwards.
-- The UI is frozen (UI revision 3, frozen Oct 19). Record on the frozen build, on Oct 20 before 06:00 UTC; keep a take of each beat so one failure does not need a full redo.
+| Clip | On screen | Words | Spoken | Target clip length |
+|---|---|---|---|---|
+| 1 | The sign-in screen | 40 | 0:17 | 0:20 |
+| 2 | Slide 2 of the deck (the diagram) | 36 | 0:15 | 0:18 |
+| 3 | Create account, Setup | 84 | 0:36 | 0:55 |
+| 4 | The agent signs in and asks | 62 | 0:27 | 0:40 |
+| 5 | Held request, owner approves | 27 | 0:12 | 0:30 |
+| 6 | Probing, suspension, reinstate | 22 | 0:09 | 0:30 |
+| 7 | Attack lab | 51 | 0:22 | 0:35 after cutting the wait |
+| 8 | Seal, then the explorer | 58 | 0:25 | 0:35 |
+| 9 | Closing screen | 7 | 0:03 | 0:08 |
+| | | **387** | **2:46** | **4:31** |
 
-## Open questions for the lead
-- Beats 5, 7 and 8 use the dashboard; the UI is ready. Allow for the slow first load of each screen (about 5 s on a database 115 ms away): wait for the screen to fill, or cut there.
-- The Attack lab (**Run all attacks**, two columns "Without the kernel" / "With Budget Kernel") has no beat of its own (time); show it as a 5-second overlay in beat 4 or drop it. Which measured numbers from `memory/evaluation/RESULTS.md` go there?
+Clips 3 to 7 are longer than the speech because you are clicking and the screens take about 5 seconds to fill. Talk over the waits where you can; cut the rest when you join the clips.
+
+---
+
+## Clip 1: the problem (sign-in screen)
+**Show:** the sign-in screen, the cheque and the tagline. Do not click anything yet.
+
+> AI agents are starting to spend money. And if a language model can authorise a payment, one bad prompt can drain the wallet. Budget Kernel puts a deterministic gate between the model and the money. Models propose. The kernel decides.
+
+## Clip 2: the idea (deck slide 2, the diagram)
+**Show:** the diagram slide. Point at "model", then "kernel", then "settlement".
+
+> The model only proposes. Plain code, not a model, checks the mandate, the scope, the limits and the balance, inside one database transaction, and reserves the money. Nothing a model says is ever trusted as authorisation.
+
+## Clip 3: a real account and setup (about 40 seconds on screen)
+**Show:** back in the browser. Click **Create account**. Type your name, a username, the passphrase twice; click the eye once to show it. **Create account**. On **Setup**: **Create the mandate** with the defaults. Type `Research bot`, **Add agent**; **Copy the key**, then **I have stored it**. **Give this agent a budget**. **Open the dashboard**. End on the cheque and **Who may spend**.
+
+> A person creates an account with a password. It is hashed, five wrong tries lock it, and the session disappears when you reload. A new account has no money. The owner funds a mandate, here a thousand dollars, of which a hundred is protected and can never be spent. Then the owner creates an agent. Its key is shown once. And gives it a narrower budget: three hundred dollars, at most a hundred for one payment, and anything above sixty needs the owner's approval.
+
+## Clip 4: the agent asks (a second tab)
+**Show:** open a new tab. **Use an API key instead**, paste the key, **Sign in with the key**. **Ask**. Click the 20 USD example, **Send to the kernel**: *Approved*. Then the 150 USD example, **Send**: *Refused*.
+
+> The agent signs in with its own key. A plain-language request becomes a typed proposal on the left. It is untrusted. The kernel's verdict is on the right. Twenty dollars is inside the grant, so it is approved and the money is reserved. A hundred and fifty is over the limit, so it is refused, with a reason, and nothing is reserved.
+
+## Clip 5: a held request (agent tab, then owner tab)
+**Show:** agent tab, the 80 USD example: *Held*. Switch to the owner tab, **Review**, **Approve**; the inbox empties.
+
+> Eighty dollars is above this agent's approval line. So the kernel holds it and reserves nothing. Only the owner can approve, and approving runs every check again.
+
+## Clip 6: probing is stopped (agent tab, then owner tab)
+**Show:** agent tab: send the 150 USD request four more times; the fifth says the grant was suspended. Owner tab, **Mandate**: Research bot is *suspended*; **⋯**, **Reinstate this grant**, **Confirm reinstate**.
+
+> An agent that keeps testing its limits is suspended automatically after five refusals. Only the owner can reinstate it. The agent cannot.
+
+## Clip 7: the attack lab (owner tab)
+**Show:** **Attack lab**. Click **Run** on *Concurrent overspend* only. It takes about 30 seconds: keep talking, or cut the wait. *Broken* without the kernel, *Held* with it.
+
+> The same attack runs against an intentionally unsafe baseline and against the real kernel, on a real database. Eight payments arrive at once, for a budget that covers three. The baseline spends twenty-four hundred dollars against a nine hundred dollar budget. The kernel approves exactly three, and reserves exactly nine hundred.
+
+## Clip 8: the evidence (owner tab, then two explorer tabs)
+**Show:** **Mandate**, point at the green seal. Then the settlement tab, then the anchor tab (links in the runbook).
+
+> The history is hash-chained, and the seal checks it. Two kernel-approved payments settled on Base Sepolia, a public testnet, and the head of the history is anchored there too, so editing the past is detectable. These came from earlier runs. This take uses simulated settlement. It is a testnet prototype, not audited, and must not hold real funds.
+
+## Clip 9: close
+**Show:** the sign-in screen, or the repository page.
+
+> Budget Kernel. Agents propose. The kernel decides.
+
+---
+
+## Checks before you save the file
+- **Length is 5:00 or less.** Check the exported file, not the timeline.
+- Sound is clear in the first ten seconds; no notifications, no terminal, no `.env` on screen.
+- The agent key shown on screen is a throwaway demo key on a scratch schema. Say "demo key" if it is visible for more than a second.
+- The username and passphrase you type are a demo account. Do not type a real password.
+
+## If you are over 5:00
+Cut in this order: the clip 7 wait (speed it up or cut it), then clip 2 (clip 1 already says it), then the second half of clip 3.
+
+## If you want it shorter (about 3:00)
+Drop clips 2 and 6. The story still holds: account, setup, ask, held, attack lab, evidence.
+
+## Do not say
+- "Secure" or "unhackable". Say what was measured: 0 unauthorised approvals in every run, the kernel held in 7 of 7 attacks, synthetic data, testnet only.
+- That the payment on screen settled on chain: it did not; the two explorer pages are earlier real transfers.
+- Anything about password reset by email, multi-factor sign-in or identity checks: none exist.
