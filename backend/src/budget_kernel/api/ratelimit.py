@@ -112,8 +112,11 @@ class RateLimiter:
         path = request.url.path
         if request.method == "OPTIONS" or path in EXEMPT_PATHS:
             return await call_next(request)
-        key = await _in_thread(self.key_for, request)
-        wait = self.check(key, model=(request.method, path) in MODEL_PATHS, auth=(request.method, path) in AUTH_PATHS)
+        auth = (request.method, path) in AUTH_PATHS
+        # Sign-in and sign-up always count against the client IP: keyed on a bearer the caller chose, every account an
+        # attacker holds would bring its own fresh bucket of guesses.
+        key = f"ip:{self.client_ip(request)}" if auth else await _in_thread(self.key_for, request)
+        wait = self.check(key, model=(request.method, path) in MODEL_PATHS, auth=auth)
         if wait is None:
             return await call_next(request)
         return JSONResponse(status_code=429, headers={"Retry-After": str(wait)}, content={"detail": {

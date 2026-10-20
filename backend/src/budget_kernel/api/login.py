@@ -56,10 +56,12 @@ def _issue_session(c, principal_id):
 
 
 def _register_failure(c, principal_id) -> None:
-    """Count one wrong password; the fifth in a row locks the account (the clock is the database's)."""
+    """Count one wrong password; the fifth in a row locks the account (the clock is the database's). A failure while
+    locked is not counted, so it does not extend the lock. principal_id None matches nothing (same cost, no effect)."""
     c.execute("UPDATE principals SET failed_logins = failed_logins + 1,"
               " locked_until = CASE WHEN failed_logins + 1 >= %s THEN clock_timestamp() + make_interval(mins => %s) ELSE locked_until END"
-              " WHERE id = %s", (LOCK_AFTER, LOCK_MINUTES, principal_id))
+              " WHERE id = %s AND password_hash IS NOT NULL AND NOT coalesce(locked_until > clock_timestamp(), false)",
+              (LOCK_AFTER, LOCK_MINUTES, principal_id))
 
 
 def _presented(authorization: str) -> str:
@@ -119,20 +121,26 @@ def install(app: FastAPI, P) -> None:
     def login(body: schemas.Login, request: Request, response: Response):
         _no_store(response)
         username = body.username.strip().lower()
+        with P(request).connection() as c:
+            row = c.execute("SELECT id, password_hash FROM principals WHERE username = %s", (username,)).fetchone()
+        stored = row["password_hash"] if row is not None and row["password_hash"] is not None else DUMMY_HASH
+        ok = verify_password(body.password, stored)              # the slow part, outside any transaction or row lock
+        pid = row["id"] if row is not None else None
         result = None
         with P(request).connection() as c:
-            row = c.execute("SELECT id, name, kind, username, password_hash, disabled_at,"
-                            " coalesce(locked_until > clock_timestamp(), false) AS locked"
-                            " FROM principals WHERE username = %s FOR UPDATE", (username,)).fetchone()
-            has_password = row is not None and row["password_hash"] is not None
-            ok = verify_password(body.password, row["password_hash"] if has_password else DUMMY_HASH)
-            if has_password and not row["locked"]:
-                if ok and row["disabled_at"] is None:
-                    c.execute("UPDATE principals SET failed_logins = 0, locked_until = NULL WHERE id = %s", (row["id"],))
-                    token, exp = _issue_session(c, row["id"])
-                    result = session_body(token, exp, row["id"], row["name"], row["kind"], row["username"])
-                elif not ok:
-                    _register_failure(c, row["id"])
+            if ok and stored is not DUMMY_HASH:
+                # Re-read under the lock: the password may have changed, or the account been locked or disabled, meanwhile.
+                cur = c.execute("SELECT name, kind, username, password_hash, disabled_at,"
+                                " coalesce(locked_until > clock_timestamp(), false) AS locked"
+                                " FROM principals WHERE id = %s FOR UPDATE", (pid,)).fetchone()
+                if cur is not None and cur["password_hash"] == stored and not cur["locked"] and cur["disabled_at"] is None:
+                    c.execute("UPDATE principals SET failed_logins = 0, locked_until = NULL WHERE id = %s", (pid,))
+                    token, exp = _issue_session(c, pid)
+                    result = session_body(token, exp, pid, cur["name"], cur["kind"], cur["username"])
+            else:
+                # Every failure runs this one statement (it matches no row for an unknown username or a locked account),
+                # so a wrong password, an unknown username and a locked account cost the same round trips.
+                _register_failure(c, pid)
         if result is None:                                       # raised after the block so the failure count is committed
             raise HTTPException(401, INVALID)
         return result
@@ -190,9 +198,9 @@ def install(app: FastAPI, P) -> None:
 
     @app.post("/agents", status_code=201)
     def create_agent(body: schemas.CreateAgent, request: Request, response: Response, me: Principal = Caller):
-        _no_store(response)
         """A person creates an agent principal and gets its API key once. The agent has no authority until a grant gives it some;
         it never gets a password or a session."""
+        _no_store(response)
         require_human(me)
         raw = new_key()
         full = False

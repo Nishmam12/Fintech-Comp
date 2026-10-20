@@ -274,6 +274,32 @@ def test_login_attempts_are_throttled_per_client(pool):
         assert c.get("/health").status_code == 200
 
 
+def test_a_bearer_does_not_buy_a_fresh_login_bucket(pool, client):
+    """Review 2026-10-20: the auth bucket was keyed on the caller's own credential when one was sent, so every account an
+    attacker held came with its own 10 guesses a minute. Sign-in is now always counted per client IP."""
+    tokens = [signup(client, f"bucket.{i}").json()["session_token"] for i in range(3)]
+    with TestClient(create_app(pool=pool, ratelimit=RateLimiter(0, 0, auth_per_min=3))) as c:
+        for t in tokens:
+            assert c.post("/auth/login", json={"username": "nobody.at.all", "password": "whatever whatever"},
+                          headers=bearer(t)).status_code == 401
+        r = c.post("/auth/login", json={"username": "nobody.at.all", "password": "whatever whatever"}, headers=bearer(tokens[0]))
+        assert r.status_code == 429
+
+
+def test_failures_while_locked_do_not_extend_the_lock(pool, client):
+    signup(client, "lock.steady")
+    for _ in range(5):
+        login(client, "lock.steady", "guess guess guess")
+    with pool.connection() as c:
+        before = c.execute("SELECT failed_logins, locked_until FROM principals WHERE username = 'lock.steady'").fetchone()
+    assert before["locked_until"] is not None
+    assert login(client, "lock.steady", "guess guess guess").status_code == 401
+    assert login(client, "lock.steady", PW).status_code == 401          # the right password is refused while locked
+    with pool.connection() as c:
+        after = c.execute("SELECT failed_logins, locked_until FROM principals WHERE username = 'lock.steady'").fetchone()
+    assert after == before
+
+
 # ------------------------------------------------------------------------------------------------ nothing secret is written down
 
 def test_no_password_hash_or_token_reaches_audit_or_errors(pool, client):
