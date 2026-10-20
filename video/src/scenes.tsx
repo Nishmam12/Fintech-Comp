@@ -180,8 +180,8 @@ export const S05: React.FC<P> = ({ d }) => {
       </div>
       <div style={{ position: "absolute", left: 224, top: 92, transform: "scale(0.92)", transformOrigin: "top left" }}>
         <BrowserFrame src={second ? "05-ask-refused.png" : "03-ask-approved.png"} from={second ? cut : 0} dur={second ? d - cut : cut}>
-          {!second && <div style={{ position: "absolute", right: 120, top: 330 }}><Stamp kind="Approved" at={at(d, 0.4)} size={52} /></div>}
-          {second && <div style={{ position: "absolute", right: 120, top: 330 }}><Stamp kind="Refused" at={cut + 20} size={52} /></div>}
+          {!second && <div style={{ position: "absolute", right: 70, top: 770 }}><Stamp kind="Approved" at={at(d, 0.4)} size={52} /></div>}
+          {second && <div style={{ position: "absolute", right: 70, top: 770 }}><Stamp kind="Refused" at={cut + 20} size={52} /></div>}
           <Cursor path={[[0, 300, 800], [22, 330, 520], [60, 760, 760], [d, 760, 760]]} clicks={[24, 62]} />
         </BrowserFrame>
       </div>
@@ -202,7 +202,7 @@ export const S06: React.FC<P> = ({ d }) => {
   return (
     <Paper>
       <div style={{ position: "absolute", left: 60, top: 140 }}><BrowserFrame src="04-ask-held.png" w={880} push={0.02} dur={d}>
-        <div style={{ position: "absolute", right: 60, top: 190 }}><Stamp kind="Held" at={10} size={40} /></div>
+        <div style={{ position: "absolute", right: 30, top: 470 }}><Stamp kind="Held" at={10} size={36} /></div>
       </BrowserFrame></div>
       <div style={{ position: "absolute", left: 980, top: 140 }}><BrowserFrame src="07-review.png" w={880} push={0.02} dur={d}>
         <Cursor path={[[0, 600, 500], [approve - 20, 600, 500], [approve, 300, 330], [d, 300, 330]]} clicks={[approve]} />
