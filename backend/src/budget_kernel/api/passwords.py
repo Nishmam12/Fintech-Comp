@@ -11,6 +11,12 @@ N, R, P, DKLEN = 2**15, 8, 1, 32
 MAXMEM = 128 * 1024 * 1024
 MIN_LEN, MAX_LEN = 8, 128          # the upper bound stops an absurdly long input from costing more than a normal one
 
+# The worst offenders only. A length rule plus this is a floor, not a strength guarantee.
+COMMON = frozenset("""password passw0rd password1 password12 password123 password1234 12345678 123456789 1234567890 qwertyui
+qwerty123 qwertyuiop iloveyou letmein1 welcome1 administrator admin1234 changeme abc12345 11111111 00000000 12341234
+87654321 987654321 football baseball superman sunshine princess whatever budgetkernel passwordpassword""".split())
+
+
 def _derive(password: str, salt: bytes, n: int, r: int, p: int) -> bytes:
     return hashlib.scrypt(password.encode("utf-8"), salt=salt, n=n, r=r, p=p, dklen=DKLEN, maxmem=MAXMEM)
 
@@ -41,4 +47,8 @@ def policy_problem(password: str, username: str = "") -> str | None:
         return f"Use at least {MIN_LEN} characters."
     if len(password) > MAX_LEN:
         return f"Use at most {MAX_LEN} characters."
+    low = password.lower()
+    local = username.lower().split("@")[0] if username else ""
+    if low in COMMON or (len(local) >= 3 and local in low):
+        return "That password is too easy to guess. Pick something else."
     return None

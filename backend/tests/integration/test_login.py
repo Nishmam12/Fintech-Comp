@@ -82,13 +82,18 @@ def test_username_is_unique_case_insensitively(client):
     assert r.status_code == 409 and code(r) == "USERNAME_TAKEN"
 
 
+def test_password_containing_the_username_is_refused(client):
+    r = signup(client, "samesamesame@example.com", password="Xsamesamesame9")
+    assert r.status_code == 400 and code(r) == "PASSWORD_WEAK"
+
+
 @pytest.mark.parametrize("bad", ["ab", "has space", "-leading", "x" * 70, "semi;colon", "émile", ""])
 def test_bad_usernames_are_refused(client, bad):
     r = signup(client, bad)
     assert r.status_code in (400, 422)
 
 
-@pytest.mark.parametrize("pw", ["short", "1234567", "x" * 129])
+@pytest.mark.parametrize("pw", ["short", "1234567", "password123", "12345678", "x" * 129])
 def test_weak_passwords_are_refused(client, pw):
     r = signup(client, "weakling", password=pw)
     assert r.status_code in (400, 422)
