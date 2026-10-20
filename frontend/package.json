@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "check:reasons": "node scripts/check-reasons.mjs",
-    "check:layout": "node scripts/layout-check.mjs"
+    "check:layout": "node scripts/layout-check.mjs",
+    "check:flow": "node scripts/flow-check.mjs"
   },
   "dependencies": {
     "next": "16.4.1",

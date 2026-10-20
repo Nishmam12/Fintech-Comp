@@ -53,8 +53,10 @@ export default function ActivityView() {
   useEffect(() => {
     if (!session) return;
     let live = true;
+    let busy = false; // one poll at a time: overlapping polls would both read after the same event id and add its events twice
     async function poll() {
-      if (!session || document.visibilityState !== "visible") return;
+      if (!session || busy || document.visibilityState !== "visible") return;
+      busy = true;
       try {
         const b = await api<BudgetSnapshot>(session.key, "/budget");
         const fresh: AuditEvent[] = [];
@@ -76,6 +78,8 @@ export default function ActivityView() {
         setErr(null);
       } catch (e) {
         if (live) setErr(describeError(e, "Could not load activity"));
+      } finally {
+        busy = false;
       }
     }
     void poll();
