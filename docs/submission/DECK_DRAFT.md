@@ -64,6 +64,8 @@ Rules only: 51/131 (38.9%), 0 unauthorized (Run 1). Cost of a whole 131-case run
 **On the slide:** `r3/04-ask-held` (proposal beside verdict), `r3/12-manager-owner-only`, `r3/10-attack-lab`; the 390 px `r3/13-phone-mandate` in the corner.
 **Say:** Real API, real keys, no mocks; sign-in in one tap, tabs match the role, refusals in plain words, model text rendered as plain text. [`CLICKTHROUGH_BK413.md`]
 
+**New screenshots (2026-10-20), `docs/submission/screenshots/r3/`:** `01-signin` (replaces the old sign-in), `01b-create-account`, `01c-setup`, `01d-setup-agent-key` (the key shown is a throwaway on a scratch schema; caption it "demo key"), `01e-setup-budget`. Use them on this slide or the technical document section 6a; the other r3 shots are unchanged.
+
 ### 10. What we do not claim (60 s)
 **On the slide:** four short lines.
 - Testnet prototype, no external audit, must not hold real funds.
