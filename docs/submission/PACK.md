@@ -6,10 +6,10 @@ Deadline: 2026-10-20 23:59 Beijing (15:59 UTC). Repository: https://github.com/N
 |---|---|---|---|
 | 1 | Technical document | `docs/submission/TECH_DOC_DRAFT.md` (draft 3; export to PDF for sending) | Text final apart from Daniel's pass; figures listed in section 6 are in `docs/submission/screenshots/r3/` and still have to be placed in the exported document |
 | 2 | Deck, 10 minutes or less | `docs/submission/DECK_DRAFT.md` is the content and speaker notes; the slides themselves are Daniel's | Slides 1 to 10 are 600 s; slide 11 (numbers) is optional and cut first |
-| 3 | Demo video, 5 minutes or less | script in `docs/demo/VIDEO_SCRIPT.md` | **Afnan records** on the frozen build; not recorded yet |
-| 4 | Source code and README | this repository, `README.md` | Done. 366 tests plus the slow state machine pass (`eval/results/2026-10-19/suite-full.txt`); `demo.py --attacks` 34/34 |
-| 5 | Security self-assessment (permission tiers, known risks) | `docs/SECURITY_SELF_ASSESSMENT.md` (draft 3, 2026-10-20) | Done. R1 to R24; review log to 2026-10-20 |
-| 6 | Execution evidence (tx hashes, logs) | `evidence/SETTLEMENTS.md`, `evidence/settlements.json`, `anchors.json`; run logs in `eval/results/2026-10-19/` | Settlement and anchor evidence exist (2 payments, 1 anchor). **Afnan re-exports** with `scripts/evidence.py` before noon UTC |
+| 3 | Demo video, 5 minutes or less | script in `docs/demo/VIDEO_SCRIPT.md` | **The owner records** (Afnan has left); runbook `docs/demo/RECORDING_RUNBOOK.md`; not recorded yet |
+| 4 | Source code and README | this repository, `README.md` | Done. Full non-slow suite 412 passed on 2026-10-20, run on the code before the last login review fixes (login, setup and rate-limit tests 61 passed after them; the slow state machine test was last run 2026-10-19); `demo.py --attacks` 34/34. Login runs on the scratch schema `bk_dev`; production `bk` is not migrated (008 to 010) |
+| 5 | Security self-assessment (permission tiers, known risks) | `docs/SECURITY_SELF_ASSESSMENT.md` (draft 3, 2026-10-20) | Done. R1 to R27 (login added); review log to 2026-10-20, including the independent review of the login |
+| 6 | Execution evidence (tx hashes, logs) | `evidence/SETTLEMENTS.md`, `evidence/settlements.json`, `anchors.json`; run logs in `eval/results/2026-10-19/` | Settlement and anchor evidence exist (2 payments, 1 anchor). Re-exported by Afnan (84ef79d, timestamps only) |
 
 ## On-chain evidence (Base Sepolia, chain 84532, testnet only)
 - Settlement 1: `0x2c5665e7908ebb775e03185e5aef9fd9e566b79c21652d7f3c789db1add49090` (block 48155797)
@@ -24,6 +24,8 @@ All in `memory/evaluation/RESULTS.md`; raw files in `eval/results/`.
 - Authorization latency 2,327 ms median at a 114.5 ms database round trip; the window and threshold add 64 ms (Run 7).
 
 ## Before sending (owner)
+The timed list with both email drafts is `docs/submission/OWNER_FINAL.md`.
+
 1. Registration email with the form and passport pages to wangyr@pbcsf.tsinghua.edu.cn (BK-OWN-1).
 2. Rotate the database password (self-assessment R17) and delete the OpenRouter and OpenCode keys.
 3. Open the repository on GitHub and confirm `main` shows the latest commit and `.env` is not present.
