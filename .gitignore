@@ -20,3 +20,6 @@ node_modules/
 .remember/
 .demo-server.log
 .frontend-dev.log
+
+# raw voice-over recordings (the film in docs/demo/budget-kernel-demo.mp4 already contains the voice)
+docs/demo/*.aac

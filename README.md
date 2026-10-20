@@ -1,5 +1,9 @@
 # Budget Kernel: a safe wallet for AI agents
 
+[![Watch the demo film (4:53)](docs/demo/video-poster.png)](docs/demo/budget-kernel-demo.mp4)
+
+**▶ Demo film, 4:53 (click the picture to play).** Agents propose, the kernel decides: a real account and setup, approved, refused and held requests, the attack lab (the unsafe version spends 2,400 of a 900 budget; the kernel approves exactly three of eight), and the on-chain evidence. The screens are the real dashboard; the payment in the film is simulated settlement, and the three testnet hashes shown are from earlier real runs. Source of the film: [`video/`](video).
+
 AI agents can propose payments, but **only a deterministic kernel can authorize them**. A human owner funds a mandate, delegates narrower grants to agents, and every spend is checked against live database state: scope, per-transaction limit, balance, expiry and the whole revocation chain. Language models never decide anything. Their output is parsed into an untrusted, strictly typed proposal, and anything unclear is held for a human.
 
 *2026 Shenzhen FinTechathon, International Track, Topic F: Agent Wallet with testnet settlement.*
@@ -19,6 +23,7 @@ AI agents can propose payments, but **only a deterministic kernel can authorize 
 | Submission pack index (the six deliverables and where each lives) | [`docs/submission/PACK.md`](docs/submission/PACK.md) |
 | Technical document | [`docs/submission/TECH_DOC_DRAFT.md`](docs/submission/TECH_DOC_DRAFT.md) |
 | Deck | [`docs/submission/DECK_DRAFT.md`](docs/submission/DECK_DRAFT.md) |
+| Demo film (4:53) and its script and storyboard | [`docs/demo/budget-kernel-demo.mp4`](docs/demo/budget-kernel-demo.mp4), [`docs/demo/VOICEOVER.md`](docs/demo/VOICEOVER.md), [`docs/demo/STORYBOARD.md`](docs/demo/STORYBOARD.md) |
 | Execution evidence (settlements, anchor, hashes) | [`evidence/SETTLEMENTS.md`](evidence/SETTLEMENTS.md) |
 | Security self-assessment (tiers, controls, known risks) | [`docs/SECURITY_SELF_ASSESSMENT.md`](docs/SECURITY_SELF_ASSESSMENT.md) |
 | Measured results (kernel scripts, evaluation, attacks) | [`memory/evaluation/RESULTS.md`](memory/evaluation/RESULTS.md) |
@@ -47,7 +52,7 @@ uv run --project backend python scripts/demo.py --attacks   # plus the baseline-
 It creates fresh principals and a fresh mandate on every run, so it can be replayed any number of times. It exits 0 only if every expectation held.
 
 ### Dashboard
-People sign in with a username and password (agents and operators with an API key). Public sign-up is off by default; set `BK_ALLOW_SIGNUP=1` on the API to show "Create account", or create people with `POST /admin/accounts` (admin token). A new account has no money: the dashboard walks them through funding a mandate, adding agents and giving them budgets.
+People sign in with a username and password (agents and operators with an API key). Public sign-up is off by default; set `BK_ALLOW_SIGNUP=1` on the API to show "Create account", or create people with `POST /admin/accounts` (admin token). A new account has no money: the dashboard walks them through funding a mandate, adding agents and giving them budgets. The first time someone opens the dashboard, a hand-drawn guide circles each tab and says what it is for; any scroll or click closes it, and Settings brings it back (`npm run check:tour`).
 
 With the API running (`BK_SETTLEMENT_MODE=simulated BK_ALLOW_SIGNUP=1` for a local demo; add `BK_SCHEMA=bk_dev` to keep it off your main schema):
 ```bash
@@ -102,6 +107,7 @@ backend/tests/        integration, concurrency, boundary (import-graph and secre
 eval/                 labelled dataset, runner, dated results
 scripts/demo.py       clean-start replay; demo_seed.py seeds the dashboard demo accounts
 frontend/             Next.js dashboard (components/ui = shared layout parts, scripts/ = layout checks)
+video/                Remotion source of the demo film (npm install, then npx remotion render; the voice-over file is not included)
 evidence/             on-chain evidence: settlements, anchor, hashes
 memory/, docs/        decisions, plans, results, submission documents
 ```
@@ -111,4 +117,6 @@ The kernel never imports model, routing or provider code, and only `simulation/`
 **Team members: read [`ONBOARDING.md`](ONBOARDING.md) first**, then [`AGENTS.md`](AGENTS.md) (Claude Code also reads [`CLAUDE.md`](CLAUDE.md)). Claim your task on [`memory/WHO_IS_WORKING.md`](memory/WHO_IS_WORKING.md) before you start, and update [`memory/TASK_BOARD.md`](memory/TASK_BOARD.md) when you finish. Keep API keys, credentials and real financial data out of the repository.
 
 ## Status and limits
+Full non-slow backend suite: 412 passed on 2026-10-20 (plus the login review tests, 61 passed in the login, setup and rate-limit files). An independent review of the login change found two issues, both fixed with tests (`docs/SECURITY_SELF_ASSESSMENT.md`, review log).
+
 This is a hackathon prototype on testnet. It has not been externally audited and must not hold real funds. The known limitations (for example, per-transaction limits can be split into smaller purchases) are listed in the security self-assessment.
