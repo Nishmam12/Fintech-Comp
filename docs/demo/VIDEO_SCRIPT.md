@@ -1,5 +1,7 @@
 # Demo video script (BK-140) — draft 2, for the redesigned dashboard (BK-501..504)
 
+> **For the actual recording use [`RECORDING_RUNBOOK.md`](RECORDING_RUNBOOK.md).** The beat table below was drafted before the UI was frozen and contains beats the app cannot show.
+
 Target: 4:58 (limit 5:00; trim beat 3 or 4 if it runs long). Screen capture + voice-over. Everything runs in the dashboard, signed in with the one-click demo buttons (seeded by `scripts/demo_seed.py`): **Nabil (owner)**, **Ops bot (manager)**, **Research bot (agent)**. Names, not ids, appear on every screen. **Draft: not final until the lead approves.** Every number shown must come from a real run on the day.
 
 | # | Time | On screen | Voice-over |
