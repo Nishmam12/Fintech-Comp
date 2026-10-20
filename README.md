@@ -105,9 +105,9 @@ backend/src/budget_kernel/
 backend/migrations/   plain SQL, applied in name order
 backend/tests/        integration, concurrency, boundary (import-graph and secret scans)
 eval/                 labelled dataset, runner, dated results
-scripts/demo.py       clean-start replay; demo_seed.py seeds the dashboard demo accounts
-frontend/             Next.js dashboard (components/ui = shared layout parts, scripts/ = layout checks)
-video/                Remotion source of the demo film (npm install, then npx remotion render; the voice-over file is not included)
+scripts/demo.py       clean-start replay; demo_seed.py seeds the dashboard demo accounts; wipe_dev.py empties the scratch schema bk_dev before a re-seed; reset-demo.ps1 does both and restarts the dashboard
+frontend/             Next.js dashboard (components/ui = shared layout parts; scripts/ = browser checks and the capture-*.mjs screenshot scripts)
+video/                Remotion source of the demo film: cd video, npm install, add your voice-over as public/vo.wav, npm run render (screenshots are copied in from docs/submission/screenshots/r3)
 evidence/             on-chain evidence: settlements, anchor, hashes
 memory/, docs/        decisions, plans, results, submission documents
 ```
