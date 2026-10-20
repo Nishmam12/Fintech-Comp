@@ -1,15 +1,17 @@
 "use client";
-// The API key lives in React state only: never localStorage, never a cookie, gone on reload.
+// The API key or login session token lives in React state only: never localStorage, never a cookie, gone on reload.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { describeError, ApiError, setAuthLostHandler } from "@/lib/api";
+import { describeError, ApiError, isSessionToken, logoutRequest, setAuthLostHandler } from "@/lib/api";
 
-type Session = { key: string; mandateId: string; principalId: string; kind?: string; name?: string };
+// mandateId is null for a person who has signed in but has not set up a mandate yet (the setup screen follows).
+type Session = { key: string; mandateId: string | null; principalId: string; kind?: string; name?: string };
 type Ctx = {
   session: Session | null;
   // Shown on the sign-in screen after the session was dropped for a reason (expired key, disabled account).
   notice: string | null;
   signIn: (s: Session) => void;
   signOut: () => void;
+  setMandate: (id: string) => void;
   // After a key rotation the old key is dead; the new one replaces it in memory.
   replaceKey: (key: string) => void;
 };
@@ -20,12 +22,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const live = useRef(false);   // a notice is only for a session that was dropped, not for a failed sign-in attempt
-  useEffect(() => { live.current = session !== null; }, [session]);
+  const activeKey = useRef<string | null>(null);
+  useEffect(() => { live.current = session !== null; activeKey.current = session?.key ?? null; }, [session]);
 
-  const signOut = useCallback(() => setSession(null), []);
+  // A login session is ended on the server too (best effort: the screen clears either way).
+  const signOut = useCallback(() => {
+    const k = activeKey.current;
+    activeKey.current = null;
+    live.current = false;
+    if (k && isSessionToken(k)) void logoutRequest(k).catch(() => undefined);
+    setSession(null);
+  }, []);
   useEffect(() => {
-    setAuthLostHandler((code) => {
-      if (!live.current) return;
+    setAuthLostHandler((code, failedKey) => {
+      if (!live.current || failedKey !== activeKey.current) return;
       setNotice(describeError(new ApiError(401, code, ""), "Signed out"));
       setSession(null);
     });
@@ -39,6 +49,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         notice,
         signIn: (s) => { setNotice(null); setSession(s); },
         signOut,
+        setMandate: (id) => setSession((s) => (s ? { ...s, mandateId: id } : s)),
         replaceKey: (key) => setSession((s) => (s ? { ...s, key } : s)),
       }}
     >

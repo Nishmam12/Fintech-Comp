@@ -131,9 +131,11 @@ export class ApiError extends Error {
 }
 
 // Codes after which the key can no longer be used: the session is dropped and the user returns to sign-in.
-const AUTH_LOST = new Set(["KEY_EXPIRED", "PRINCIPAL_DISABLED"]);
-let onAuthLost: ((code: string) => void) | null = null;
-export function setAuthLostHandler(fn: ((code: string) => void) | null) {
+const AUTH_LOST = new Set(["KEY_EXPIRED", "PRINCIPAL_DISABLED", "SESSION_EXPIRED"]);
+// The handler gets the credential that failed, so a late answer to a request made with an OLD credential (after sign-out or
+// a new sign-in) cannot drop the session that replaced it.
+let onAuthLost: ((code: string, failedKey: string) => void) | null = null;
+export function setAuthLostHandler(fn: ((code: string, failedKey: string) => void) | null) {
   onAuthLost = fn;
 }
 
@@ -146,6 +148,8 @@ export function describeError(e: unknown, fallback: string): string {
         ? `Too many requests. Wait ${e.retryAfter} s, then try again.`
         : "Too many requests. Wait a moment, then try again.";
     default:
+      // The server words these two precisely (what the rule is), so its sentence is the better one.
+      if ((e.code === "PASSWORD_WEAK" || e.code === "USERNAME_INVALID") && e.message) return e.message;
       return REASON_TEXT[e.code] ?? `${e.code}: ${e.message}`;
   }
 }
@@ -209,6 +213,21 @@ const REASON_TEXT: Record<string, string> = {
   NOT_TESTNET_MODE: "Real test-network payments are switched off on this server.",
   ANCHOR_NEEDS_TESTNET: "Anchoring on the test network is switched off on this server.",
   ANCHOR_REFUSED: "The history could not be anchored on the test network.",
+  // Sign-in, accounts and setup
+  INVALID_CREDENTIALS: "Wrong username or password. After five wrong tries in a row the account locks for 15 minutes.",
+  SESSION_EXPIRED: "Your session ended. Sign in again.",
+  SIGNUP_DISABLED: "New accounts are created by the operator on this server.",
+  USERNAME_TAKEN: "That username is taken. Pick another.",
+  USERNAME_INVALID: "Use 3 to 32 letters, digits, dots, dashes or underscores, starting with a letter or digit.",
+  PASSWORD_WEAK: "That password is too short or too easy to guess. Use at least 10 characters.",
+  NAME_REQUIRED: "Enter a name.",
+  NO_PASSWORD_SET: "This account signs in with an API key, so it has no password to change.",
+  NOT_A_SESSION: "This sign-in uses an API key, so there is no session to end.",
+  SESSION_HAS_NO_KEY: "You signed in with a password, so there is no API key to rotate.",
+  AGENT_LIMIT: "You have reached the limit of agents you can create here.",
+  ACCOUNT_CREATED: "Account created.",
+  PASSWORD_CHANGED: "Password changed.",
+  AGENT_CREATED: "Agent created.",
 };
 export const reasonText = (r: string) => REASON_TEXT[r] ?? r;
 // For a `title` tooltip: the machine code behind the plain sentence.
@@ -219,7 +238,7 @@ async function once(key: string, path: string, init?: { method?: "GET" | "POST";
     return await fetch(`${API_BASE}${path}`, {
       method: init?.method ?? "GET",
       headers: {
-        Authorization: `Bearer ${key}`,
+        ...(key ? { Authorization: `Bearer ${key}` } : {}),
         ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}),
       },
       body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
@@ -245,7 +264,7 @@ export async function api<T>(
     const detail = typeof data?.detail === "string" ? data.detail : undefined;
     const code = data?.code ?? d?.code ?? "HTTP_" + res.status;
     const ra = Number.parseInt(res.headers.get("Retry-After") ?? "", 10);
-    if (res.status === 401 && AUTH_LOST.has(code)) onAuthLost?.(code);
+    if (res.status === 401 && AUTH_LOST.has(code)) onAuthLost?.(code, key);
     throw new ApiError(res.status, code, data?.message ?? d?.message ?? detail ?? res.statusText,
       Number.isFinite(ra) ? ra : undefined);
   }
@@ -342,3 +361,38 @@ export type SimResult = {
 export const listScenarios = (key: string) => api<{ scenarios: string[] }>(key, "/simulation/scenarios");
 export const runScenario = (key: string, scenario: string) =>
   api<SimResult>(key, "/simulation/run", { method: "POST", body: { scenario } });
+
+// ---- sign-in, accounts, setup (docs/plans/LOGIN_PLAN.md) ----------------------------------------------------------------
+export type AuthResult = {
+  session_token: string;
+  expires_at: string;
+  principal: { principal_id: string; name: string; kind: string; username: string | null };
+};
+export const authConfig = () => api<{ signup: boolean }>("", "/auth/config");
+export const loginRequest = (username: string, password: string) =>
+  api<AuthResult>("", "/auth/login", { method: "POST", body: { username, password } });
+export const signupRequest = (name: string, username: string, password: string) =>
+  api<AuthResult>("", "/auth/signup", { method: "POST", body: { name, username, password } });
+export const logoutRequest = (key: string) => api<{ ok: boolean }>(key, "/auth/logout", { method: "POST", body: {} });
+export const changePassword = (key: string, current_password: string, new_password: string) =>
+  api<{ ok: boolean }>(key, "/me/password", { method: "POST", body: { current_password, new_password } });
+// A login session token (as opposed to an API key) starts with "bks_".
+export const isSessionToken = (key: string) => key.startsWith("bks_");
+
+export type MandateScope = { categories: string[]; recipients: string[]; per_tx_limit: number; can_delegate: boolean;
+  window_limit?: number; window_seconds?: number; review_above?: number };
+export const createMandate = (key: string, body: { currency: string; total: number; protected_reserve: number; expires_at: string; scope: MandateScope }) =>
+  api<{ mandate_id: string; root_grant_id: string }>(key, "/mandates", { method: "POST", body });
+export type MyAgent = { principal_id: string; name: string; created_at: string };
+export const createAgent = (key: string, name: string) =>
+  api<{ principal_id: string; name: string; api_key: string }>(key, "/agents", { method: "POST", body: { name } });
+export const listAgents = (key: string) => api<{ agents: MyAgent[] }>(key, "/agents");
+export const delegateGrant = (key: string, body: { parent_grant_id: string; holder_principal_id: string; amount: number; expires_at: string; scope: MandateScope; idempotency_key: string }) =>
+  api<{ grant_id: string }>(key, "/grants", { method: "POST", body });
+
+// Whole units typed by a person ("1000" or "1000.50") to integer minor units, by string arithmetic (no floats). null when it is not an amount.
+export function toMinor(text: string): number | null {
+  const m = /^(\d{1,9})(?:\.(\d{1,2}))?$/.exec(text.trim());
+  if (!m) return null;
+  return Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0"));
+}

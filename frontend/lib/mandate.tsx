@@ -19,7 +19,8 @@ export function MandateProvider({ children }: { children: ReactNode }) {
   const loadRef = useRef<() => void>(() => {});
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !session.mandateId) return;
+    const mandateId = session.mandateId;
     let alive = true;
     let inFlight = false;
     let again = false;
@@ -27,7 +28,7 @@ export function MandateProvider({ children }: { children: ReactNode }) {
       if (inFlight) { again = true; return; }
       inFlight = true;
       try {
-        const st = await getState(session.key, session.mandateId);
+        const st = await getState(session.key, mandateId);
         if (alive) { setState(st); setError(null); setUpdatedAt(new Date()); }
       } catch (e) {
         if (alive) setError(describeError(e, "Could not load the mandate"));

@@ -63,7 +63,7 @@ export default function ActivityView() {
         for (;;) {
           const r = await api<{ events: AuditEvent[] }>(
             session.key,
-            `/mandates/${encodeURIComponent(session.mandateId)}/audit?after_id=${lastId.current}&limit=200`,
+            `/mandates/${encodeURIComponent(session.mandateId ?? "")}/audit?after_id=${lastId.current}&limit=200`,
           );
           if (!live) return;
           fresh.push(...r.events);

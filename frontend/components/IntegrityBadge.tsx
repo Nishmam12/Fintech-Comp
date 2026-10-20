@@ -20,6 +20,7 @@ export default function IntegrityBadge({ ledgerOk = true }: { ledgerOk?: boolean
   useEffect(() => {
     if (!session || !isOwner) return;
     let live = true;
+    if (!session.mandateId) return;
     getIntegrity(session.key, session.mandateId)
       .then((r) => { if (live) { setData(r); setErr(null); } })
       .catch((e) => {

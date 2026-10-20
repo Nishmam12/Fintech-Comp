@@ -1,6 +1,11 @@
 "use client";
-import { useState } from "react";
-import { describeError, getMe, listMandates, money, type Me, type MandateSummary } from "@/lib/api";
+// Sign-in: username and password (a login session), or create an account when the server allows it, or an API key
+// (agents and operators). The one-tap demo accounts exist only in development builds (docs/plans/LOGIN_PLAN.md, R23).
+import { useEffect, useState } from "react";
+import {
+  authConfig, describeError, getMe, listMandates, loginRequest, money, signupRequest,
+  type AuthResult, type MandateSummary, type Me,
+} from "@/lib/api";
 import Cheque from "@/components/ui/Cheque";
 import { useSession } from "@/lib/session";
 
@@ -34,37 +39,52 @@ function DemoButtons({ raw, busy, onPick }: { raw: string; busy: boolean; onPick
           );
         })}
       </div>
-      <div className="or">Or paste an API key</div>
+      <div className="or">Or sign in with your own account</div>
     </>
   );
 }
 
+type Tab = "signin" | "signup";
+
 export default function SignIn() {
   const { signIn, notice } = useSession();
+  const [tab, setTab] = useState<Tab>("signin");
+  const [signupOpen, setSignupOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const [useKey, setUseKey] = useState(false);
   const [key, setKey] = useState("");
   const [me, setMe] = useState<Me | null>(null);
   const [mandates, setMandates] = useState<MandateSummary[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // The key being signed in with (typed or a demo button), kept out of the input so demo keys never reach the DOM.
+  // The credential being signed in with (a session token, or a key typed or from a demo button), kept out of any field.
   const [activeKey, setActiveKey] = useState("");
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    await attempt(key.trim());
+  useEffect(() => {
+    let live = true;
+    authConfig().then((c) => { if (live) setSignupOpen(c.signup); }).catch(() => undefined);
+    return () => { live = false; };
+  }, []);
+
+  // With a credential in hand: who is it, and which mandates can it open? None means the setup screen follows.
+  async function enter(k: string, who?: Me) {
+    const person = who ?? (await getMe(k));
+    const { mandates: list } = await listMandates(k);
+    setMe(person);
+    setActiveKey(k);
+    if (list.length === 0) signIn({ key: k, mandateId: null, principalId: person.principal_id, kind: person.kind, name: person.name });
+    else if (list.length === 1) signIn({ key: k, mandateId: list[0].id, principalId: person.principal_id, kind: person.kind, name: person.name });
+    else setMandates(list);
   }
 
-  async function attempt(k: string) {
+  async function run(fn: () => Promise<void>) {
     setBusy(true);
     setErr(null);
     try {
-      // The key alone identifies the caller: /me verifies it, /mandates lists what it may open.
-      const who = await getMe(k);
-      const { mandates: list } = await listMandates(k);
-      setMe(who);
-      setActiveKey(k);
-      if (list.length === 1) signIn({ key: k, mandateId: list[0].id, principalId: who.principal_id, kind: who.kind, name: who.name });
-      else setMandates(list);
+      await fn();
     } catch (e) {
       setErr(describeError(e, "Sign-in failed"));
     } finally {
@@ -72,11 +92,18 @@ export default function SignIn() {
     }
   }
 
+  const fromAuth = (r: AuthResult) => enter(r.session_token, { principal_id: r.principal.principal_id, name: r.principal.name, kind: r.principal.kind });
+
+  const submitLogin = (e: React.FormEvent) => { e.preventDefault(); void run(async () => fromAuth(await loginRequest(username, password))); };
+  const submitSignup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password !== repeat) { setErr("The two passwords are not the same."); return; }
+    void run(async () => fromAuth(await signupRequest(name, username, password)));
+  };
+  const submitKey = (e: React.FormEvent) => { e.preventDefault(); void run(() => enter(key.trim())); };
+
   function reset() {
-    setMe(null);
-    setMandates(null);
-    setKey("");
-    setActiveKey("");
+    setMe(null); setMandates(null); setKey(""); setActiveKey(""); setPassword(""); setRepeat("");
   }
 
   const demo = process.env.NEXT_PUBLIC_DEMO_KEYS;
@@ -93,12 +120,11 @@ export default function SignIn() {
         <span className="serial dim">Settles on Base Sepolia testnet</span>
       </Cheque>
       <section className="side">
-        <div className="sec-head"><h2 className="fig">Sign in</h2><span className="meta">{demo && !mandates ? "Demo accounts" : ""}</span></div>
+        <div className="sec-head"><h2 className="fig">{mandates ? "Choose a mandate" : tab === "signup" ? "Create account" : "Sign in"}</h2></div>
         {notice && <p role="alert" className="alert">{notice}</p>}
         {mandates ? (
           <div style={{ marginTop: "1rem" }}>
-            <p style={{ margin: "0 0 0.75rem" }}>Signed in as <b className="wrap-anywhere">{me?.name}</b> ({me?.kind}). Choose a mandate:</p>
-            {mandates.length === 0 && <p className="tag">This key has no mandates.</p>}
+            <p style={{ margin: "0 0 0.75rem" }}>Signed in as <b className="wrap-anywhere">{me?.name}</b>.</p>
             <div className="demo" style={{ flex: "none" }}>
               {mandates.map((m) => (
                 <button key={m.id} className="btn ghost"
@@ -108,20 +134,69 @@ export default function SignIn() {
                 </button>
               ))}
             </div>
-            <button onClick={reset} className="btn ghost wide" style={{ marginTop: "0.75rem" }}>Use a different key</button>
+            <button onClick={reset} className="btn ghost wide" style={{ marginTop: "0.75rem" }}>Use a different account</button>
           </div>
         ) : (
           <>
-            {demo ? <DemoButtons raw={demo} busy={busy} onPick={(k) => void attempt(k)} /> : <div style={{ height: "1rem" }} />}
-            <form onSubmit={submit}>
-              <input type="password" autoComplete="off" required value={key} onChange={(e) => setKey(e.target.value)} className="field"
-                aria-label={demo ? "API key" : "Paste your API key"} placeholder={demo ? "" : "Paste your API key"} />
-              {err && <p role="alert" className="alert">{err}</p>}
-              <button disabled={busy} className="btn wide" style={{ marginTop: "0.75rem" }}>{busy ? "Checking…" : "Sign in"}</button>
-            </form>
+            {demo && <DemoButtons raw={demo} busy={busy} onPick={(k) => void run(() => enter(k))} />}
+            {!useKey && (
+              <>
+                {signupOpen && (
+                  <div role="tablist" aria-label="Sign in or create an account" style={{ display: "flex", gap: "1.5rem", marginTop: "1rem" }}>
+                    {(["signin", "signup"] as Tab[]).map((t) => (
+                      <button key={t} role="tab" aria-selected={tab === t} className="linkbtn"
+                        style={{ fontWeight: tab === t ? 700 : 400, textDecoration: tab === t ? "underline" : "none", fontSize: "1rem" }}
+                        onClick={() => { setTab(t); setErr(null); }}>
+                        {t === "signin" ? "Sign in" : "Create account"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <form onSubmit={tab === "signup" && signupOpen ? submitSignup : submitLogin}>
+                  {tab === "signup" && signupOpen && (
+                    <>
+                      <label htmlFor="su-name">Your name</label>
+                      <input id="su-name" className="field" autoComplete="name" required maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+                    </>
+                  )}
+                  <label htmlFor="su-user">Username</label>
+                  <input id="su-user" className="field" autoComplete="username" required maxLength={64} autoCapitalize="none" spellCheck={false}
+                    value={username} onChange={(e) => setUsername(e.target.value)} />
+                  <label htmlFor="su-pass">Password</label>
+                  <input id="su-pass" type="password" className="field" required maxLength={128}
+                    autoComplete={tab === "signup" && signupOpen ? "new-password" : "current-password"}
+                    value={password} onChange={(e) => setPassword(e.target.value)} />
+                  {tab === "signup" && signupOpen && (
+                    <>
+                      <label htmlFor="su-repeat">Repeat the password</label>
+                      <input id="su-repeat" type="password" className="field" required maxLength={128} autoComplete="new-password"
+                        value={repeat} onChange={(e) => setRepeat(e.target.value)} />
+                      <p className="tag" style={{ margin: "0.5rem 0 0" }}>At least 10 characters. A username is 3 to 32 letters, digits, dots, dashes or underscores.</p>
+                    </>
+                  )}
+                  {err && <p role="alert" className="alert">{err}</p>}
+                  <button disabled={busy} className="btn wide" style={{ marginTop: "0.75rem" }}>
+                    {busy ? "Checking…" : tab === "signup" && signupOpen ? "Create account" : "Sign in"}
+                  </button>
+                </form>
+              </>
+            )}
+            {useKey && (
+              <form onSubmit={submitKey}>
+                <label htmlFor="si-key">API key</label>
+                <input id="si-key" type="password" autoComplete="off" required value={key} onChange={(e) => setKey(e.target.value)} className="field" />
+                {err && <p role="alert" className="alert">{err}</p>}
+                <button disabled={busy} className="btn wide" style={{ marginTop: "0.75rem" }}>{busy ? "Checking…" : "Sign in with the key"}</button>
+              </form>
+            )}
+            <p style={{ marginTop: "1rem", fontSize: "0.8125rem" }}>
+              <button type="button" className="linkbtn" onClick={() => { setUseKey(!useKey); setErr(null); }}>
+                {useKey ? "Use a username and password instead" : "Use an API key instead (agents and operators)"}
+              </button>
+            </p>
           </>
         )}
-        <p className="dim" style={{ fontSize: "0.8125rem", marginTop: "1rem" }}>The key is kept in this tab&apos;s memory only and disappears on reload.</p>
+        <p className="dim" style={{ fontSize: "0.8125rem", marginTop: "0.5rem" }}>The sign-in is kept in this tab&apos;s memory only and disappears on reload.</p>
       </section>
     </div>
   );

@@ -22,6 +22,10 @@ from demo import ROOT, Demo  # noqa: E402
 
 ENV_LOCAL = ROOT / "frontend" / ".env.local"
 VAR = "NEXT_PUBLIC_DEMO_KEYS"
+# The demo owner is a real password account (username and password, signed in with a login session), so the video and the
+# demo show the real sign-in. These are demo credentials on a testnet prototype, not secrets; change them with BK_DEMO_PASSWORD.
+DEMO_USER = "nabil"
+DEMO_PASSWORD = os.environ.get("BK_DEMO_PASSWORD", "kernel-demo-2026")
 
 
 def _env(name: str) -> str:
@@ -43,10 +47,22 @@ def write_keys(keys: dict[str, str], path: Path = ENV_LOCAL) -> None:
     path.chmod(0o600)
 
 
+def owner_session(d: Demo) -> dict:
+    """Create the demo owner as a password account (kept if it already exists) and sign in; the session token is the bearer."""
+    r = d.http.post("/admin/accounts", json={"name": "Nabil", "username": DEMO_USER, "password": DEMO_PASSWORD}, headers=d.admin)
+    if r.status_code not in (201, 409):
+        r.raise_for_status()
+    r = d.http.post("/auth/login", json={"username": DEMO_USER, "password": DEMO_PASSWORD})
+    if r.status_code != 200:
+        sys.exit(f"cannot sign in as {DEMO_USER}: {r.json().get('detail', {}).get('code', r.status_code)} "
+                 "(the account exists with another password; set BK_DEMO_PASSWORD to it)")
+    return {"Authorization": f"Bearer {r.json()['session_token']}"}
+
+
 def seed(base: str) -> tuple[str, dict[str, str]]:
     d = Demo(base)
     tag = uuid.uuid4().hex[:6]
-    nabil_id, nabil = d.principal("Nabil", "human")
+    nabil = owner_session(d)
     ops_id, ops = d.principal("Ops bot", "agent")
     res_id, res = d.principal("Research bot", "agent")
     expires = (datetime.now(timezone.utc) + timedelta(days=30)).replace(microsecond=0).isoformat()
@@ -84,4 +100,4 @@ if __name__ == "__main__":
     a = ap.parse_args()
     mandate, keys = seed(a.base_url)
     write_keys(keys)
-    print(f"Seeded mandate {mandate}\nSign-in buttons: {', '.join(keys)}\nWrote {ENV_LOCAL.relative_to(ROOT)} (keys not shown)")
+    print(f"Seeded mandate {mandate}\nSign-in buttons: {', '.join(keys)}\nOwner password sign-in: username {DEMO_USER}, password {DEMO_PASSWORD}\nWrote {ENV_LOCAL.relative_to(ROOT)} (keys not shown)")

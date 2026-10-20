@@ -6,6 +6,7 @@ import ReviewView, { native as reviewNative } from "@/components/ReviewView";
 import MandateView from "@/components/MandateView";
 import SimulationView, { native as attackNative } from "@/components/SimulationView";
 import SettingsView, { native as settingsNative } from "@/components/SettingsView";
+import SetupView from "@/components/SetupView";
 import SignIn from "@/components/SignIn";
 import Section from "@/components/ui/Section";
 import { ToastProvider } from "@/components/Toast";
@@ -91,9 +92,28 @@ function Frame() {
   );
 }
 
+function NoMandate() {
+  const { session, signOut } = useSession();
+  return (
+    <div className="app">
+      <header className="top">
+        <div className="brand"><b className="fig">Budget Kernel</b></div>
+        <div className="who"><span>{session?.name ?? ""}</span><a href="#signout" onClick={(e) => { e.preventDefault(); signOut(); }}>Sign out</a></div>
+      </header>
+      <nav className="tabs" aria-label="Sections"><a href="#none" className="on" onClick={(e) => e.preventDefault()}>Mandate</a></nav>
+      <main className="main">
+        <Section span={12} title="No mandate yet" meta="Nothing to show">
+          <div className="pt-4"><p>This account does not hold any grant in a mandate yet. The person who funds a mandate gives an agent a budget; until then there is nothing to show here. Sign in again once they have.</p></div>
+        </Section>
+      </main>
+    </div>
+  );
+}
+
 function Shell() {
   const { session } = useSession();
   if (!session) return <SignIn />;
+  if (!session.mandateId) return session.kind === "human" ? <SetupView /> : <NoMandate />;
   return (
     <MandateProvider>
       <ToastProvider>

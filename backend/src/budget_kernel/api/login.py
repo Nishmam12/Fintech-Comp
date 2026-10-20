@@ -12,13 +12,13 @@ from __future__ import annotations
 import os
 import re
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from psycopg.errors import UniqueViolation
 
 from budget_kernel.kernel.tx import audit
 
 from . import schemas
-from .auth import SESSION_PREFIX, Caller, Principal, hash_key, new_key, new_session_token
+from .auth import SESSION_PREFIX, Caller, Principal, hash_key, new_key, new_session_token, require_admin
 from .passwords import DUMMY_HASH, hash_password, policy_problem, verify_password
 
 LOCK_AFTER = 5                 # consecutive wrong passwords before the account locks
@@ -207,3 +207,28 @@ def install(app: FastAPI, P) -> None:
         with P(request).connection() as c:
             rows = c.execute("SELECT id, name, created_at FROM principals WHERE created_by = %s ORDER BY created_at", (me.id,)).fetchall()
         return {"agents": [{"principal_id": str(r["id"]), "name": r["name"], "created_at": r["created_at"].isoformat()} for r in rows]}
+
+    @app.post("/admin/accounts", dependencies=[Depends(require_admin)], status_code=201)
+    def create_account(body: schemas.CreateAccount, request: Request):
+        """The operator creates a person who signs in with a username and password. Same rules as sign-up; works when
+        public sign-up is off. Returns no session and no key: the person signs in with the password."""
+        username = _normalise_username(body.username)
+        problem = policy_problem(body.password, username)
+        if problem:
+            raise HTTPException(400, {"code": "PASSWORD_WEAK", "message": problem})
+        name = body.name.strip()
+        if not name:
+            raise HTTPException(400, {"code": "NAME_REQUIRED", "message": "Enter a name."})
+        pwhash = hash_password(body.password)
+        taken = False
+        try:
+            with P(request).connection() as c:
+                row = c.execute("INSERT INTO principals(name, kind, username, password_hash, password_changed_at)"
+                                " VALUES (%s, 'human', %s, %s, clock_timestamp()) RETURNING id",
+                                (name, username, pwhash)).fetchone()
+                audit(c, None, "ACCOUNT_CREATED", None, row["id"])
+        except UniqueViolation:
+            taken = True
+        if taken:
+            raise HTTPException(409, {"code": "USERNAME_TAKEN", "message": "that username is taken"})
+        return {"principal_id": str(row["id"]), "username": username}

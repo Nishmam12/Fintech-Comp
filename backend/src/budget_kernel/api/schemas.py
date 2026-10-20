@@ -40,6 +40,13 @@ class Signup(Secret):
     password: str = Field(min_length=1, max_length=1024)
 
 
+class CreateAccount(Secret):
+    """Operator-created person with a username and password (the sign-up path when public sign-up is off)."""
+    name: str = Field(min_length=1, max_length=100)
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=1024)
+
+
 class Login(Secret):
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=1, max_length=1024)

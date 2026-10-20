@@ -289,3 +289,15 @@ def test_no_password_hash_or_token_reaches_audit_or_errors(pool, client):
     blob = " ".join(r["d"] for r in rows) + bad.text
     for secret in ("a very quiet passphrase", "another quiet passphrase", token, stored):
         assert secret not in blob
+
+
+def test_the_operator_creates_an_account_even_when_signup_is_off(client, monkeypatch):
+    monkeypatch.delenv("BK_ALLOW_SIGNUP")
+    body = {"name": "Operator Made", "username": "made.by.op", "password": PW}
+    assert client.post("/admin/accounts", json=body).status_code == 403                       # needs the admin token
+    r = client.post("/admin/accounts", json=body, headers=HEADERS_ADMIN)
+    assert r.status_code == 201 and r.json()["username"] == "made.by.op" and "session_token" not in r.json()
+    assert client.post("/admin/accounts", json=body, headers=HEADERS_ADMIN).status_code == 409
+    weak = client.post("/admin/accounts", json={**body, "username": "weak.one", "password": "short"}, headers=HEADERS_ADMIN)
+    assert weak.status_code == 400 and code(weak) == "PASSWORD_WEAK"
+    assert login(client, "made.by.op").status_code == 200
