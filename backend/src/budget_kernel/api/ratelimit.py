@@ -15,11 +15,13 @@ from collections import OrderedDict
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from .auth import hash_key
+from .auth import SESSION_PREFIX, hash_key
 
 DEFAULT_PER_MIN = 120
 MODEL_PER_MIN = 30
+AUTH_PER_MIN = 10        # login and sign-up attempts per client IP; the account lockout is a separate, per-account control
 MODEL_PATHS = {("POST", "/agent/request"), ("POST", "/interpret")}
+AUTH_PATHS = {("POST", "/auth/login"), ("POST", "/auth/signup")}
 EXEMPT_PATHS = {"/health"}
 MAX_BUCKETS = 50_000     # hard cap on table size; the least recently used bucket is dropped beyond it
 
@@ -37,9 +39,11 @@ class RateLimiter:
     they would have refilled completely (a full bucket is the same as no bucket), so memory follows active keys."""
 
     def __init__(self, default_per_min: int | None = None, model_per_min: int | None = None, *,
-                 clock=time.monotonic, trust_proxy: bool | None = None, max_buckets: int = MAX_BUCKETS):
+                 auth_per_min: int | None = None, clock=time.monotonic, trust_proxy: bool | None = None,
+                 max_buckets: int = MAX_BUCKETS):
         self.default_per_min = _int_env("BK_RATE_DEFAULT_PER_MIN", DEFAULT_PER_MIN) if default_per_min is None else default_per_min
         self.model_per_min = _int_env("BK_RATE_MODEL_PER_MIN", MODEL_PER_MIN) if model_per_min is None else model_per_min
+        self.auth_per_min = _int_env("BK_RATE_AUTH_PER_MIN", AUTH_PER_MIN) if auth_per_min is None else auth_per_min
         self.trust_proxy = os.environ.get("BK_TRUST_PROXY") == "1" if trust_proxy is None else trust_proxy
         self.clock, self.max_buckets = clock, max_buckets
         self._buckets: OrderedDict[tuple[str, str], tuple[float, float]] = OrderedDict()   # (kind, key) -> (tokens, at)
@@ -54,7 +58,7 @@ class RateLimiter:
 
     def _purge(self, now: float) -> None:
         """Oldest first: drop buckets idle long enough to be full again, then enforce the size cap."""
-        limits = {"default": self.default_per_min, "model": self.model_per_min}
+        limits = {"default": self.default_per_min, "model": self.model_per_min, "auth": self.auth_per_min}
         while self._buckets:
             (kind, _), (tokens, at) = next(iter(self._buckets.items()))
             per_min = limits[kind]
@@ -63,12 +67,13 @@ class RateLimiter:
                 break
             self._buckets.popitem(last=False)
 
-    def check(self, key: str, *, model: bool = False) -> int | None:
+    def check(self, key: str, *, model: bool = False, auth: bool = False) -> int | None:
         """Charge one request. None = allowed; otherwise whole seconds to wait (>= 1). Nothing is charged on refusal."""
         with self._lock:
             now = self.clock()
             self._purge(now)
-            charges = [("default", self.default_per_min)] + ([("model", self.model_per_min)] if model else [])
+            charges = ([("default", self.default_per_min)] + ([("model", self.model_per_min)] if model else [])
+                       + ([("auth", self.auth_per_min)] if auth else []))
             charges = [(k, n) for k, n in charges if n > 0]
             wait = 0.0
             for kind, n in charges:
@@ -95,6 +100,8 @@ class RateLimiter:
             try:
                 with request.app.state.pool.connection() as c:
                     row = c.execute("SELECT id FROM principals WHERE api_key_hash = %s", (hash_key(raw),)).fetchone()
+                    if row is None and raw.startswith(SESSION_PREFIX):          # a login session counts against its person
+                        row = c.execute("SELECT principal_id AS id FROM sessions WHERE token_hash = %s", (hash_key(raw),)).fetchone()
                 if row is not None:
                     return f"p:{row['id']}"
             except Exception:       # a lookup failure must not break requests; fall back to the IP bucket
@@ -106,7 +113,7 @@ class RateLimiter:
         if request.method == "OPTIONS" or path in EXEMPT_PATHS:
             return await call_next(request)
         key = await _in_thread(self.key_for, request)
-        wait = self.check(key, model=(request.method, path) in MODEL_PATHS)
+        wait = self.check(key, model=(request.method, path) in MODEL_PATHS, auth=(request.method, path) in AUTH_PATHS)
         if wait is None:
             return await call_next(request)
         return JSONResponse(status_code=429, headers={"Retry-After": str(wait)}, content={"detail": {

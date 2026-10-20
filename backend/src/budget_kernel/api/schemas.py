@@ -29,6 +29,27 @@ class CreatePrincipal(Strict):
     expires_in_days: StrictInt | None = Field(default=None, ge=1, le=365)    # BK-412: absent = the key never expires
 
 
+class Secret(BaseModel):
+    """Bodies that carry a password: unknown fields rejected, and NO whitespace stripping (a password may start or end with a space)."""
+    model_config = ConfigDict(extra="forbid")
+
+
+class Signup(Secret):
+    name: str = Field(min_length=1, max_length=100)
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=1024)
+
+
+class Login(Secret):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=1024)
+
+
+class ChangePassword(Secret):
+    current_password: str = Field(min_length=1, max_length=1024)
+    new_password: str = Field(min_length=1, max_length=1024)
+
+
 class BindSettler(Strict):
     principal_id: str
 

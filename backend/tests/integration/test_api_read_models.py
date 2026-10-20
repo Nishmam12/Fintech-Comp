@@ -18,7 +18,7 @@ def test_whoami_mandate_list_and_proposal_in_state(pool, monkeypatch):
         agent_id, agent = person("agent")
         _, stranger = person("agent")
 
-        assert client.get("/me", headers=owner).json() == {"principal_id": owner_id, "name": client.get("/me", headers=owner).json()["name"], "kind": "human"}
+        assert client.get("/me", headers=owner).json() == {"principal_id": owner_id, "name": client.get("/me", headers=owner).json()["name"], "kind": "human", "username": None}
         assert client.get("/me").status_code == 401
 
         sc = {"categories": ["cloud"], "recipients": ["aws"], "per_tx_limit": 20_000, "can_delegate": True}

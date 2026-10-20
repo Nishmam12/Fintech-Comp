@@ -26,7 +26,8 @@ from budget_kernel.config import Settings
 from budget_kernel.db.connection import make_pool
 
 from . import schemas
-from .auth import Caller, Principal, current_principal, hash_key, new_key, require_admin
+from . import login as login_routes
+from .auth import SESSION_PREFIX, Caller, Principal, current_principal, hash_key, new_key, require_admin
 from .ratelimit import RateLimiter
 
 
@@ -140,6 +141,8 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         """Issue a new key. The hash is replaced by ONE UPDATE, so the old key stops working at once. The raw key is
         returned once; the audit row carries no key material. The UPDATE applies only while the stored hash is still
         the presented key's, so two rotations racing on the same old key cannot both win (the loser gets 409 and no key)."""
+        if authorization.partition(" ")[2].startswith(SESSION_PREFIX):
+            raise HTTPException(400, {"code": "SESSION_HAS_NO_KEY", "message": "a login session has no API key to rotate"})
         raw = new_key()
         presented = hash_key(authorization.partition(" ")[2])
         with P(request).connection() as c:
@@ -150,6 +153,8 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
                 raise HTTPException(409, {"code": "KEY_ALREADY_ROTATED", "message": "this key was already rotated; sign in with the new key"})
             write_audit(c, None, "KEY_ROTATED", me.id, me.id)
         return _jsonable({"api_key": raw, "key_expires_at": row["key_expires_at"]})
+
+    login_routes.install(app, P)
 
     @app.get("/health")
     def health(request: Request):
@@ -352,9 +357,11 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         return m
 
     @app.get("/me")
-    def whoami(me: Principal = Caller):
+    def whoami(request: Request, me: Principal = Caller):
         """Who the API key belongs to (lets a client sign in with a key alone)."""
-        return {"principal_id": str(me.id), "name": me.name, "kind": me.kind}
+        with P(request).connection() as c:
+            username = c.execute("SELECT username FROM principals WHERE id = %s", (me.id,)).fetchone()["username"]
+        return {"principal_id": str(me.id), "name": me.name, "kind": me.kind, "username": username}
 
     @app.get("/mandates")
     def my_mandates(request: Request, me: Principal = Caller):

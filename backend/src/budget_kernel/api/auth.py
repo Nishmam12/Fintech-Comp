@@ -27,6 +27,14 @@ def new_key() -> str:
     return "bk_" + secrets.token_urlsafe(32)
 
 
+SESSION_PREFIX = "bks_"
+
+
+def new_session_token() -> str:
+    """A login session. Stored only as a SHA-256 hash, like an API key, and resolved to the same Principal."""
+    return SESSION_PREFIX + secrets.token_urlsafe(32)
+
+
 def current_principal(request: Request, authorization: str = Header(default="")) -> Principal:
     scheme, _, raw = authorization.partition(" ")
     if scheme.lower() != "bearer" or not raw:
@@ -34,6 +42,13 @@ def current_principal(request: Request, authorization: str = Header(default=""))
     with request.app.state.pool.connection() as c:
         row = c.execute("SELECT id, name, kind, disabled_at, (key_expires_at <= clock_timestamp()) AS expired"
                         " FROM principals WHERE api_key_hash = %s", (hash_key(raw),)).fetchone()
+        if row is None and raw.startswith(SESSION_PREFIX):
+            row = c.execute("SELECT p.id, p.name, p.kind, p.disabled_at,"
+                            " (s.revoked_at IS NOT NULL OR s.expires_at <= clock_timestamp()) AS expired"
+                            " FROM sessions s JOIN principals p ON p.id = s.principal_id WHERE s.token_hash = %s",
+                            (hash_key(raw),)).fetchone()
+            if row is not None and row["expired"]:
+                raise HTTPException(401, {"code": "SESSION_EXPIRED", "message": "this session has ended; sign in again"})
     if row is None:
         raise HTTPException(401, {"code": "UNAUTHENTICATED", "message": "unknown API key"})
     if row["expired"]:        # ADR-0009 C2: a distinct code lets a client send the user to rotate/re-issue
