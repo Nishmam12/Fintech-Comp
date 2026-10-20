@@ -10,7 +10,7 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -110,7 +110,8 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
     # ------------------------------------------------------------- admin / bootstrap
 
     @app.post("/admin/principals", dependencies=[Depends(require_admin)], status_code=201)
-    def create_principal(body: schemas.CreatePrincipal, request: Request):
+    def create_principal(body: schemas.CreatePrincipal, request: Request, response: Response):
+        response.headers["Cache-Control"] = "no-store"
         raw = new_key()
         with P(request).connection() as c:
             row = c.execute("INSERT INTO principals(name, kind, api_key_hash, key_expires_at)"
@@ -137,7 +138,8 @@ def create_app(pool=None, schema: str | None = None, card: RateCard | None = Non
         return {"principal_id": str(pid), "disabled": True, "already": already}
 
     @app.post("/me/rotate-key")
-    def rotate_key(request: Request, authorization: str = Header(default=""), me: Principal = Caller):
+    def rotate_key(request: Request, response: Response, authorization: str = Header(default=""), me: Principal = Caller):
+        response.headers["Cache-Control"] = "no-store"
         """Issue a new key. The hash is replaced by ONE UPDATE, so the old key stops working at once. The raw key is
         returned once; the audit row carries no key material. The UPDATE applies only while the stored hash is still
         the presented key's, so two rotations racing on the same old key cannot both win (the loser gets 409 and no key)."""

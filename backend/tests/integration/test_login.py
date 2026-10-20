@@ -301,3 +301,12 @@ def test_the_operator_creates_an_account_even_when_signup_is_off(client, monkeyp
     weak = client.post("/admin/accounts", json={**body, "username": "weak.one", "password": "short"}, headers=HEADERS_ADMIN)
     assert weak.status_code == 400 and code(weak) == "PASSWORD_WEAK"
     assert login(client, "made.by.op").status_code == 200
+
+
+def test_responses_that_carry_a_credential_are_never_cacheable(client):
+    r = signup(client, "no.cache")
+    assert r.headers["cache-control"] == "no-store"
+    assert login(client, "no.cache").headers["cache-control"] == "no-store"
+    t = bearer(r.json()["session_token"])
+    assert client.post("/agents", headers=t, json={"name": "cache bot"}).headers["cache-control"] == "no-store"
+    assert client.post("/admin/principals", json={"name": "k", "kind": "agent"}, headers=HEADERS_ADMIN).headers["cache-control"] == "no-store"

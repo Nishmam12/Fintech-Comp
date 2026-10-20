@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 import re
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from psycopg.errors import UniqueViolation
 
 from budget_kernel.kernel.tx import audit
@@ -28,6 +28,12 @@ MAX_SESSIONS = 20              # live sessions kept per person; the oldest beyon
 USERNAME = re.compile(r"^[a-z0-9][a-z0-9._-]{2,31}$")
 
 INVALID = {"code": "INVALID_CREDENTIALS", "message": "wrong username or password"}
+
+
+def _no_store(response: Response) -> None:
+    """A response that carries a credential must never be cached by a browser or a proxy."""
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
 
 
 def _session_hours() -> int:
@@ -83,7 +89,8 @@ def install(app: FastAPI, P) -> None:
         return {"signup": _signup_allowed()}
 
     @app.post("/auth/signup", status_code=201)
-    def signup(body: schemas.Signup, request: Request):
+    def signup(body: schemas.Signup, request: Request, response: Response):
+        _no_store(response)
         if not _signup_allowed():
             raise HTTPException(403, {"code": "SIGNUP_DISABLED", "message": "accounts are created by the operator on this server"})
         username = _normalise_username(body.username)
@@ -109,7 +116,8 @@ def install(app: FastAPI, P) -> None:
         return session_body(token, exp, row["id"], name, "human", username)
 
     @app.post("/auth/login")
-    def login(body: schemas.Login, request: Request):
+    def login(body: schemas.Login, request: Request, response: Response):
+        _no_store(response)
         username = body.username.strip().lower()
         result = None
         with P(request).connection() as c:
@@ -181,7 +189,8 @@ def install(app: FastAPI, P) -> None:
             raise HTTPException(403, {"code": "HUMAN_ONLY", "message": "only a person can create or list agents"})
 
     @app.post("/agents", status_code=201)
-    def create_agent(body: schemas.CreateAgent, request: Request, me: Principal = Caller):
+    def create_agent(body: schemas.CreateAgent, request: Request, response: Response, me: Principal = Caller):
+        _no_store(response)
         """A person creates an agent principal and gets its API key once. The agent has no authority until a grant gives it some;
         it never gets a password or a session."""
         require_human(me)
