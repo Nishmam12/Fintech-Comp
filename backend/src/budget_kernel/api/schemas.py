@@ -50,6 +50,10 @@ class ChangePassword(Secret):
     new_password: str = Field(min_length=1, max_length=1024)
 
 
+class CreateAgent(Strict):
+    name: str = Field(min_length=1, max_length=100)
+
+
 class BindSettler(Strict):
     principal_id: str
 

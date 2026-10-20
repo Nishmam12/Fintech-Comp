@@ -18,11 +18,12 @@ from psycopg.errors import UniqueViolation
 from budget_kernel.kernel.tx import audit
 
 from . import schemas
-from .auth import SESSION_PREFIX, Caller, Principal, hash_key, new_session_token
+from .auth import SESSION_PREFIX, Caller, Principal, hash_key, new_key, new_session_token
 from .passwords import DUMMY_HASH, hash_password, policy_problem, verify_password
 
 LOCK_AFTER = 5                 # consecutive wrong passwords before the account locks
 LOCK_MINUTES = 15
+MAX_AGENTS = 10                # agent principals one person may create (setup flow); more is an operator task
 MAX_SESSIONS = 20              # live sessions kept per person; the oldest beyond this are removed at the next login
 USERNAME = re.compile(r"^[a-z0-9][a-z0-9._-]{2,31}$")
 
@@ -172,3 +173,37 @@ def install(app: FastAPI, P) -> None:
         if outcome == "weak":
             raise HTTPException(400, {"code": "PASSWORD_WEAK", "message": "That password is too easy to guess. Pick something else."})
         return {"ok": True}
+
+    # ------------------------------------------------------------------ setup flow: agents
+
+    def require_human(me: Principal) -> None:
+        if me.kind != "human":
+            raise HTTPException(403, {"code": "HUMAN_ONLY", "message": "only a person can create or list agents"})
+
+    @app.post("/agents", status_code=201)
+    def create_agent(body: schemas.CreateAgent, request: Request, me: Principal = Caller):
+        """A person creates an agent principal and gets its API key once. The agent has no authority until a grant gives it some;
+        it never gets a password or a session."""
+        require_human(me)
+        raw = new_key()
+        full = False
+        with P(request).connection() as c:
+            c.execute("SELECT 1 FROM principals WHERE id = %s FOR UPDATE", (me.id,))      # serialises this person's creations
+            n = c.execute("SELECT count(*) AS n FROM principals WHERE created_by = %s", (me.id,)).fetchone()["n"]
+            if n >= MAX_AGENTS:
+                full = True
+            else:
+                row = c.execute("INSERT INTO principals(name, kind, api_key_hash, created_by) VALUES (%s, 'agent', %s, %s)"
+                                " RETURNING id", (body.name, hash_key(raw), me.id)).fetchone()
+                audit(c, None, "AGENT_CREATED", me.id, row["id"])
+        if full:
+            raise HTTPException(409, {"code": "AGENT_LIMIT", "message": f"you can create up to {MAX_AGENTS} agents here"})
+        return {"principal_id": str(row["id"]), "name": body.name, "api_key": raw,
+                "note": "store this key now; it is not shown again"}
+
+    @app.get("/agents")
+    def list_agents(request: Request, me: Principal = Caller):
+        require_human(me)
+        with P(request).connection() as c:
+            rows = c.execute("SELECT id, name, created_at FROM principals WHERE created_by = %s ORDER BY created_at", (me.id,)).fetchall()
+        return {"agents": [{"principal_id": str(r["id"]), "name": r["name"], "created_at": r["created_at"].isoformat()} for r in rows]}
