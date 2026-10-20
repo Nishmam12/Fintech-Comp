@@ -17,6 +17,7 @@ const seen = (p, text, ms = 120000) => p.getByText(text).first().waitFor({ timeo
 
 async function fresh() {
   const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
+  await p.addInitScript(() => { try { localStorage.setItem("bk.tour.v1.owner", "1"); localStorage.setItem("bk.tour.v1.holder", "1"); } catch {} });
   await p.goto(URL);
   await p.getByLabel("Username").waitFor({ timeout: 60000 });
   return p;

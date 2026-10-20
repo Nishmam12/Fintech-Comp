@@ -6,6 +6,7 @@ const OUT = "../docs/submission/screenshots/r3";
 mkdirSync(OUT, { recursive: true });
 const b = await chromium.launch({ channel: "chrome" });
 const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
+await p.addInitScript(() => { try { localStorage.setItem("bk.tour.v1.owner", "1"); localStorage.setItem("bk.tour.v1.holder", "1"); } catch {} });
 const shot = (n) => p.screenshot({ path: `${OUT}/${n}.png` });
 const user = `shots.${Date.now().toString(36)}@example.com`, pass = "a calm demo passphrase";
 

@@ -17,12 +17,14 @@ const tab = (p, name) => p.locator("nav.tabs a, nav.bottom a", { hasText: name }
 
 // --- agent already asked and was suspended in the previous run; show what the agent sees now
 const a = await b.newPage({ viewport: D });
+await a.addInitScript(() => { try { localStorage.setItem("bk.tour.v1.owner", "1"); localStorage.setItem("bk.tour.v1.holder", "1"); } catch {} });
 await signIn(a, "Research bot");
 await tab(a, "Ask"); await a.waitForTimeout(3000); await shot(a, "06-ask-suspended"); log("suspended view");
 await a.close();
 
 // --- owner
 const o = await b.newPage({ viewport: D });
+await o.addInitScript(() => { try { localStorage.setItem("bk.tour.v1.owner", "1"); localStorage.setItem("bk.tour.v1.holder", "1"); } catch {} });
 await signIn(o, "Nabil");
 await o.waitForTimeout(8000); await shot(o, "02-mandate");
 await o.getByRole("button", { name: /Manage Research bot/ }).click(); await o.waitForTimeout(800); await shot(o, "09-owner-reinstate");
@@ -40,6 +42,7 @@ await o.close();
 
 // --- manager sees the owner-only reinstate text
 const m = await b.newPage({ viewport: D });
+await m.addInitScript(() => { try { localStorage.setItem("bk.tour.v1.owner", "1"); localStorage.setItem("bk.tour.v1.holder", "1"); } catch {} });
 await signIn(m, "Ops bot");
 await m.waitForTimeout(6000);
 await m.getByRole("button", { name: /Manage Research bot/ }).click(); await m.waitForTimeout(800); await shot(m, "12-manager-owner-only");
@@ -47,6 +50,7 @@ await m.close();
 
 // --- phone
 const ph = await b.newPage({ viewport: P });
+await ph.addInitScript(() => { try { localStorage.setItem("bk.tour.v1.owner", "1"); localStorage.setItem("bk.tour.v1.holder", "1"); } catch {} });
 await signIn(ph, "Nabil"); await ph.waitForTimeout(8000); await shot(ph, "13-phone-mandate");
 await tab(ph, "Review"); await ph.waitForTimeout(6000); await shot(ph, "14-phone-review");
 await ph.close();

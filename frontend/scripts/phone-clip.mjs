@@ -5,6 +5,7 @@ const b = await chromium.launch({ channel: "chrome" });
 let bad = 0;
 for (const w of [390, 360]) {
   const p = await b.newPage({ viewport: { width: w, height: 844 } });
+  await p.addInitScript(() => { try { localStorage.setItem("bk.tour.v1.owner", "1"); localStorage.setItem("bk.tour.v1.holder", "1"); } catch {} });
   for (const s of screens) {
     await p.goto(url(s)); await p.waitForTimeout(300);
     const r = await p.evaluate(() => {

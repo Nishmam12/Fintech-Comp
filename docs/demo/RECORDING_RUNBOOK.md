@@ -15,6 +15,11 @@ Replaces the beat table in `VIDEO_SCRIPT.md`. This one only uses what the frozen
 6. Every screen takes about 5 s to fill the first time (the database is far away). Talk over it or trim it. Nothing sensitive on screen: no terminal, no `.env`. Windows: Win+G (Game Bar) records the browser window; OBS also works. Do a 10-second test with sound.
 7. Keys: the agent key you will see on screen is a throwaway demo key on a scratch schema. It is fine to show; say it is a demo key.
 
+## The first-visit guide (new)
+The first time a browser profile opens the dashboard as an owner (and again as an agent), a hand-drawn guide dims the page and circles each tab and **Sign out** with a one-line note. **Any scroll, a click anywhere, Escape or the Got it button closes it.** It is remembered per role in that browser profile, so a retake in the same profile will not show it again; use **Settings, Show the guide again**, or a fresh Chrome profile or a private window, to see it.
+- In clip 3, after **Open the dashboard**, you can let it show for about 4 seconds ("each tab is explained the first time you arrive") and then click to close it. It is optional; it costs about 5 seconds.
+- If you do not want it in a take, click once as soon as it appears, or open Settings and leave it.
+
 ## The takes (record each as its own clip, then join; one clip can be redone alone)
 | Clip | Target | What you do | What you say |
 |---|---|---|---|

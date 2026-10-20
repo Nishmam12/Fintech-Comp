@@ -1,6 +1,6 @@
 /* Revision 3 design system (docs/design/UI_SPEC.md). Extracted from docs/design/mockup.html; keep the two in step.
    One fluid root size, everything in rem, full-bleed frames that fill the viewport. */
-  html { font-size: clamp(13px, min(0.95vw, 1.65dvh), 32px); }
+  html { font-size: clamp(12px, min(0.95vw, 1.65dvh), 32px); }
   @media (max-width: 767px) { html { font-size: 16px; } }
 
   :root {
@@ -251,3 +251,23 @@
   .sec-foot > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .count { margin-left: 0.5rem; }
   @media (max-width: 767px) { .sec-foot { flex-wrap: wrap; height: auto; min-height: 2.5rem; white-space: normal; padding: 0.5rem 0; row-gap: 0.25rem; } }
+
+  /* ---------- first-visit guide (components/Tour.tsx) ---------- */
+  .tour { position: fixed; inset: 0; z-index: 60; cursor: pointer; }
+  .tour-svg { position: absolute; inset: 0; display: block; }
+  .tour-dim { fill: rgba(16, 22, 19, 0.7); }
+  .tour-draw { fill: none; stroke: #fbfbf8; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round;
+    filter: drop-shadow(0 0 5px rgba(251, 251, 248, 0.55)); stroke-dasharray: 1; stroke-dashoffset: 1;
+    animation: tour-draw 0.7s ease-out var(--d, 0ms) forwards; }
+  .tour-cap { position: absolute; margin: 0; text-align: center; color: #fbfbf8; font-family: var(--nf-hand), "Caveat", "Segoe Print", cursive;
+    font-size: 1.5rem; line-height: 1.12; font-weight: 600; opacity: 0; animation: tour-in 0.45s ease-out var(--d, 0ms) forwards; }
+  .tour-cap mark { background: #ffd34d; color: #17201c; padding: 0 0.3em; border-radius: 0.2em; }
+  .tour-foot { position: absolute; left: 0; right: 0; bottom: 5.5rem; display: flex; align-items: center; justify-content: center; gap: 1rem;
+    color: #e6e8e2; font-family: var(--nf-hand), "Caveat", cursive; font-size: 1.25rem; pointer-events: none; }
+  .tour-ok { pointer-events: auto; cursor: pointer; border: 2px solid #17201c; background: #ffd34d; color: #17201c; border-radius: 999px;
+    padding: 0.35rem 1.5rem; font: inherit; font-weight: 700; font-size: 1.5rem; box-shadow: 0 0 0 3px rgba(255, 211, 77, 0.35); }
+  .tour-ok:focus-visible { outline: 3px solid #fbfbf8; outline-offset: 3px; }
+  @keyframes tour-draw { to { stroke-dashoffset: 0; } }
+  @keyframes tour-in { to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .tour-draw { animation: none; stroke-dashoffset: 0; } .tour-cap { animation: none; opacity: 1; } }
+  @media (max-width: 767px) { .tour-cap { font-size: 1.25rem; } .tour-foot { bottom: auto; top: 34%; } }

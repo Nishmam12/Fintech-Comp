@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { changePassword, describeError, isSessionToken, money, rotateKey } from "@/lib/api";
 import Section, { Filler } from "@/components/ui/Section";
+import { TOUR_EVENT } from "@/components/Tour";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/components/Toast";
 import { useMandate } from "@/lib/mandate";
@@ -96,7 +97,8 @@ export default function SettingsView() {
         {!bySession && <div className="row" style={{ gridTemplateColumns: KV }}><span className="tag" style={{ fontSize: "0.9375rem" }}>Key expires</span><span>{expiryText}</span></div>}
         <div className="row" style={{ gridTemplateColumns: KV }}><span className="tag" style={{ fontSize: "0.9375rem" }}>Settlement</span><span>Base Sepolia testnet, test USDC</span></div>
         <Filler />
-        <p className="explain">The sign-in is kept in this tab&rsquo;s memory only and disappears when you reload.</p>
+        <p className="explain">The sign-in is kept in this tab&rsquo;s memory only and disappears when you reload.{" "}
+          <button type="button" className="linkbtn" onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}>Show the guide again</button></p>
       </Section>
 
       {bySession ? (

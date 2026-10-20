@@ -12,6 +12,7 @@ const step = (name, ok, extra = "") => { console.log(`${ok ? "ok  " : "FAIL"} ${
 
 async function open(who) {
   const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
+  await p.addInitScript(() => { try { localStorage.setItem("bk.tour.v1.owner", "1"); localStorage.setItem("bk.tour.v1.holder", "1"); } catch {} });
   await p.goto(URL);
   await p.getByRole("button", { name: new RegExp(`Continue as ${who}`) }).click();
   await p.getByText("Who may spend").waitFor({ timeout: 120000 });

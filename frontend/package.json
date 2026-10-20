@@ -10,7 +10,8 @@
     "check:reasons": "node scripts/check-reasons.mjs",
     "check:layout": "node scripts/layout-check.mjs",
     "check:flow": "node scripts/flow-check.mjs",
-    "check:login": "node scripts/login-check.mjs"
+    "check:login": "node scripts/login-check.mjs",
+    "check:tour": "node scripts/tour-check.mjs"
   },
   "dependencies": {
     "next": "16.4.1",

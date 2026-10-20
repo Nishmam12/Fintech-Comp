@@ -11,6 +11,7 @@ const b = await chromium.launch({ channel: "chrome" });
 const fails = []; const scale = {};
 for (const [w,h] of sizes) {
   const p = await b.newPage({ viewport: { width: w, height: h } });
+  await p.addInitScript(() => { try { localStorage.setItem("bk.tour.v1.owner", "1"); localStorage.setItem("bk.tour.v1.holder", "1"); } catch {} });
   for (const [s, who, tab] of screens) {
     await p.goto(URL); await p.waitForTimeout(500);
     if (who) {

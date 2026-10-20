@@ -8,6 +8,7 @@ import SimulationView, { native as attackNative } from "@/components/SimulationV
 import SettingsView, { native as settingsNative } from "@/components/SettingsView";
 import SetupView from "@/components/SetupView";
 import SignIn from "@/components/SignIn";
+import Tour, { type TourStep } from "@/components/Tour";
 import Section from "@/components/ui/Section";
 import { ToastProvider } from "@/components/Toast";
 import { MandateProvider, useMandate } from "@/lib/mandate";
@@ -30,6 +31,18 @@ const HOLDER_TABS: TabId[] = ["mandate", "ask", "activity", "settings"];
 // Screens whose first section is a full-width cheque above two halves (the grid gives the cheque its natural height).
 const NATIVE_ROWS: TabId[] = ["mandate"];
 const HELD_POLL_MS = 10_000;
+
+// What the first-visit guide says about each tab. One line each, in plain words; the selector finds the tab on the desktop
+// bar or the phone bar, whichever is showing.
+const TAB_NOTE: Record<TabId, TourStep["text"]> = {
+  mandate: { pre: "where the money is and ", hl: "who", post: " may spend it" },
+  ask: { pre: "send a request and see the ", hl: "verdict", post: "" },
+  review: { pre: "requests the kernel ", hl: "held", post: " for you to approve" },
+  activity: { pre: "every ", hl: "decision", post: ", and what the models cost" },
+  attack: { pre: "run ", hl: "hostile", post: " agents against the kernel" },
+  settings: { pre: "your ", hl: "account", post: ", password or key" },
+};
+const SIGN_OUT_NOTE: TourStep["text"] = { pre: "end this ", hl: "session", post: "" };
 
 function Frame() {
   const { session, signOut } = useSession();
@@ -58,6 +71,10 @@ function Frame() {
   const body = view[1] ? view[0] : (
     <Section span={12} title={current.title} meta={current.hint}><div className="pt-4">{view[0]}</div></Section>
   );
+  const tourSteps: TourStep[] = [
+    ...visible.map((t) => ({ selector: `nav.tabs a[href="#${t.id}"], nav.bottom a[href="#${t.id}"]`, text: TAB_NOTE[t.id] })),
+    { selector: ".who a", text: SIGN_OUT_NOTE, extra: true },
+  ];
   const badge = (t: TabId) =>
     t === "review" && heldCount > 0 ? <span className="count" aria-label={`${heldCount} waiting`}>{heldCount}</span> : null;
 
@@ -79,6 +96,7 @@ function Frame() {
           </a>
         ))}
       </nav>
+      {ready && <Tour kind={isOwner ? "owner" : "holder"} steps={tourSteps} />}
       <main className={`main ${NATIVE_ROWS.includes(current.id) ? "rows-auto-fill" : ""}`}>{body}</main>
       <nav className={`bottom ${visible.length === 4 ? "four" : ""}`} aria-label="Sections">
         {visible.map((t) => (
